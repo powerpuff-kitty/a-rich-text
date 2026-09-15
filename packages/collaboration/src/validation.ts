@@ -37,8 +37,8 @@ export function cloneSelection(document: ARTDocument, selection: ARTSelection | 
   }
 }
 
-export function clonePresenceData(data: ARTJSONObject | undefined): ARTJSONObject | undefined {
-  if (data === undefined) return undefined;
+export function clonePresenceData(data: ARTJSONObject | null | undefined): ARTJSONObject | undefined {
+  if (data === undefined || data === null) return undefined;
   if (!isARTJSONValue(data) || !data || typeof data !== 'object' || Array.isArray(data)) {
     throw new CollaborationError('invalid-presence', 'Presence data must be a JSON-safe object');
   }
