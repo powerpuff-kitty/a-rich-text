@@ -20,8 +20,8 @@ export function assertIdentifier(value: string, label: string): void {
 export function deriveSuggestionKind(originalText: string, replacementText: string): SuggestionKind {
   validateText(originalText, 'original text');
   validateText(replacementText, 'replacement text');
-  if (!originalText && !replacementText) {
-    throw new SuggestionsError('invalid-suggestion', 'Suggestion must insert, delete, or replace text');
+  if (originalText === replacementText) {
+    throw new SuggestionsError('invalid-suggestion', 'Suggestion must change text');
   }
   if (!originalText) return 'insert';
   if (!replacementText) return 'delete';
@@ -74,6 +74,11 @@ export function cloneSuggestion(suggestion: TrackedSuggestion): TrackedSuggestio
   if (suggestion.conflictReason !== undefined) normalizeConflictReason(suggestion.conflictReason);
   if (suggestion.status === 'conflicted' && !suggestion.conflictReason) {
     throw new SuggestionsError('invalid-suggestion', 'Conflicted suggestion requires a conflict reason');
+  }
+  if ((suggestion.status === 'accepted' || suggestion.status === 'rejected') && (
+    suggestion.resolvedAt === undefined || suggestion.resolvedBy === undefined
+  )) {
+    throw new SuggestionsError('invalid-suggestion', `${suggestion.status} suggestion requires resolver metadata`);
   }
 
   return {
