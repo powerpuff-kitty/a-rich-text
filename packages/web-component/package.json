@@ -30,6 +30,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
+    "@arichtext/clipboard": "workspace:*",
     "@arichtext/core": "workspace:*",
     "@arichtext/dom": "workspace:*",
     "@arichtext/engine": "workspace:*",
