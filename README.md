@@ -36,12 +36,18 @@ Core architecture docs:
 - [`docs/annotations.md`](docs/annotations.md)
 - [`docs/comments.md`](docs/comments.md)
 - [`docs/suggestions.md`](docs/suggestions.md)
+- [`docs/editing-primitives.md`](docs/editing-primitives.md)
+- [`docs/quality.md`](docs/quality.md)
 
 ## Workspace
 
 ```text
 packages/core                   @arichtext/core
 packages/engine                 @arichtext/engine
+packages/links                  @arichtext/links
+packages/lists                  @arichtext/lists
+packages/lists-editor           @arichtext/lists-editor
+packages/tables                 @arichtext/tables
 packages/dom                    @arichtext/dom
 packages/extensions             @arichtext/extensions
 packages/html                   @arichtext/html
@@ -276,11 +282,12 @@ Insert/delete/replace suggestions do not modify ART while pending. Unrelated edi
 ## Development
 
 ```bash
-pnpm install
-pnpm build
-pnpm typecheck
-pnpm test
+pnpm install --frozen-lockfile
+pnpm exec playwright install chromium firefox webkit
+pnpm verify:local
 ```
+
+Validation runs locally and does not require GitHub Actions. `pnpm verify` runs package policy, build, typecheck, unit tests and bundle budgets; `pnpm test:browser` runs the browser matrix against the built packages. See [quality and verification](docs/quality.md) for evidence and release limits.
 
 The regression suite covers ART validation, conversion/sanitization, SSR imports, format interoperability, local persistence, engine transactions/history, safe DOM rendering, selection mapping, clipboard behavior, extension registries, collaboration contracts, reviewable AI proposals, transaction-mapped annotations, comments and tracked suggestions.
 

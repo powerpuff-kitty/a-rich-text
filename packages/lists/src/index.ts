@@ -5,6 +5,7 @@ import type {
   ARTParagraphNode,
 } from '@arichtext/core';
 import {
+  applyTransaction,
   transaction,
   type ARTPath,
   type ARTPathMapping,
@@ -12,6 +13,7 @@ import {
   type EditorState,
   type EditorTransaction,
 } from '@arichtext/engine';
+import { insertParagraph } from '@arichtext/engine/commands';
 
 export type ListStyle = ARTListNode['style'];
 
@@ -78,6 +80,83 @@ export function setTaskItemChecked(
     .replaceBlock(active.path, [next], mappings)
     .setSelection(mapSelection(selection, mappings))
     .setMeta('command', `setTaskItemChecked:${String(checked)}`)
+    .build();
+}
+
+/** Split a simple list item, or exit an empty item into its parent container. */
+export function insertListParagraph(state: EditorState): EditorTransaction | null {
+  const selection = state.selection;
+  if (!selection || !samePath(selection.anchor.blockPath, selection.head.blockPath)) return null;
+  const active = findNearestList(state.document, selection.anchor.blockPath);
+  if (!active || active.itemIndex < 0) return null;
+  const item = active.node.content[active.itemIndex]!;
+  const block = item.content[0];
+  // Multi-block items need a separate policy for moving nested/trailing content.
+  if (item.content.length !== 1 || !isInlineBlock(block)) return null;
+
+  if ((block.content ?? []).every((run) => run.text.length === 0)) {
+    return exitEmptyItem(state, active);
+  }
+
+  // Use normal text deletion/split operations first so annotation offsets map
+  // through the split before the resulting paragraphs move into sibling items.
+  const split = insertParagraph(state)!;
+  const intermediate = applyTransaction(state, split).state;
+  const splitList = getNodeAtPath(intermediate.document, active.path) as ARTListNode;
+  const next = cloneList(splitList);
+  const splitItem = next.content[active.itemIndex]!;
+  const right = splitItem.content.splice(1);
+  next.content.splice(active.itemIndex + 1, 0, {
+    type: 'listItem',
+    ...(next.style === 'task' ? { checked: false } : {}),
+    content: right,
+  });
+
+  const mappings: ARTPathMapping[] = [];
+  splitList.content.forEach((current, itemIndex) => {
+    current.content.forEach((child, childIndex) => {
+      const targetItem = itemIndex > active.itemIndex ? itemIndex + 1 : itemIndex;
+      const movedRight = itemIndex === active.itemIndex && childIndex === 1;
+      collectPreservedMappings(child,
+        [...active.path, itemIndex, childIndex],
+        [...active.path, movedRight ? itemIndex + 1 : targetItem, movedRight ? 0 : childIndex],
+        mappings);
+    });
+  });
+  const replacement = transaction().replaceBlock(active.path, [next], mappings).build();
+  return {
+    operations: [...split.operations, ...replacement.operations],
+    selection: mapSelection(intermediate.selection!, mappings),
+    meta: { command: 'insertListParagraph:split' },
+  };
+}
+
+function exitEmptyItem(state: EditorState, active: ListLocation): EditorTransaction {
+  const parentPath = active.path.slice(0, -1);
+  const listIndex = active.path.at(-1)!;
+  const replacement: ARTBlockNode[] = [];
+  const mappings: ARTPathMapping[] = [];
+  const appendList = (start: number, end: number): void => {
+    if (start === end) return;
+    const next = cloneList(active.node);
+    next.content = next.content.slice(start, end);
+    if (next.style === 'ordered') next.start = (active.node.start ?? 1) + start;
+    const targetPath = [...parentPath, listIndex + replacement.length];
+    replacement.push(next);
+    for (let index = start; index < end; index += 1) {
+      collectPreservedMappings(active.node.content[index],
+        [...active.path, index], [...targetPath, index - start], mappings);
+    }
+  };
+  appendList(0, active.itemIndex);
+  const paragraphPath = [...parentPath, listIndex + replacement.length];
+  replacement.push({ type: 'paragraph', content: [] });
+  mappings.push({ from: [...active.path, active.itemIndex, 0], to: paragraphPath });
+  appendList(active.itemIndex + 1, active.node.content.length);
+  return transaction()
+    .replaceBlock(active.path, replacement, mappings)
+    .setSelection(mapSelection(state.selection!, mappings))
+    .setMeta('command', 'insertListParagraph:exit')
     .build();
 }
 

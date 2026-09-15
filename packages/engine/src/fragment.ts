@@ -13,6 +13,7 @@ import {
   getInlineBlock,
   getNodeAtPath,
   inlineLength,
+  normalizeInline,
   replaceInlineRange,
   samePath,
 } from './tree.js';
@@ -27,7 +28,7 @@ export function cloneARTFragment(content: readonly ARTBlockNode[]): ARTBlockNode
   const candidate: ARTDocument = {
     type: 'doc',
     version: ART_DOCUMENT_VERSION,
-    content: cloneValue(content),
+    content: cloneValue([...content]),
   };
   if (!isARTDocument(candidate)) throw new TypeError('Invalid ART fragment');
   return candidate.content;
@@ -137,8 +138,8 @@ function withCurrentType(
   content: ARTParagraphNode['content'],
 ): ARTParagraphNode | ARTHeadingNode {
   return current.type === 'heading'
-    ? { type: 'heading', level: current.level, content: cloneInline(content ?? []) }
-    : { type: 'paragraph', content: cloneInline(content ?? []) };
+    ? { type: 'heading', level: current.level, content: normalizeInline(content ?? []) }
+    : { type: 'paragraph', content: normalizeInline(content ?? []) };
 }
 
 function withBlockType(
@@ -146,8 +147,8 @@ function withBlockType(
   content: ARTParagraphNode['content'],
 ): ARTParagraphNode | ARTHeadingNode {
   return block.type === 'heading'
-    ? { type: 'heading', level: block.level, content: cloneInline(content ?? []) }
-    : { type: 'paragraph', content: cloneInline(content ?? []) };
+    ? { type: 'heading', level: block.level, content: normalizeInline(content ?? []) }
+    : { type: 'paragraph', content: normalizeInline(content ?? []) };
 }
 
 function isInlineBlock(value: ARTBlockNode): value is ARTParagraphNode | ARTHeadingNode {

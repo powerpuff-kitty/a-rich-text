@@ -23,6 +23,7 @@ import {
   marksAtOffset,
   mutateInlineRange,
   normalizeRange,
+  normalizeInline,
   rangeHasMark,
   removeMark,
   removeMarkValue,
@@ -66,7 +67,7 @@ export class TransactionBuilder {
       type: 'replaceFragment',
       from: clonePoint(from),
       to: clonePoint(to),
-      content: cloneValue(content),
+      content: cloneValue([...content]),
     });
     return this;
   }
@@ -79,7 +80,7 @@ export class TransactionBuilder {
     this.#operations.push({
       type: 'replaceBlock',
       path: [...path],
-      content: cloneValue(content),
+      content: cloneValue([...content]),
       ...(pathMappings.length > 0
         ? {
             pathMappings: pathMappings.map((mapping) => ({
@@ -421,7 +422,7 @@ function applyJoinBlocks(
     throw new RangeError('joinBlocks only supports paragraph/heading siblings');
   }
   const caretOffset = inlineLength(left);
-  const mergedContent = cloneInline([...(left.content ?? []), ...(right.content ?? [])]);
+  const mergedContent = normalizeInline([...(left.content ?? []), ...(right.content ?? [])]);
   const merged: ARTParagraphNode | ARTHeadingNode = left.type === 'heading'
     ? { type: 'heading', level: left.level, content: mergedContent }
     : { type: 'paragraph', content: mergedContent };

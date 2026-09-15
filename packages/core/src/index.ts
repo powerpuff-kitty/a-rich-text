@@ -236,7 +236,7 @@ function isBlockNode(value: unknown, depth: number): value is ARTBlockNode {
   }
 }
 
-function isExtensionBlockNode(value: Record<string, unknown>, depth: number): value is ARTExtensionBlockNode {
+function isExtensionBlockNode(value: Record<string, unknown>, depth: number): boolean {
   if (!isExtensionName(value.name)) return false;
   if (value.attrs !== undefined && (!isRecord(value.attrs) || !isARTJSONValue(value.attrs))) return false;
   if (value.fallbackText !== undefined && typeof value.fallbackText !== 'string') return false;
@@ -247,7 +247,7 @@ function isExtensionBlockNode(value: Record<string, unknown>, depth: number): va
   return true;
 }
 
-function isListNode(value: Record<string, unknown>, depth: number): value is ARTListNode {
+function isListNode(value: Record<string, unknown>, depth: number): boolean {
   if (value.style !== 'bullet' && value.style !== 'ordered' && value.style !== 'task') return false;
   if (value.start !== undefined && (!Number.isInteger(value.start) || (value.start as number) < 1)) return false;
   if (!Array.isArray(value.content)) return false;
@@ -260,7 +260,7 @@ function isListNode(value: Record<string, unknown>, depth: number): value is ART
   });
 }
 
-function isImageNode(value: Record<string, unknown>): value is ARTImageNode {
+function isImageNode(value: Record<string, unknown>): boolean {
   if (typeof value.src !== 'string' || value.src.length === 0) return false;
   if (value.alt !== undefined && typeof value.alt !== 'string') return false;
   if (value.title !== undefined && typeof value.title !== 'string') return false;
@@ -269,7 +269,7 @@ function isImageNode(value: Record<string, unknown>): value is ARTImageNode {
   return true;
 }
 
-function isTableNode(value: Record<string, unknown>, depth: number): value is ARTTableNode {
+function isTableNode(value: Record<string, unknown>, depth: number): boolean {
   if (!Array.isArray(value.content) || value.content.length === 0) return false;
   let expectedCellCount: number | undefined;
 

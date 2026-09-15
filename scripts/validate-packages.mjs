@@ -8,6 +8,12 @@ const policy = JSON.parse(await readFile(path.join(root, 'quality/dependency-pol
 const packageDirs = (await readdir(packagesRoot)).sort();
 const manifests = new Map();
 const errors = [];
+const NETWORK_PATTERNS = [
+  { label: 'fetch()', regex: /\bfetch\s*\(/ },
+  { label: 'WebSocket', regex: /\bnew\s+WebSocket\s*\(/ },
+  { label: 'EventSource', regex: /\bnew\s+EventSource\s*\(/ },
+  { label: 'XMLHttpRequest', regex: /\bnew\s+XMLHttpRequest\s*\(/ },
+];
 
 for (const directory of packageDirs) {
   const manifestPath = path.join(packagesRoot, directory, 'package.json');
@@ -123,10 +129,3 @@ async function exists(file) {
     return false;
   }
 }
-
-const NETWORK_PATTERNS = [
-  { label: 'fetch()', regex: /\bfetch\s*\(/ },
-  { label: 'WebSocket', regex: /\bnew\s+WebSocket\s*\(/ },
-  { label: 'EventSource', regex: /\bnew\s+EventSource\s*\(/ },
-  { label: 'XMLHttpRequest', regex: /\bnew\s+XMLHttpRequest\s*\(/ },
-];

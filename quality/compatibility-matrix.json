@@ -4,44 +4,84 @@
     {
       "target": "Chromium desktop",
       "project": "chromium",
-      "status": "configured-not-verified",
-      "reason": "GitHub Actions runner blocker #15 prevents current evidence generation"
+      "status": "verified-local",
+      "verifiedAt": "2026-09-15",
+      "browserVersion": "153.0.8010.12",
+      "evidence": "docs/verification/2026-09-15-local.md"
     },
     {
       "target": "Firefox desktop",
       "project": "firefox",
-      "status": "configured-not-verified",
-      "reason": "GitHub Actions runner blocker #15 prevents current evidence generation"
+      "status": "verified-local",
+      "verifiedAt": "2026-09-15",
+      "browserVersion": "155.0",
+      "evidence": "docs/verification/2026-09-15-local.md"
     },
     {
       "target": "WebKit desktop",
       "project": "webkit",
-      "status": "configured-not-verified",
-      "reason": "GitHub Actions runner blocker #15 prevents current evidence generation"
+      "status": "verified-local",
+      "verifiedAt": "2026-09-15",
+      "browserVersion": "26.6",
+      "evidence": "docs/verification/2026-09-15-local.md"
     },
     {
       "target": "Android-class Chromium emulation (Pixel 7)",
       "project": "mobile-chromium",
-      "status": "configured-not-verified",
-      "reason": "Emulation is not equivalent to a real Android device and current runner is blocked"
+      "status": "verified-local",
+      "verifiedAt": "2026-09-15",
+      "browserVersion": "153.0.8010.12",
+      "evidence": "docs/verification/2026-09-15-local.md"
     },
     {
       "target": "iOS-class WebKit emulation (iPhone 15)",
       "project": "mobile-webkit",
-      "status": "configured-not-verified",
-      "reason": "Emulation is not equivalent to a real iPhone and current runner is blocked"
+      "status": "verified-local",
+      "verifiedAt": "2026-09-15",
+      "browserVersion": "26.6",
+      "evidence": "docs/verification/2026-09-15-local.md"
     }
   ],
   "manual": [
-    { "target": "Safari on physical iPhone", "status": "not-verified" },
-    { "target": "Chrome on physical Android", "status": "not-verified" },
-    { "target": "VoiceOver + Safari", "status": "not-verified" },
-    { "target": "NVDA + Firefox/Chrome", "status": "not-verified" },
-    { "target": "JAWS + Chrome/Edge", "status": "not-verified" },
-    { "target": "IME: Japanese", "status": "not-verified" },
-    { "target": "IME: Chinese", "status": "not-verified" },
-    { "target": "IME: Korean", "status": "not-verified" },
-    { "target": "RTL: Arabic/Hebrew editing", "status": "not-verified" },
-    { "target": "Mobile virtual keyboard selection/scroll", "status": "not-verified" }
+    {
+      "target": "Safari on physical iPhone",
+      "status": "not-verified"
+    },
+    {
+      "target": "Chrome on physical Android",
+      "status": "not-verified"
+    },
+    {
+      "target": "VoiceOver + Safari",
+      "status": "not-verified"
+    },
+    {
+      "target": "NVDA + Firefox/Chrome",
+      "status": "not-verified"
+    },
+    {
+      "target": "JAWS + Chrome/Edge",
+      "status": "not-verified"
+    },
+    {
+      "target": "IME: Japanese",
+      "status": "not-verified"
+    },
+    {
+      "target": "IME: Chinese",
+      "status": "not-verified"
+    },
+    {
+      "target": "IME: Korean",
+      "status": "not-verified"
+    },
+    {
+      "target": "RTL: Arabic/Hebrew editing",
+      "status": "not-verified"
+    },
+    {
+      "target": "Mobile virtual keyboard selection/scroll",
+      "status": "not-verified"
+    }
   ]
 }

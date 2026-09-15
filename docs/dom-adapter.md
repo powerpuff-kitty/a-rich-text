@@ -45,6 +45,8 @@ Offsets are character offsets across an ART paragraph/heading, independent of ho
 
 Rendered `<br>` nodes count as one logical newline character. Anchor/focus direction is retained so backwards selections can round-trip.
 
+Selections inside a shadow root use the root's selection API where available, with standard [`getComposedRanges({ shadowRoots })`](https://www.w3.org/TR/selection-api/#dom-selection-getcomposedranges) support for document selections retargeted to the host. Container endpoints from empty-editor clicks and select-all map to the nearest logical text boundaries.
+
 ## Nested blocks
 
 Block paths follow ART content arrays:
@@ -66,13 +68,14 @@ Currently safe to intercept:
 - delete-by-cut/drag when there is a selection
 - undo/redo
 - bold/italic/underline/strike format intents
+- paragraph splitting and grapheme-aware backward/forward deletion
 
 Currently **not** intercepted:
 
 - composition/IME mutations
 - paste/drop payloads
-- paragraph/list structural changes
-- collapsed backward/forward/word deletion
+- list structural changes (the optional list adapter handles Enter)
+- word/line deletion
 - unknown input types
 
 Unsupported input is never marked as supported merely because the browser can mutate `contenteditable`. Dedicated reconciliation/structural operations must be implemented first.

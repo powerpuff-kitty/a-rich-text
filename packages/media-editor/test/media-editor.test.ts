@@ -114,14 +114,19 @@ describe('@arichtext/media-editor', () => {
     select(editor, 1);
 
     let resolveUpload!: (value: { url: string; id: string }) => void;
+    let notifyUploadStarted!: () => void;
+    const uploadStarted = new Promise<void>((resolve) => { notifyUploadStarted = resolve; });
     const provider: ImageUploadProvider = {
-      upload: () => new Promise((resolve) => { resolveUpload = resolve; }),
+      upload: () => new Promise((resolve) => {
+        resolveUpload = resolve;
+        notifyUploadStarted();
+      }),
     };
     const controller = attachImageMedia(editor, { provider });
     const file = new File(['image'], 'upload.webp', { type: 'image/webp' });
     const task = controller.insertFile(file);
 
-    await Promise.resolve();
+    await uploadStarted;
     editor.setText('changed');
     resolveUpload({ url: 'https://cdn.example/orphan.webp', id: 'orphan' });
 

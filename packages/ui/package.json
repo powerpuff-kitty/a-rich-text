@@ -30,6 +30,9 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
+    "@arichtext/links": "workspace:*",
+    "@arichtext/lists": "workspace:*",
+    "@arichtext/tables": "workspace:*",
     "@arichtext/web-component": "workspace:*"
   }
 }

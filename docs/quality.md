@@ -7,9 +7,12 @@ The project should not label a browser, device, accessibility workflow or perfor
 ## Verification commands
 
 ```bash
-pnpm verify
-pnpm test:browser
+pnpm install --frozen-lockfile
+pnpm exec playwright install chromium firefox webkit
+pnpm verify:local
 ```
+
+Run these checks locally. GitHub Actions availability is not a prerequisite for development or validation. Keep `pnpm-lock.yaml` with dependency changes so clean installations resolve the same versions.
 
 `pnpm verify` is the non-browser release gate:
 
@@ -22,6 +25,8 @@ bundled + gzipped size budgets
 ```
 
 `pnpm test:browser` runs Playwright against the real built browser surface.
+
+`pnpm verify:local` runs both gates in order. Keep the console output and `test-results/playwright-results.json` with the revision being reviewed; traces are retained for failed browser tests. The latest recorded run is [local verification, 2026-09-15](verification/2026-09-15-local.md).
 
 ## Package policy
 
@@ -79,7 +84,7 @@ Initial hard ceilings:
 
 The entries live under `quality/entries/` and the limits under `quality/bundle-budgets.json`.
 
-These are release budgets, **not current measured claims yet**. The current GitHub Actions runner problem (#15) prevents evidence generation in the hosted workflow. Once executable, the gate will either prove the budget or force optimization/budget review.
+Local measurements and the exact verification environment are recorded in the [verification evidence](verification/2026-09-15-local.md). Run the budget gate after implementation changes; measurements apply to that source and lockfile, not every future build.
 
 A budget should be changed only after feature-matched measurement, not to hide a regression.
 
@@ -105,6 +110,8 @@ The smoke suite covers:
 - toolbar commands/focus;
 - readonly protection;
 - extension fallback rendering.
+- list Enter/exit and atomic undo;
+- table insertion and row/column controls.
 
 Emulation is not equivalent to physical-device verification.
 
@@ -128,6 +135,8 @@ aria-invalid
 ```
 
 `placeholder` is also exposed as `aria-placeholder`.
+
+`aria-labelledby` and `aria-describedby` IDs are resolved in the host's tree and assigned to the editable surface through element-reference properties. Copying ID strings into a shadow root alone cannot resolve external elements. See [ARIA element references](https://developer.mozilla.org/en-US/docs/Web/API/Element/ariaLabelledByElements). Referenced elements must exist when the editor connects or the host ARIA attributes change; direct `aria-label` remains available. Native accessible naming is tested through Chromium's accessibility tree; other targets verify the reflected references and textbox semantics. Playwright's DOM-based name matcher does not currently account for those cross-root references.
 
 `readonly`/`disabled` update both editability and ARIA state.
 
@@ -163,22 +172,13 @@ safe DOM construction / escaped serialization
 
 `quality/compatibility-matrix.json` uses explicit evidence states.
 
-Current values intentionally include:
-
-```text
-configured-not-verified
-not-verified
-```
-
-because GitHub-hosted jobs are currently blocked before runner allocation by issue #15.
-
-When the browser job executes successfully, automated target results can be generated/promoted to verified evidence. Physical iPhone/Android, screen-reader, IME and mobile-keyboard checks remain manual unless backed by appropriate device infrastructure.
+Automated targets with a recorded passing local run are marked `verified-local` and link to dated evidence. Physical iPhone/Android, screen-reader, IME and mobile-keyboard checks remain `not-verified` until backed by appropriate device or manual evidence. A passing smoke matrix is not a blanket browser support claim.
 
 ## Release rule
 
 Before the first public npm release, at minimum:
 
-1. CI runner #15 resolved;
+1. local validation evidence retained for the release candidate and lockfile;
 2. `pnpm verify` green on a clean checkout;
 3. Playwright browser matrix green for configured automated targets;
 4. bundle budgets measured and passing (or consciously revised with evidence);

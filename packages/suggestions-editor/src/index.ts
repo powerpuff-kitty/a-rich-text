@@ -412,7 +412,7 @@ export class SuggestionsEditorController {
     }
 
     let tracker: AnchoredRangeTracker | undefined;
-    if (incoming.status === 'pending') {
+    if (incoming.status === 'pending' && incoming.anchor.status !== 'orphaned') {
       try {
         tracker = new AnchoredRangeTracker(this.#lastDocument, incoming.anchor.range);
         if (textAtAnchor(this.#lastDocument, incoming.anchor) !== incoming.originalText) {

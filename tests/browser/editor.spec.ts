@@ -11,17 +11,23 @@ test.beforeEach(async ({ page }) => {
   await page.locator('#editor').waitFor();
 });
 
-test('registers the editor and exposes an accessible textbox surface', async ({ page }) => {
+test('registers the editor and exposes an accessible textbox surface', async ({ page, browserName }) => {
   const editor = page.locator('#editor');
   const surface = editor.locator('[part="editor"]');
 
   await expect(surface).toHaveAttribute('role', 'textbox');
   await expect(surface).toHaveAttribute('aria-multiline', 'true');
-  await expect(surface).toHaveAttribute('aria-labelledby', 'body-label');
+  await expect.poll(() => surface.evaluate((node) => node.ariaLabelledByElements?.map((label) => label.textContent))).toEqual(['Body']);
   await expect(surface).toHaveAttribute('aria-placeholder', 'Write something…');
   await expect(surface).toHaveAttribute('data-placeholder', 'Write something…');
-  // This verifies the accessibility tree, not only the raw ARIA attribute.
-  await expect(page.getByRole('textbox', { name: 'Body' })).toHaveCount(1);
+  // Playwright's DOM-based name calculation does not yet read reflected element
+  // references. Chromium exposes its actual accessibility tree through CDP.
+  if (browserName === 'chromium') {
+    const cdp = await page.context().newCDPSession(page);
+    const tree = await cdp.send('Accessibility.getFullAXTree');
+    expect(tree.nodes.filter((node) => node.role?.value === 'textbox').map((node) => node.name?.value)).toEqual(['Body']);
+    await cdp.detach();
+  }
 });
 
 test('types through browser editing and supports engine undo', async ({ page }) => {
@@ -33,7 +39,7 @@ test('types through browser editing and supports engine undo', async ({ page }) 
   expect(await textValue(editor)).toBe('hello');
 
   // Each intercepted beforeinput is one explicit engine transaction/history step.
-  await surface.press('Control+z');
+  await surface.press('ControlOrMeta+z');
   expect(await textValue(editor)).toBe('hell');
 });
 
@@ -60,7 +66,7 @@ test('toolbar formatting routes through editor commands', async ({ page }) => {
   });
 
   await surface.click();
-  await surface.press('Control+a');
+  await surface.press('ControlOrMeta+a');
   await page.getByRole('button', { name: 'Bold' }).click();
 
   const html = await editor.evaluate((node: HTMLElement) =>
@@ -102,4 +108,36 @@ test('renders portable extension fallback without an extension runtime', async (
   const extension = editor.locator('[data-art-extension-block="acme:card"]');
   await expect(extension).toContainText('Portable card');
   await expect(extension).toHaveAttribute('data-art-extension-attrs', '{"id":"123"}');
+});
+
+test('list Enter creates siblings, exits an empty item, and undoes atomically', async ({ page }) => {
+  const editor = page.locator('#editor');
+  const surface = editor.locator('[part="editor"]');
+  await surface.click();
+  await surface.pressSequentially('first');
+  await page.getByRole('button', { name: 'Bullet list', exact: true }).click();
+  await surface.press('Enter');
+  await surface.pressSequentially('second');
+  await expect(surface.locator('li')).toHaveCount(2);
+  await expect(surface.locator('li').nth(1)).toHaveText('second');
+  await surface.press('Enter');
+  await expect(surface.locator('li')).toHaveCount(3);
+  await surface.press('Enter');
+  await expect(surface.locator('li')).toHaveCount(2);
+  await expect(surface.locator(':scope > p')).toHaveCount(1);
+  await surface.press('ControlOrMeta+z');
+  await expect(surface.locator('li')).toHaveCount(3);
+});
+
+test('table controls edit dimensions and preserve undo', async ({ page }) => {
+  const surface = page.locator('#editor').locator('[part="editor"]');
+  await surface.click();
+  await page.getByRole('button', { name: 'Insert table', exact: true }).click();
+  await expect(surface.locator('tr')).toHaveCount(2);
+  await page.getByRole('button', { name: 'Add table row', exact: true }).click();
+  await expect(surface.locator('tr')).toHaveCount(3);
+  await page.getByRole('button', { name: 'Add table column', exact: true }).click();
+  await expect(surface.locator('tr').first().locator('td')).toHaveCount(3);
+  await page.getByRole('button', { name: 'Undo', exact: true }).click();
+  await expect(surface.locator('tr').first().locator('td')).toHaveCount(2);
 });

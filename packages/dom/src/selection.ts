@@ -14,10 +14,19 @@ interface DOMPoint {
 
 export function readDOMSelection(
   root: HTMLElement,
-  domSelection: Selection | null = root.ownerDocument.getSelection(),
+  domSelection: Selection | null = selectionForRoot(root),
 ): ARTSelection | null {
   if (!domSelection?.anchorNode || !domSelection.focusNode) return null;
-  if (!isInside(root, domSelection.anchorNode) || !isInside(root, domSelection.focusNode)) return null;
+  if (!isInside(root, domSelection.anchorNode) || !isInside(root, domSelection.focusNode)) {
+    const scope = root.getRootNode();
+    if (!(scope instanceof ShadowRoot) || typeof domSelection.getComposedRanges !== 'function') return null;
+    const range = domSelection.getComposedRanges({ shadowRoots: [scope] })[0];
+    if (!range || !isInside(root, range.startContainer) || !isInside(root, range.endContainer)) return null;
+    const start = readDOMPoint(root, range.startContainer, range.startOffset);
+    const end = readDOMPoint(root, range.endContainer, range.endOffset);
+    if (!start || !end) return null;
+    return domSelection.direction === 'backward' ? textSelection(end, start) : textSelection(start, end);
+  }
 
   const anchor = readDOMPoint(root, domSelection.anchorNode, domSelection.anchorOffset);
   const head = readDOMPoint(root, domSelection.focusNode, domSelection.focusOffset);
@@ -28,7 +37,7 @@ export function readDOMSelection(
 export function writeDOMSelection(
   root: HTMLElement,
   selection: ARTSelection,
-  domSelection: Selection | null = root.ownerDocument.getSelection(),
+  domSelection: Selection | null = selectionForRoot(root),
 ): boolean {
   if (!domSelection) return false;
 
@@ -66,9 +75,30 @@ export function getLogicalTextLength(block: HTMLElement): number {
   return logicalLength(block);
 }
 
+function selectionForRoot(root: HTMLElement): Selection | null {
+  const scope = root.getRootNode() as Node & { getSelection?: () => Selection | null };
+  return scope.getSelection?.() ?? root.ownerDocument.getSelection();
+}
+
 function readDOMPoint(root: HTMLElement, node: Node, offset: number): ARTTextPoint | null {
   const block = findTextBlock(root, node);
-  if (!block) return null;
+  if (!block) {
+    // Empty editors and select-all can place endpoints on a container boundary.
+    if (node.nodeType !== 1 || !isInside(root, node) || offset < 0 || offset > node.childNodes.length) return null;
+    const blocksIn = (child: Node): HTMLElement[] => child.nodeType === 1
+      ? [(child as HTMLElement), ...Array.from((child as Element).querySelectorAll<HTMLElement>(`[${ART_TEXT_BLOCK_ATTRIBUTE}]`))]
+        .filter((element) => element.hasAttribute(ART_TEXT_BLOCK_ATTRIBUTE))
+      : [];
+    for (let index = offset; index < node.childNodes.length; index += 1) {
+      const next = blocksIn(node.childNodes[index]!)[0];
+      if (next) return readDOMPoint(root, next, 0);
+    }
+    for (let index = offset - 1; index >= 0; index -= 1) {
+      const previous = blocksIn(node.childNodes[index]!).at(-1);
+      if (previous) return readDOMPoint(root, previous, previous.childNodes.length);
+    }
+    return null;
+  }
   const encodedPath = block.getAttribute(ART_BLOCK_PATH_ATTRIBUTE);
   if (!encodedPath) return null;
 

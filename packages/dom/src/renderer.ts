@@ -100,7 +100,7 @@ function renderBlock(
     case 'list': {
       const list = owner.createElement(block.style === 'ordered' ? 'ol' : 'ul');
       list.dataset.artList = block.style;
-      if (block.style === 'ordered' && block.start && block.start !== 1) list.start = block.start;
+      if (block.style === 'ordered' && block.start && block.start !== 1) list.setAttribute('start', String(block.start));
       block.content.forEach((item, itemIndex) => {
         const li = owner.createElement('li');
         if (block.style === 'task') {

@@ -137,4 +137,39 @@ describe('@arichtext/lists Enter semantics', () => {
     const state = createEditorState(doc, textSelection(textPoint([0, 0, 0], 1)));
     expect(insertListParagraph(state)).toBeNull();
   });
+
+  it('preserves marks and maps later items when splitting inside a blockquote', () => {
+    const inner = listDocument('ordered');
+    const list = inner.content[0] as ARTListNode;
+    list.start = 4;
+    list.content[0]!.content[0] = {
+      type: 'paragraph', content: [{ type: 'text', text: 'hello', marks: [{ type: 'bold' }] }],
+    };
+    const doc: ARTDocument = { type: 'doc', version: 1, content: [{ type: 'blockquote', content: [list] }] };
+    const state = createEditorState(doc, textSelection(textPoint([0, 0, 0, 0], 2)));
+    const anchor = createAnchoredRange(doc, textSelection(textPoint([0, 0, 1, 0], 0), textPoint([0, 0, 1, 0], 5)));
+    const tx = insertListParagraph(state)!;
+    const result = applyTransaction(state, tx);
+    expect(result.state.document.content[0]).toMatchObject({
+      content: [{ start: 4, content: [
+        { content: [{ content: [{ text: 'he', marks: [{ type: 'bold' }] }] }] },
+        { content: [{ content: [{ text: 'llo', marks: [{ type: 'bold' }] }] }] },
+        { content: [{ content: [{ text: 'later' }] }] },
+      ] }],
+    });
+    const mapped = mapAnchoredRangeThroughTransaction(doc, anchor, tx);
+    expect(mapped.range?.start.blockPath).toEqual([0, 0, 2, 0]);
+    expect(doc.content[0]).toMatchObject({ content: [{ content: [{ content: [{ content: [{ text: 'hello' }] }] }, {}] }] });
+  });
+
+  it.each([0, 1])('exits an empty edge item (%s) and preserves its neighbor', (emptyIndex) => {
+    const doc = listDocument();
+    const list = doc.content[0] as ARTListNode;
+    list.content[emptyIndex]!.content = [{ type: 'paragraph', content: [] }];
+    const state = createEditorState(doc, textSelection(textPoint([0, emptyIndex, 0], 0)));
+    const result = applyTransaction(state, insertListParagraph(state)!);
+    expect(result.state.document.content).toHaveLength(2);
+    expect(result.state.document.content[emptyIndex]).toEqual({ type: 'paragraph', content: [] });
+    expect((result.state.document.content[1 - emptyIndex] as ARTListNode).content).toHaveLength(1);
+  });
 });

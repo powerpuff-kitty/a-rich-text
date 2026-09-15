@@ -106,4 +106,29 @@ describe('@arichtext/dom selection mapping', () => {
 
     expect(readDOMSelection(root, fake)).toBeNull();
   });
+
+  it('maps container endpoints for empty-editor carets and select-all', () => {
+    renderARTDocument(root, {
+      type: 'doc', version: 1,
+      content: [{ type: 'paragraph', content: [] }, { type: 'paragraph', content: [{ type: 'text', text: 'last' }] }],
+    });
+    const captured = captureSelection();
+    captured.setBaseAndExtent(root, 0, root, 0);
+    expect(readDOMSelection(root, captured as unknown as Selection)).toEqual(textSelection(textPoint([0], 0)));
+    captured.setBaseAndExtent(root, 0, root, 2);
+    expect(readDOMSelection(root, captured as unknown as Selection)).toEqual(textSelection(textPoint([0], 0), textPoint([1], 4)));
+  });
+
+  it('recovers a backward range when the document selection is retargeted outside the shadow root', () => {
+    const host = document.createElement('div');
+    document.body.append(host);
+    host.attachShadow({ mode: 'open' }).append(root);
+    renderARTDocument(root, { type: 'doc', version: 1, content: [{ type: 'paragraph', content: [{ type: 'text', text: 'hello' }] }] });
+    const text = root.querySelector('p')!.firstChild!;
+    const fake = {
+      anchorNode: document.body, focusNode: document.body, direction: 'backward',
+      getComposedRanges: () => [{ startContainer: text, startOffset: 1, endContainer: text, endOffset: 4 }],
+    } as unknown as Selection;
+    expect(readDOMSelection(root, fake)).toEqual(textSelection(textPoint([0], 4), textPoint([0], 1)));
+  });
 });

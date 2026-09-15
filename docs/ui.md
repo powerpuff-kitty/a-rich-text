@@ -21,10 +21,15 @@ The first toolbar includes:
 - italic
 - underline
 - strikethrough
+- link entry/removal with validation feedback
+- bullet, numbered and task lists
+- table insertion and contextual row/column controls
 - undo
 - redo
 
 The toolbar calls the public engine-backed editor API. It never uses `document.execCommand` and does not parse the editor DOM to determine formatting state.
+
+List-aware Enter requires the optional `@arichtext/lists-editor` adapter. See [editing primitives](editing-primitives.md) for command APIs and current boundaries.
 
 ## Programmatic binding
 

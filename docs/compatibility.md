@@ -16,13 +16,13 @@ The Playwright configuration currently targets:
 
 | Target | Evidence source | Current status |
 |---|---|---|
-| Chromium desktop | `chromium` Playwright project | configured, not verified |
-| Firefox desktop | `firefox` Playwright project | configured, not verified |
-| WebKit desktop | `webkit` Playwright project | configured, not verified |
-| Pixel 7 Chromium emulation | `mobile-chromium` | configured, not verified |
-| iPhone 15 WebKit emulation | `mobile-webkit` | configured, not verified |
+| Chromium desktop | `chromium` Playwright project | verified locally, 2026-09-15 |
+| Firefox desktop | `firefox` Playwright project | verified locally, 2026-09-15 |
+| WebKit desktop | `webkit` Playwright project | verified locally, 2026-09-15 |
+| Pixel 7 Chromium emulation | `mobile-chromium` | verified locally, 2026-09-15 |
+| iPhone 15 WebKit emulation | `mobile-webkit` | verified locally, 2026-09-15 |
 
-The current status is intentionally conservative because GitHub Actions issue #15 prevents hosted jobs from reaching a runner.
+See [local verification evidence](verification/2026-09-15-local.md) for versions, commands and scope. These results cover the automated smoke suite on the tested revision; they do not establish physical-device, screen-reader or IME support. Validation runs locally without requiring GitHub Actions.
 
 ## Browser smoke contract
 
@@ -37,6 +37,8 @@ form-associated serialization
 optional toolbar formatting/focus
 readonly protection
 portable extension fallback rendering
+list Enter/exit and atomic undo
+table row/column editing and undo
 ```
 
 Additional regression suites cover conversion/security independently of Playwright.
@@ -144,7 +146,7 @@ For each release candidate:
 
 1. run `pnpm verify`;
 2. run the Playwright matrix from a clean build;
-3. retain the browser JSON/traces as CI artifacts;
+3. retain the local browser JSON/traces with the tested revision and lockfile;
 4. perform required physical-device/assistive-technology checks;
 5. update the compatibility evidence/status;
 6. document any failing target or workaround before release.

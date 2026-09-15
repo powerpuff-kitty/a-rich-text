@@ -481,10 +481,13 @@ export class ARichTextElement extends HTMLElementBase {
   };
 
   #handleBeforeInput = (event: InputEvent): void => {
+    if (event.defaultPrevented) return;
     if (this.disabled || this.readOnly) {
       event.preventDefault();
       return;
     }
+
+    if (this.#composing || !event.cancelable) return;
 
     const intent = classifyBeforeInput(event);
     if (!intent.intercept) return;
@@ -728,6 +731,21 @@ export class ARichTextElement extends HTMLElementBase {
       const value = this.getAttribute(attribute);
       if (value === null) this.#editor.removeAttribute(attribute);
       else this.#editor.setAttribute(attribute, value);
+    }
+
+    // ID references cannot cross into a shadow root. Element references can
+    // point to labels/descriptions in the host's containing tree.
+    const scope = this.getRootNode() as Document | ShadowRoot;
+    for (const [attribute, property] of [
+      ['aria-labelledby', 'ariaLabelledByElements'],
+      ['aria-describedby', 'ariaDescribedByElements'],
+    ] as const) {
+      if (!(property in this.#editor)) continue;
+      const elements = (this.getAttribute(attribute) ?? '').split(/\s+/)
+        .map((id) => scope.getElementById?.(id))
+        .filter((element): element is HTMLElement => element != null);
+      // Retain unresolved IDs until connection; the next sync resolves them.
+      if (elements.length > 0 || !this.hasAttribute(attribute)) this.#editor[property] = elements;
     }
 
     const placeholder = this.getAttribute('placeholder') ?? '';

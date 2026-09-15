@@ -73,6 +73,13 @@ export function cloneInline(content: readonly ARTTextNode[]): ARTTextNode[] {
   return content.map((node) => ({ type: 'text', text: node.text, ...(node.marks ? { marks: cloneMarks(node.marks) } : {}) }));
 }
 
+/** Coalesce adjacent runs with identical marks after structural edits. */
+export function normalizeInline(content: readonly ARTTextNode[]): ARTTextNode[] {
+  const output: ARTTextNode[] = [];
+  for (const node of content) pushTextNode(output, node.text, node.marks ?? []);
+  return output;
+}
+
 export function cloneMarks(marks: readonly ARTTextMark[]): ARTTextMark[] { return marks.map(cloneMark); }
 
 export function cloneMark(mark: ARTTextMark): ARTTextMark {
