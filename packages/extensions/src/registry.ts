@@ -1,4 +1,5 @@
 import { isExtensionName } from '@arichtext/core';
+import type { ARTExtensionBlockNode, ARTExtensionMark, ARTJSONValue } from '@arichtext/core';
 import type {
   ARichTextExtension,
   ExtensionBlockDefinition,
@@ -34,40 +35,36 @@ export class ExtensionRegistry<TContext = unknown> implements ExtensionRegistryV
     return this.#extensions.some((extension) => extension.name === name);
   }
 
-  getBlock(name: string): ExtensionBlockDefinition | undefined {
-    return this.#blocks.get(name);
+  getBlock(name: string): ExtensionBlockDefinition | undefined { return this.#blocks.get(name); }
+  getMark(name: string): ExtensionMarkDefinition | undefined { return this.#marks.get(name); }
+  getCommand(name: string): ExtensionCommandDefinition<TContext> | undefined { return this.#commands.get(name); }
+  getKeyBinding(key: string): ExtensionKeyBinding | undefined { return this.#keybindings.get(normalizeKeyBinding(key)); }
+
+  validateBlock(node: ARTExtensionBlockNode): boolean {
+    const definition = this.#blocks.get(node.name);
+    return Boolean(definition && (definition.validate?.(node) ?? true));
   }
 
-  getMark(name: string): ExtensionMarkDefinition | undefined {
-    return this.#marks.get(name);
-  }
-
-  getCommand(name: string): ExtensionCommandDefinition<TContext> | undefined {
-    return this.#commands.get(name);
-  }
-
-  getKeyBinding(key: string): ExtensionKeyBinding | undefined {
-    return this.#keybindings.get(normalizeKeyBinding(key));
+  validateMark(mark: ARTExtensionMark): boolean {
+    const definition = this.#marks.get(mark.name);
+    return Boolean(definition && (definition.validate?.(mark) ?? true));
   }
 
   install(extension: ARichTextExtension<TContext>): () => void {
     validateExtension(extension);
-    if (this.hasExtension(extension.name)) {
-      throw new ExtensionConflictError(`Extension already installed: ${extension.name}`);
-    }
+    if (this.hasExtension(extension.name)) throw new ExtensionConflictError(`Extension already installed: ${extension.name}`);
 
-    const ownedBlocks = [...(extension.blocks ?? [])];
-    const ownedMarks = [...(extension.marks ?? [])];
-    const ownedCommands = [...(extension.commands ?? [])];
-    const ownedKeys = [...(extension.keybindings ?? [])];
-
-    this.#assertAvailable(extension, ownedBlocks, ownedMarks, ownedCommands, ownedKeys);
+    const blocks = [...(extension.blocks ?? [])];
+    const marks = [...(extension.marks ?? [])];
+    const commands = [...(extension.commands ?? [])];
+    const keys = [...(extension.keybindings ?? [])];
+    this.#assertAvailable(extension, blocks, marks, commands, keys);
 
     this.#extensions.push(extension);
-    for (const block of ownedBlocks) this.#blocks.set(block.name, block);
-    for (const mark of ownedMarks) this.#marks.set(mark.name, mark);
-    for (const command of ownedCommands) this.#commands.set(command.name, command);
-    for (const binding of ownedKeys) this.#keybindings.set(normalizeKeyBinding(binding.key), binding);
+    for (const item of blocks) this.#blocks.set(item.name, item);
+    for (const item of marks) this.#marks.set(item.name, item);
+    for (const item of commands) this.#commands.set(item.name, item);
+    for (const item of keys) this.#keybindings.set(normalizeKeyBinding(item.key), item);
 
     try {
       extension.onInstall?.(this);
@@ -80,20 +77,18 @@ export class ExtensionRegistry<TContext = unknown> implements ExtensionRegistryV
     return () => {
       if (!active) return;
       active = false;
-      extension.onUninstall?.(this);
-      this.#removeOwned(extension);
+      this.#uninstallExtension(extension);
     };
   }
 
   uninstall(name: string): boolean {
     const extension = this.#extensions.find((candidate) => candidate.name === name);
     if (!extension) return false;
-    extension.onUninstall?.(this);
-    this.#removeOwned(extension);
+    this.#uninstallExtension(extension);
     return true;
   }
 
-  async runCommand(name: string, host: TContext, args?: import('@arichtext/core').ARTJSONValue): Promise<unknown> {
+  async runCommand(name: string, host: TContext, args?: ARTJSONValue): Promise<unknown> {
     const command = this.#commands.get(name);
     if (!command) throw new RangeError(`Unknown extension command: ${name}`);
     const extension = this.#extensions.find((candidate) => candidate.commands?.includes(command));
@@ -104,6 +99,18 @@ export class ExtensionRegistry<TContext = unknown> implements ExtensionRegistryV
   resolveKeyBinding(key: string): ExtensionKeyBinding | undefined {
     const binding = this.getKeyBinding(key);
     return binding ? { ...binding } : undefined;
+  }
+
+  #uninstallExtension(extension: ARichTextExtension<TContext>): void {
+    let hookError: unknown;
+    try {
+      extension.onUninstall?.(this);
+    } catch (error) {
+      hookError = error;
+    } finally {
+      this.#removeOwned(extension);
+    }
+    if (hookError !== undefined) throw hookError;
   }
 
   #assertAvailable(
@@ -118,57 +125,44 @@ export class ExtensionRegistry<TContext = unknown> implements ExtensionRegistryV
     const seenCommands = new Set<string>();
     const seenKeys = new Set<string>();
 
-    for (const block of blocks) {
-      validateNamespaced(block.name, 'block');
-      if (seenBlocks.has(block.name) || this.#blocks.has(block.name)) {
-        throw new ExtensionConflictError(`Block name conflict: ${block.name}`);
-      }
-      seenBlocks.add(block.name);
+    for (const item of blocks) {
+      validateNamespaced(item.name, 'block');
+      if (seenBlocks.has(item.name) || this.#blocks.has(item.name)) throw new ExtensionConflictError(`Block name conflict: ${item.name}`);
+      seenBlocks.add(item.name);
     }
-
-    for (const mark of marks) {
-      validateNamespaced(mark.name, 'mark');
-      if (seenMarks.has(mark.name) || this.#marks.has(mark.name)) {
-        throw new ExtensionConflictError(`Mark name conflict: ${mark.name}`);
-      }
-      seenMarks.add(mark.name);
+    for (const item of marks) {
+      validateNamespaced(item.name, 'mark');
+      if (seenMarks.has(item.name) || this.#marks.has(item.name)) throw new ExtensionConflictError(`Mark name conflict: ${item.name}`);
+      seenMarks.add(item.name);
     }
-
-    for (const command of commands) {
-      validateNamespaced(command.name, 'command');
-      if (seenCommands.has(command.name) || this.#commands.has(command.name)) {
-        throw new ExtensionConflictError(`Command name conflict: ${command.name}`);
-      }
-      seenCommands.add(command.name);
+    for (const item of commands) {
+      validateNamespaced(item.name, 'command');
+      if (seenCommands.has(item.name) || this.#commands.has(item.name)) throw new ExtensionConflictError(`Command name conflict: ${item.name}`);
+      seenCommands.add(item.name);
     }
-
-    for (const binding of keys) {
-      if (!binding.command || (!seenCommands.has(binding.command) && !this.#commands.has(binding.command))) {
-        throw new TypeError(`Key binding ${binding.key} references unknown command ${binding.command} in ${extension.name}`);
+    for (const item of keys) {
+      if (!item.command || (!seenCommands.has(item.command) && !this.#commands.has(item.command))) {
+        throw new TypeError(`Key binding ${item.key} references unknown command ${item.command} in ${extension.name}`);
       }
-      const key = normalizeKeyBinding(binding.key);
-      if (seenKeys.has(key) || this.#keybindings.has(key)) {
-        throw new ExtensionConflictError(`Key binding conflict: ${key}`);
-      }
+      const key = normalizeKeyBinding(item.key);
+      if (seenKeys.has(key) || this.#keybindings.has(key)) throw new ExtensionConflictError(`Key binding conflict: ${key}`);
       seenKeys.add(key);
     }
   }
 
   #removeOwned(extension: ARichTextExtension<TContext>): void {
     this.#extensions = this.#extensions.filter((candidate) => candidate !== extension);
-    for (const block of extension.blocks ?? []) if (this.#blocks.get(block.name) === block) this.#blocks.delete(block.name);
-    for (const mark of extension.marks ?? []) if (this.#marks.get(mark.name) === mark) this.#marks.delete(mark.name);
-    for (const command of extension.commands ?? []) if (this.#commands.get(command.name) === command) this.#commands.delete(command.name);
-    for (const binding of extension.keybindings ?? []) {
-      const key = normalizeKeyBinding(binding.key);
-      if (this.#keybindings.get(key) === binding) this.#keybindings.delete(key);
+    for (const item of extension.blocks ?? []) if (this.#blocks.get(item.name) === item) this.#blocks.delete(item.name);
+    for (const item of extension.marks ?? []) if (this.#marks.get(item.name) === item) this.#marks.delete(item.name);
+    for (const item of extension.commands ?? []) if (this.#commands.get(item.name) === item) this.#commands.delete(item.name);
+    for (const item of extension.keybindings ?? []) {
+      const key = normalizeKeyBinding(item.key);
+      if (this.#keybindings.get(key) === item) this.#keybindings.delete(key);
     }
   }
 }
 
-export function createExtensionRegistry<TContext = unknown>(
-  extensions: readonly ARichTextExtension<TContext>[] = [],
-): ExtensionRegistry<TContext> {
+export function createExtensionRegistry<TContext = unknown>(extensions: readonly ARichTextExtension<TContext>[] = []): ExtensionRegistry<TContext> {
   return new ExtensionRegistry(extensions);
 }
 
@@ -190,8 +184,7 @@ export function normalizeKeyBinding(value: string): string {
     }
   }
   if (!key) throw new TypeError(`Key binding has no primary key: ${value}`);
-  const order = ['Mod', 'Ctrl', 'Meta', 'Alt', 'Shift'];
-  return [...order.filter((modifier) => modifiers.has(modifier)), key].join('-');
+  return ['Mod', 'Ctrl', 'Meta', 'Alt', 'Shift'].filter((modifier) => modifiers.has(modifier)).concat(key).join('-');
 }
 
 function validateExtension<TContext>(extension: ARichTextExtension<TContext>): void {
@@ -200,7 +193,5 @@ function validateExtension<TContext>(extension: ARichTextExtension<TContext>): v
 }
 
 function validateNamespaced(name: string, kind: string): void {
-  if (!isExtensionName(name)) {
-    throw new TypeError(`${kind} name must be namespaced lowercase identifier (namespace:name): ${name}`);
-  }
+  if (!isExtensionName(name)) throw new TypeError(`${kind} name must be namespaced lowercase identifier (namespace:name): ${name}`);
 }
