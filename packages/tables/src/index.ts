@@ -58,6 +58,24 @@ export function getActiveTable(state: EditorState): ActiveTable | null {
   };
 }
 
+/** Move through cells in row order. At either edge, return null so Tab can leave. */
+export function moveTableCell(state: EditorState, direction: 'next' | 'previous' = 'next'): EditorTransaction | null {
+  const active = tableLocation(state);
+  if (!active) return null;
+  const columns = simpleColumnCount(active.node);
+  const index = active.rowIndex * columns + active.columnIndex + (direction === 'next' ? 1 : -1);
+  if (index < 0 || index >= active.node.content.length * columns) return null;
+  const row = Math.floor(index / columns);
+  const column = index % columns;
+  const mappings: ARTPathMapping[] = [];
+  const path = [...active.path, row, column];
+  collectPreservedMappings(active.node.content[row]!.content[column], path, path, mappings);
+  const target = direction === 'next' ? mappings[0] : mappings.at(-1);
+  if (!target) return null;
+  return transaction().setSelection(collapsedSelection([...target.to]))
+    .setMeta('command', `moveTableCell:${direction}`).build();
+}
+
 /**
  * Insert a table at the current single-block selection.
  *

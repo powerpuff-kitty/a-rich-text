@@ -13,7 +13,9 @@
     "quality:bundle": "node scripts/check-bundle-size.mjs",
     "test:browser": "playwright test",
     "verify": "pnpm quality:packages && pnpm build && pnpm typecheck && pnpm test && pnpm quality:bundle",
-    "verify:local": "pnpm verify && pnpm test:browser"
+    "verify:local": "pnpm verify && node scripts/build-distribution.mjs && pnpm test:browser && pnpm verify:distribution",
+    "build:distribution": "pnpm build && node scripts/build-distribution.mjs",
+    "verify:distribution": "node scripts/verify-distribution.mjs"
   },
   "devDependencies": {
     "@arichtext/web-component": "workspace:*",
@@ -25,6 +27,7 @@
     "happy-dom": "^20.14.5",
     "typescript": "^7.0.2",
     "vite": "^8.3.0",
-    "vitest": "^5.0.0"
+    "vitest": "^5.0.0",
+    "@arichtext/editor": "workspace:*"
   }
 }

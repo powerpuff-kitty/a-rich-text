@@ -1,7 +1,5 @@
 import {
-  getActiveLinkHref,
-  removeSelectionLink,
-  setSelectionLink,
+  createLinkMark,
 } from '@arichtext/links';
 import { getActiveList, toggleList, type ListStyle } from '@arichtext/lists';
 import {
@@ -318,7 +316,7 @@ export class ARichTextToolbarElement extends HTMLElementBase {
     if (!this.#editor || this.#editor.disabled || this.#editor.readOnly) return;
     if (!(keyboard.ctrlKey || keyboard.metaKey) || keyboard.altKey || keyboard.shiftKey) return;
     if (keyboard.key.toLowerCase() !== 'k') return;
-    if (!hasNonCollapsedSelection(this.#editor)) return;
+    if (keyboard.defaultPrevented || keyboard.isComposing || !this.#editor.getSelection()) return;
     keyboard.preventDefault();
     this.#openLinkEditor();
   };
@@ -412,7 +410,7 @@ export class ARichTextToolbarElement extends HTMLElementBase {
   };
 
   #openLinkEditor(): void {
-    if (!this.#editor || !hasNonCollapsedSelection(this.#editor)) return;
+    if (!this.#editor || this.#editor.disabled || this.#editor.readOnly || !this.#editor.getSelection()) return;
     this.#linkEditor.hidden = false;
     this.#linkInput.value = safeActiveLink(this.#editor) ?? '';
     this.#linkInput.removeAttribute('aria-invalid');
@@ -433,11 +431,9 @@ export class ARichTextToolbarElement extends HTMLElementBase {
   }
 
   #applyLink(): void {
-    if (!this.#editor) return;
+    if (!this.#editor || this.#editor.disabled || this.#editor.readOnly) return;
     try {
-      const command = setSelectionLink(editorState(this.#editor), this.#linkInput.value);
-      if (!command) throw new RangeError('Select text before applying a link');
-      this.#editor.dispatch(command);
+      if (!this.#editor.setMark(createLinkMark(this.#linkInput.value))) return;
       this.#closeLinkEditor(true);
       this.#refresh();
     } catch (error) {
@@ -448,16 +444,13 @@ export class ARichTextToolbarElement extends HTMLElementBase {
   }
 
   #removeLink(): void {
-    if (!this.#editor) return;
-    const command = removeSelectionLink(editorState(this.#editor));
-    if (!command) return;
-    this.#editor.dispatch(command);
+    if (!this.#editor || !this.#editor.removeMark('link')) return;
     this.#closeLinkEditor(true);
     this.#refresh();
   }
 
   #dispatchCommand(command: ReturnType<typeof toggleList>): void {
-    if (!this.#editor || !command) return;
+    if (!this.#editor || this.#editor.disabled || this.#editor.readOnly || !command) return;
     try {
       this.#editor.dispatch(command);
       this.#finishEditorAction(true);
@@ -476,7 +469,7 @@ export class ARichTextToolbarElement extends HTMLElementBase {
     const locked = !editor || editor.disabled || editor.readOnly;
     const activeMarks = new Set(editor?.getActiveMarks().map((mark) => mark.type) ?? []);
     const state = editor ? editorState(editor) : null;
-    const selectionAvailable = Boolean(editor && hasNonCollapsedSelection(editor));
+    const selectionAvailable = Boolean(editor?.getSelection());
     const activeLink = editor ? safeActiveLink(editor) : null;
     const activeList = state ? safeActiveList(state) : null;
     const activeTable = state ? safeActiveTable(state) : null;
@@ -501,7 +494,11 @@ export class ARichTextToolbarElement extends HTMLElementBase {
         || action === 'add-column'
         || action === 'remove-column'
       ) {
-        button.disabled = locked || activeTable === null;
+        button.disabled = locked || activeTable === null
+          || (action === 'remove-row' && activeTable.rows <= 1)
+          || (action === 'remove-column' && activeTable.columns <= 1)
+          || (action === 'add-row' && activeTable.rows >= 50)
+          || (action === 'add-column' && activeTable.columns >= 50);
       } else if (action === 'undo') {
         button.disabled = locked || !editor?.canUndo;
       } else if (action === 'redo') {
@@ -515,7 +512,7 @@ export class ARichTextToolbarElement extends HTMLElementBase {
       ? `h${block.level}`
       : 'paragraph';
 
-    if (!selectionAvailable && !this.#linkEditor.hidden) this.#closeLinkEditor();
+    if ((locked || !selectionAvailable) && !this.#linkEditor.hidden) this.#closeLinkEditor();
   }
 }
 
@@ -536,7 +533,8 @@ function editorState(editor: ARichTextElement) {
 
 function safeActiveLink(editor: ARichTextElement): string | null {
   try {
-    return getActiveLinkHref(editorState(editor));
+    const link = editor.getActiveMarks().find((mark) => mark.type === 'link');
+    return link?.type === 'link' ? link.href : null;
   } catch {
     return null;
   }
@@ -556,14 +554,6 @@ function safeActiveTable(state: ReturnType<typeof editorState>) {
   } catch {
     return null;
   }
-}
-
-function hasNonCollapsedSelection(editor: ARichTextElement): boolean {
-  const selection = editor.getSelection();
-  if (!selection) return false;
-  return selection.anchor.offset !== selection.head.offset
-    || selection.anchor.blockPath.length !== selection.head.blockPath.length
-    || selection.anchor.blockPath.some((value, index) => value !== selection.head.blockPath[index]);
 }
 
 function isMarkAction(value: string | undefined): value is ARichTextSimpleMark {

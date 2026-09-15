@@ -1,0 +1,45 @@
+{
+  "name": "@arichtext/editor",
+  "version": "0.0.0",
+  "description": "Ready-to-use rich text editor with toolbar, list and table keyboard behavior",
+  "license": "MIT",
+  "type": "module",
+  "sideEffects": true,
+  "homepage": "https://arichtext.com",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/powerpuff-kitty/a-rich-text.git",
+    "directory": "packages/editor"
+  },
+  "bugs": {
+    "url": "https://github.com/powerpuff-kitty/a-rich-text/issues"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@arichtext/web-component": "workspace:*",
+    "@arichtext/ui": "workspace:*",
+    "@arichtext/lists-editor": "workspace:*",
+    "@arichtext/dom": "workspace:*",
+    "@arichtext/tables": "workspace:*",
+    "@arichtext/links": "workspace:*",
+    "@arichtext/lists": "workspace:*"
+  }
+}

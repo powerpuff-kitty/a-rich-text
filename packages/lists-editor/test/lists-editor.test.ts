@@ -63,7 +63,7 @@ describe('optional list keyboard adapter', () => {
     expect(editor.getJSON()).toEqual(before);
   });
 
-  it('leaves complex list items unchanged and reports unsupported input', () => {
+  it('preserves multi-block items through Enter and undo', () => {
     const { editor, surface } = setup();
     editor.setHTML('<ul><li><p>one</p><p>two</p></li></ul>');
     editor.dispatch(transaction().setSelection(textSelection(textPoint([0, 0, 0], 1))).build());
@@ -71,8 +71,10 @@ describe('optional list keyboard adapter', () => {
     let unsupported = 0;
     editor.addEventListener('list-editing-unsupported', () => unsupported++);
     expect(enter(surface).defaultPrevented).toBe(true);
+    expect(editor.getHTML()).toBe('<ul><li><p>o</p></li><li><p>ne</p><p>two</p></li></ul>');
+    expect(unsupported).toBe(0);
+    editor.undo();
     expect(editor.getJSON()).toEqual(before);
-    expect(unsupported).toBe(1);
   });
 
   it('installs once and removes listeners when destroyed', () => {

@@ -203,6 +203,7 @@ function findDOMPoint(block: HTMLElement, targetOffset: number): DOMPoint | null
 function collectLogicalTokens(root: Node): Array<{ node: Node }> {
   const tokens: Array<{ node: Node }> = [];
   const visit = (node: Node): void => {
+    if (isPlaceholder(node)) return;
     if (node.nodeType === 3) {
       tokens.push({ node });
       return;
@@ -218,6 +219,7 @@ function collectLogicalTokens(root: Node): Array<{ node: Node }> {
 }
 
 function logicalLength(node: Node): number {
+  if (isPlaceholder(node)) return 0;
   if (node.nodeType === 3) return node.nodeValue?.length ?? 0;
   if (isBreak(node)) return 1;
   let total = 0;
@@ -227,6 +229,10 @@ function logicalLength(node: Node): number {
 
 function isBreak(node: Node): boolean {
   return node.nodeType === 1 && (node as Element).tagName === 'BR';
+}
+
+function isPlaceholder(node: Node): boolean {
+  return node.nodeType === 1 && (node as Element).hasAttribute('data-art-placeholder');
 }
 
 function boundaryBefore(node: Node): DOMPoint {

@@ -4,7 +4,20 @@
 
 The primary integration surface is `<a-rich-text>`. The open client runtime is designed to work without an account, API key, framework runtime, mandatory server, or mandatory network request. Optional paid products focus on managed infrastructure rather than locking ordinary editor features behind a subscription.
 
-> Status: early development. The repository is not ready for production use yet.
+> Status: locally installable development snapshot. Start with the [integration guide](docs/getting-started.md). Production release gates still require physical-device, screen-reader and real-IME evidence.
+
+## Try it
+
+```sh
+pnpm install --frozen-lockfile
+pnpm build:distribution
+python3 -m http.server 8080 --directory dist/browser
+```
+
+Open `http://localhost:8080` for the standalone editor and working form. The
+distribution also contains a single ES module you can copy into an application.
+Run `pnpm verify:local` to validate code, browsers and installable package tarballs
+locally. GitHub Actions is disabled.
 
 ## Direction
 
@@ -43,6 +56,7 @@ Core architecture docs:
 
 ```text
 packages/core                   @arichtext/core
+packages/editor                 @arichtext/editor
 packages/engine                 @arichtext/engine
 packages/links                  @arichtext/links
 packages/lists                  @arichtext/lists

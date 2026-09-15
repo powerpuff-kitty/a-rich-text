@@ -28,7 +28,18 @@ bundled + gzipped size budgets
 
 `pnpm test:browser` runs Playwright against the real built browser surface.
 
-`pnpm verify:local` runs both gates in order. Keep the console output and `test-results/playwright-results.json` with the revision being reviewed; traces are retained for failed browser tests. The latest recorded run is [local verification, 2026-09-15](verification/2026-09-15-local.md).
+`pnpm verify:local` runs code checks, builds the standalone browser distribution,
+tests that distribution in Playwright, then packs and installs all public packages
+in an isolated consumer. Keep the console output and
+`test-results/playwright-results.json` with the revision being reviewed; traces
+are retained for failed browser tests. See [integration verification](verification/2026-09-15-usable.md)
+and the earlier [foundation verification](verification/2026-09-15-local.md).
+
+`pnpm test:browser` expects `pnpm build:distribution` first. To exercise the Vite
+source fixture during development, set `ART_BROWSER_FIXTURE=/tests/browser/`.
+Paste fixtures deliver synthetic clipboard events with real browser DOM parsing;
+they do not certify the operating-system clipboard. Keyboard toolbar fixtures
+exercise activation after focus transfer, not a manual screen-reader session.
 
 ## Package policy
 

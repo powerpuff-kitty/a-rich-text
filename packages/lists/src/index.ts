@@ -90,11 +90,11 @@ export function insertListParagraph(state: EditorState): EditorTransaction | nul
   const active = findNearestList(state.document, selection.anchor.blockPath);
   if (!active || active.itemIndex < 0) return null;
   const item = active.node.content[active.itemIndex]!;
-  const block = item.content[0];
-  // Multi-block items need a separate policy for moving nested/trailing content.
-  if (item.content.length !== 1 || !isInlineBlock(block)) return null;
+  const blockIndex = selection.anchor.blockPath[active.path.length + 1]!;
+  const block = item.content[blockIndex];
+  if (selection.anchor.blockPath.length !== active.path.length + 2 || !isInlineBlock(block)) return null;
 
-  if ((block.content ?? []).every((run) => run.text.length === 0)) {
+  if (item.content.length === 1 && (block.content ?? []).every((run) => run.text.length === 0)) {
     return exitEmptyItem(state, active);
   }
 
@@ -105,7 +105,7 @@ export function insertListParagraph(state: EditorState): EditorTransaction | nul
   const splitList = getNodeAtPath(intermediate.document, active.path) as ARTListNode;
   const next = cloneList(splitList);
   const splitItem = next.content[active.itemIndex]!;
-  const right = splitItem.content.splice(1);
+  const right = splitItem.content.splice(blockIndex + 1);
   next.content.splice(active.itemIndex + 1, 0, {
     type: 'listItem',
     ...(next.style === 'task' ? { checked: false } : {}),
@@ -116,10 +116,10 @@ export function insertListParagraph(state: EditorState): EditorTransaction | nul
   splitList.content.forEach((current, itemIndex) => {
     current.content.forEach((child, childIndex) => {
       const targetItem = itemIndex > active.itemIndex ? itemIndex + 1 : itemIndex;
-      const movedRight = itemIndex === active.itemIndex && childIndex === 1;
+      const movedRight = itemIndex === active.itemIndex && childIndex > blockIndex;
       collectPreservedMappings(child,
         [...active.path, itemIndex, childIndex],
-        [...active.path, movedRight ? itemIndex + 1 : targetItem, movedRight ? 0 : childIndex],
+        [...active.path, movedRight ? itemIndex + 1 : targetItem, movedRight ? childIndex - blockIndex - 1 : childIndex],
         mappings);
     });
   });
@@ -129,6 +129,67 @@ export function insertListParagraph(state: EditorState): EditorTransaction | nul
     selection: mapSelection(intermediate.selection!, mappings),
     meta: { command: 'insertListParagraph:split' },
   };
+}
+
+/** Move the current item under its preceding sibling. */
+export function indentListItem(state: EditorState): EditorTransaction | null {
+  const selection = state.selection;
+  if (!selection || !samePath(selection.anchor.blockPath, selection.head.blockPath)) return null;
+  const active = findNearestList(state.document, selection.anchor.blockPath);
+  if (!active || active.itemIndex < 1) return null;
+  const next = cloneList(active.node);
+  const [item] = next.content.splice(active.itemIndex, 1);
+  const previous = next.content[active.itemIndex - 1]!;
+  const nestedIndex = previous.content.length;
+  previous.content.push({ type: 'list', style: next.style, content: [item!] });
+  const mappings: ARTPathMapping[] = [];
+  active.node.content.forEach((child, index) => {
+    const target = index === active.itemIndex
+      ? [...active.path, index - 1, nestedIndex, 0]
+      : [...active.path, index > active.itemIndex ? index - 1 : index];
+    collectPreservedMappings(child, [...active.path, index], target, mappings);
+  });
+  return transaction().replaceBlock(active.path, [next], mappings)
+    .setSelection(mapSelection(selection, mappings)).setMeta('command', 'indentListItem').build();
+}
+
+/** Lift an item one nesting level, or into ordinary blocks at the outer level. */
+export function outdentListItem(state: EditorState): EditorTransaction | null {
+  const selection = state.selection;
+  if (!selection || !samePath(selection.anchor.blockPath, selection.head.blockPath)) return null;
+  const active = findNearestList(state.document, selection.anchor.blockPath);
+  if (!active || active.itemIndex < 0) return null;
+  const outerPath = active.path.slice(0, -2);
+  const outer = getNodeAtPath(state.document, outerPath);
+  if (!isList(outer)) return exitEmptyItem(state, active);
+  const parentIndex = active.path.at(-2)!;
+  const nestedIndex = active.path.at(-1)!;
+  const next = cloneList(outer);
+  const parent = next.content[parentIndex]!;
+  const nested = parent.content[nestedIndex] as ARTListNode;
+  const [lifted] = nested.content.splice(active.itemIndex, 1);
+  // Trailing siblings remain below the lifted item, preserving their order.
+  const trailing = nested.content.splice(active.itemIndex);
+  const trailingIndex = lifted!.content.length;
+  if (trailing.length) lifted!.content.push({ type: 'list', style: nested.style, content: trailing });
+  const removedNested = nested.content.length === 0;
+  if (removedNested) parent.content.splice(nestedIndex, 1);
+  if (outer.style === 'task') lifted!.checked ??= false;
+  else delete lifted!.checked;
+  next.content.splice(parentIndex + 1, 0, lifted!);
+  const mappings: ARTPathMapping[] = [];
+  collectPreservedMappings(outer, outerPath, outerPath, mappings);
+  for (const mapping of mappings) {
+    const relative = mapping.from.slice(outerPath.length);
+    const [itemIndex, childIndex, nestedItem] = relative;
+    if (itemIndex === parentIndex && childIndex === nestedIndex) {
+      if (nestedItem === active.itemIndex) mapping.to = [...outerPath, parentIndex + 1, ...relative.slice(3)];
+      else if (nestedItem! > active.itemIndex) mapping.to = [...outerPath, parentIndex + 1, trailingIndex, nestedItem! - active.itemIndex - 1, ...relative.slice(3)];
+    } else if (itemIndex! > parentIndex) mapping.to = [...outerPath, itemIndex! + 1, ...relative.slice(1)];
+    else if (itemIndex === parentIndex && childIndex! > nestedIndex && removedNested) mapping.to = [...outerPath, parentIndex, childIndex! - 1, ...relative.slice(2)];
+  }
+  return transaction().replaceBlock(outerPath, [next], mappings)
+    .setSelection(mapSelection(selection, mappings)).setMeta('command', 'outdentListItem').build();
 }
 
 function exitEmptyItem(state: EditorState, active: ListLocation): EditorTransaction {
@@ -150,8 +211,11 @@ function exitEmptyItem(state: EditorState, active: ListLocation): EditorTransact
   };
   appendList(0, active.itemIndex);
   const paragraphPath = [...parentPath, listIndex + replacement.length];
-  replacement.push({ type: 'paragraph', content: [] });
-  mappings.push({ from: [...active.path, active.itemIndex, 0], to: paragraphPath });
+  active.node.content[active.itemIndex]!.content.forEach((child, index) => {
+    replacement.push(cloneValue(child));
+    collectPreservedMappings(child, [...active.path, active.itemIndex, index],
+      [...paragraphPath.slice(0, -1), paragraphPath.at(-1)! + index], mappings);
+  });
   appendList(active.itemIndex + 1, active.node.content.length);
   return transaction()
     .replaceBlock(active.path, replacement, mappings)
