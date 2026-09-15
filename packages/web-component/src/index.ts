@@ -8,6 +8,10 @@ import {
 import { fromHTML, toHTML } from '@arichtext/html';
 import { fromMarkdown, toMarkdown } from '@arichtext/markdown';
 
+export type ARichTextFormat = 'html' | 'json' | 'markdown' | 'text';
+
+const FORMATS: readonly ARichTextFormat[] = ['html', 'json', 'markdown', 'text'];
+
 const template = document.createElement('template');
 template.innerHTML = `
   <style>
@@ -59,7 +63,7 @@ template.innerHTML = `
 
 export class ARichTextElement extends HTMLElement {
   static readonly formAssociated = true;
-  static readonly observedAttributes = ['disabled', 'readonly', 'placeholder', 'value'];
+  static readonly observedAttributes = ['disabled', 'readonly', 'placeholder', 'value', 'format'];
 
   #internals: ElementInternals | null;
   #editor: HTMLDivElement;
@@ -84,27 +88,63 @@ export class ARichTextElement extends HTMLElement {
 
   connectedCallback(): void {
     if (!this.#editor.textContent && this.hasAttribute('value')) {
-      this.#editor.textContent = this.getAttribute('value') ?? '';
+      this.value = this.getAttribute('value') ?? '';
     }
     this.#syncState();
     this.#syncDerivedState();
     this.#syncFormValue();
   }
 
-  attributeChangedCallback(): void {
+  attributeChangedCallback(name: string, oldValue: string | null, newValue: string | null): void {
+    if (name === 'value' && oldValue !== newValue && this.isConnected && !this.#editor.matches(':focus')) {
+      this.value = newValue ?? '';
+      return;
+    }
     this.#syncState();
     this.#syncDerivedState();
+    this.#syncFormValue();
   }
 
-  /** Plain-text value for native form compatibility. */
+  get format(): ARichTextFormat {
+    const value = this.getAttribute('format')?.toLowerCase();
+    return FORMATS.includes(value as ARichTextFormat) ? value as ARichTextFormat : 'html';
+  }
+
+  set format(value: ARichTextFormat) {
+    this.setAttribute('format', FORMATS.includes(value) ? value : 'html');
+  }
+
+  /** Serialized form value using the selected `format`. */
   get value(): string {
-    return this.getText();
+    switch (this.format) {
+      case 'json':
+        return this.serializeJSON();
+      case 'markdown':
+        return this.getMarkdown();
+      case 'text':
+        return this.getText();
+      case 'html':
+      default:
+        return this.getHTML();
+    }
   }
 
   set value(value: string) {
-    this.#editor.textContent = value;
-    this.#syncDerivedState();
-    this.#syncFormValue();
+    switch (this.format) {
+      case 'json':
+        this.setJSON(value);
+        break;
+      case 'markdown':
+        this.setMarkdown(value);
+        break;
+      case 'text':
+        this.setText(value);
+        break;
+      case 'html':
+      default:
+        this.setHTML(value);
+        break;
+    }
   }
 
   get disabled(): boolean {
@@ -134,6 +174,10 @@ export class ARichTextElement extends HTMLElement {
 
   getText(): string {
     return toPlainText(this.getJSON());
+  }
+
+  setText(text: string): void {
+    this.setJSON(createTextDocument(text));
   }
 
   getJSON(): ARTDocument {
@@ -181,12 +225,6 @@ export class ARichTextElement extends HTMLElement {
     this.#editor.setAttribute('aria-disabled', String(this.disabled));
     this.#editor.setAttribute('aria-readonly', String(this.readOnly));
     this.#editor.dataset.placeholder = this.getAttribute('placeholder') ?? '';
-
-    const valueAttribute = this.getAttribute('value');
-    if (valueAttribute !== null && valueAttribute !== this.value && !this.#editor.matches(':focus')) {
-      this.#editor.textContent = valueAttribute;
-      this.#syncFormValue();
-    }
   }
 
   #syncDerivedState(): void {
