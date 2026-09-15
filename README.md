@@ -15,7 +15,7 @@ The primary integration surface is `<a-rich-text>`. The open client runtime is d
 - format-selectable native form values
 - local-first drafts and history
 - explicit browser selection/input adapter
-- pluggable extensions, persistence, uploads, collaboration and AI
+- pluggable extensions, persistence, uploads, collaboration, review and AI
 - accessibility, IME correctness, security and performance as release gates
 
 Core architecture docs:
@@ -33,6 +33,8 @@ Core architecture docs:
 - [`docs/media-editor.md`](docs/media-editor.md)
 - [`docs/collaboration.md`](docs/collaboration.md)
 - [`docs/ai.md`](docs/ai.md)
+- [`docs/annotations.md`](docs/annotations.md)
+- [`docs/comments.md`](docs/comments.md)
 
 ## Workspace
 
@@ -51,6 +53,9 @@ packages/collaboration          @arichtext/collaboration
 packages/collaboration-editor   @arichtext/collaboration-editor
 packages/ai                     @arichtext/ai
 packages/ai-editor              @arichtext/ai-editor
+packages/annotations            @arichtext/annotations
+packages/comments               @arichtext/comments
+packages/comments-editor        @arichtext/comments-editor
 packages/ui                     @arichtext/ui
 packages/web-component          @arichtext/web-component
 ```
@@ -218,6 +223,29 @@ applyAIProposal(editor, proposal);
 
 Model output is plain text, never trusted HTML. Streaming is preview-only, application is explicit/undoable, and any canonical document change makes an older proposal stale. Hosted-provider secret credentials belong behind application-owned infrastructure; browser-local models can implement the same provider interface directly.
 
+## Comments and review anchors
+
+Review state stays outside ART. `@arichtext/annotations` maps stable logical ranges through engine operations; `@arichtext/comments` defines provider-neutral comment threads; `@arichtext/comments-editor` binds them to the editor.
+
+```ts
+import { createMemoryCommentsProvider } from '@arichtext/comments/memory';
+import { connectComments } from '@arichtext/comments-editor';
+
+const comments = await connectComments(
+  editor,
+  createMemoryCommentsProvider(),
+  {
+    documentId: 'article-123',
+    clientId: crypto.randomUUID(),
+    author: { id: currentUser.id },
+  },
+);
+
+await comments.createThread('Can we verify this claim?');
+```
+
+Comments/replies/reactions/resolution never alter `editor.serializeJSON()`. Anchors map through typing, split/join, paste and undo/redo; ambiguous structural native reconciliation fails closed as `orphaned` rather than guessing.
+
 ## Development
 
 ```bash
@@ -227,7 +255,7 @@ pnpm typecheck
 pnpm test
 ```
 
-The regression suite covers ART validation, conversion/sanitization, SSR imports, format interoperability, local persistence, engine transactions/history, safe DOM rendering, selection mapping, clipboard behavior, extension registries, collaboration contracts and reviewable AI proposals.
+The regression suite covers ART validation, conversion/sanitization, SSR imports, format interoperability, local persistence, engine transactions/history, safe DOM rendering, selection mapping, clipboard behavior, extension registries, collaboration contracts, reviewable AI proposals, transaction-mapped annotations and provider-neutral comments.
 
 ## Business model principle
 
