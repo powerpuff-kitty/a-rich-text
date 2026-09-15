@@ -1,9 +1,6 @@
 import type { ARTHeadingNode, ARTTextMark } from '@arichtext/core';
-import {
-  transaction,
-  type EditorState,
-  type EditorTransaction,
-} from './index.js';
+import { transaction } from './transaction.js';
+import type { EditorState, EditorTransaction } from './types.js';
 
 /** Replace the current selection, or insert at a collapsed caret. */
 export function insertText(
@@ -36,7 +33,7 @@ export function deleteSelection(state: EditorState): EditorTransaction | null {
     .build();
 }
 
-/** Toggle an inline mark across the current non-collapsed selection. */
+/** Toggle an inline mark across the current selection. */
 export function toggleSelectionMark(
   state: EditorState,
   mark: ARTTextMark,
