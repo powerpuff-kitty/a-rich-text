@@ -4,11 +4,51 @@ import {
   serializeDocument,
   toPlainText,
   type ARTDocument,
+  type ARTTextMark,
 } from '@arichtext/core';
+import {
+  classifyBeforeInput,
+  readDOMSelection,
+  renderARTDocument,
+  writeDOMSelection,
+} from '@arichtext/dom';
+import {
+  EditorEngine,
+  createEditorState,
+  isCollapsedSelection,
+  transaction,
+  type ARTSelection,
+  type EditorTransaction,
+  type TransactionResult,
+} from '@arichtext/engine';
+import {
+  deleteSelection,
+  insertText,
+  toggleSelectionMark,
+} from '@arichtext/engine/commands';
 import { fromHTML, toHTML } from '@arichtext/html';
 import { fromMarkdown, toMarkdown } from '@arichtext/markdown';
 
 export type ARichTextFormat = 'html' | 'json' | 'markdown' | 'text';
+export type ARichTextReconcileSource = 'native-input' | 'composition';
+
+export interface ARichTextTransactionDetail {
+  result: TransactionResult;
+}
+
+export interface ARichTextSelectionChangeDetail {
+  selection: ARTSelection | null;
+}
+
+export interface ARichTextReconcileDetail {
+  source: ARichTextReconcileSource;
+  document: ARTDocument;
+}
+
+export interface ARichTextErrorDetail {
+  context: string;
+  error: unknown;
+}
 
 const FORMATS: readonly ARichTextFormat[] = ['html', 'json', 'markdown', 'text'];
 const HTMLElementBase: typeof HTMLElement = typeof HTMLElement === 'undefined'
@@ -49,9 +89,11 @@ function getTemplate(): HTMLTemplateElement {
         font-size: var(--art-font-size);
         line-height: var(--art-line-height);
         outline: none;
-        white-space: pre-wrap;
         overflow-wrap: anywhere;
       }
+
+      [part='editor'] > :first-child { margin-top: 0; }
+      [part='editor'] > :last-child { margin-bottom: 0; }
 
       [part='editor']:focus-visible {
         outline: 2px solid currentColor;
@@ -81,6 +123,12 @@ export class ARichTextElement extends HTMLElementBase {
 
   #internals: ElementInternals | null;
   #editor: HTMLDivElement;
+  #engine: EditorEngine;
+  #unsubscribeEngine?: () => void;
+  #selectionDocument?: Document;
+  #composing = false;
+  #reconcileQueued = false;
+  #storedMarks: ARTTextMark[] | null = null;
 
   constructor() {
     super();
@@ -92,25 +140,32 @@ export class ARichTextElement extends HTMLElementBase {
     shadow.append(getTemplate().content.cloneNode(true));
     this.#editor = shadow.querySelector<HTMLDivElement>('[part="editor"]')!;
     this.#internals = typeof this.attachInternals === 'function' ? this.attachInternals() : null;
+    this.#engine = this.#createEngine(createTextDocument(''));
+    this.#renderFromEngine();
 
-    this.#editor.addEventListener('input', () => {
-      this.#syncDerivedState();
-      this.#syncFormValue();
-      this.dispatchEvent(new Event('input', { bubbles: true, composed: true }));
-    });
-
+    this.#editor.addEventListener('beforeinput', this.#handleBeforeInput);
+    this.#editor.addEventListener('input', this.#handleNativeInput);
+    this.#editor.addEventListener('compositionstart', this.#handleCompositionStart);
+    this.#editor.addEventListener('compositionend', this.#handleCompositionEnd);
     this.#editor.addEventListener('blur', () => {
       this.dispatchEvent(new Event('change', { bubbles: true }));
     });
   }
 
   connectedCallback(): void {
-    if (!this.#editor.textContent && this.hasAttribute('value')) {
+    if (this.hasAttribute('value') && this.getText().length === 0) {
       this.value = this.getAttribute('value') ?? '';
     }
+    this.#selectionDocument = this.ownerDocument;
+    this.#selectionDocument.addEventListener('selectionchange', this.#handleDocumentSelectionChange);
     this.#syncState();
     this.#syncDerivedState();
     this.#syncFormValue();
+  }
+
+  disconnectedCallback(): void {
+    this.#selectionDocument?.removeEventListener('selectionchange', this.#handleDocumentSelectionChange);
+    this.#selectionDocument = undefined;
   }
 
   attributeChangedCallback(name: string, oldValue: string | null, newValue: string | null): void {
@@ -187,11 +242,31 @@ export class ARichTextElement extends HTMLElementBase {
 
   clear(): void {
     this.setJSON(createTextDocument(''));
-    this.dispatchEvent(new Event('input', { bubbles: true, composed: true }));
+    this.#emitInput();
+  }
+
+  undo(): boolean {
+    const result = this.#engine.undo();
+    if (!result) return false;
+    this.#emitTransactionResult(result);
+    return true;
+  }
+
+  redo(): boolean {
+    const result = this.#engine.redo();
+    if (!result) return false;
+    this.#emitTransactionResult(result);
+    return true;
+  }
+
+  dispatch(transactionValue: EditorTransaction): TransactionResult {
+    const result = this.#engine.dispatch(transactionValue);
+    this.#emitTransactionResult(result);
+    return result;
   }
 
   getText(): string {
-    return toPlainText(this.getJSON());
+    return toPlainText(this.#engine.state.document);
   }
 
   setText(text: string): void {
@@ -199,22 +274,20 @@ export class ARichTextElement extends HTMLElementBase {
   }
 
   getJSON(): ARTDocument {
-    return fromHTML(this.#editor.innerHTML);
+    return this.#engine.state.document;
   }
 
   setJSON(document: ARTDocument | string): void {
     const parsed = typeof document === 'string' ? parseDocument(document) : document;
-    this.#editor.innerHTML = toHTML(parsed);
-    this.#syncDerivedState();
-    this.#syncFormValue();
+    this.#replaceEngine(parsed, null);
   }
 
   serializeJSON(): string {
-    return serializeDocument(this.getJSON());
+    return serializeDocument(this.#engine.state.document);
   }
 
   getHTML(): string {
-    return toHTML(this.getJSON());
+    return toHTML(this.#engine.state.document);
   }
 
   setHTML(html: string): void {
@@ -222,7 +295,7 @@ export class ARichTextElement extends HTMLElementBase {
   }
 
   getMarkdown(): string {
-    return toMarkdown(this.getJSON());
+    return toMarkdown(this.#engine.state.document);
   }
 
   setMarkdown(markdown: string): void {
@@ -237,6 +310,229 @@ export class ARichTextElement extends HTMLElementBase {
     this.disabled = disabled;
   }
 
+  #createEngine(document: ARTDocument, selection: ARTSelection | null = null): EditorEngine {
+    let state;
+    try {
+      state = createEditorState(document, selection);
+    } catch (error) {
+      if (selection) state = createEditorState(document, null);
+      else throw error;
+    }
+    const engine = new EditorEngine(state);
+    this.#unsubscribeEngine = engine.subscribe(this.#handleEngineResult);
+    return engine;
+  }
+
+  #replaceEngine(document: ARTDocument, selection: ARTSelection | null): void {
+    this.#unsubscribeEngine?.();
+    this.#engine = this.#createEngine(document, selection);
+    this.#storedMarks = null;
+    this.#renderFromEngine();
+    this.#syncDerivedState();
+    this.#syncFormValue();
+  }
+
+  #handleEngineResult = (result: TransactionResult): void => {
+    if (result.documentChanged) {
+      this.#renderFromEngine();
+      this.#syncDerivedState();
+      this.#syncFormValue();
+    }
+  };
+
+  #handleBeforeInput = (event: InputEvent): void => {
+    if (this.disabled || this.readOnly) {
+      event.preventDefault();
+      return;
+    }
+
+    const intent = classifyBeforeInput(event);
+    if (!intent.intercept) return;
+
+    this.#syncSelectionFromDOM();
+    const state = this.#engine.state;
+    const selection = state.selection;
+
+    if (intent.kind === 'historyUndo') {
+      event.preventDefault();
+      this.undo();
+      return;
+    }
+    if (intent.kind === 'historyRedo') {
+      event.preventDefault();
+      this.redo();
+      return;
+    }
+
+    if (!selection) return;
+
+    if (intent.kind === 'toggleMark' && isCollapsedSelection(selection)) {
+      event.preventDefault();
+      this.#toggleStoredMark(intent.mark);
+      return;
+    }
+
+    let command: EditorTransaction | null = null;
+    switch (intent.kind) {
+      case 'insertText':
+      case 'insertLineBreak':
+        command = insertText(state, intent.text, this.#storedMarks ?? undefined);
+        break;
+      case 'deleteSelection':
+        command = deleteSelection(state);
+        break;
+      case 'toggleMark':
+        command = toggleSelectionMark(state, intent.mark);
+        break;
+    }
+
+    if (!command) return;
+    event.preventDefault();
+    const result = this.#engine.dispatch(command);
+    this.#emitTransactionResult(result);
+  };
+
+  #handleNativeInput = (): void => {
+    if (this.#composing) return;
+    this.#reconcileNativeDOM('native-input');
+  };
+
+  #handleCompositionStart = (): void => {
+    this.#composing = true;
+  };
+
+  #handleCompositionEnd = (): void => {
+    this.#composing = false;
+    if (this.#reconcileQueued) return;
+    this.#reconcileQueued = true;
+    queueMicrotask(() => {
+      this.#reconcileQueued = false;
+      if (!this.#composing && this.isConnected) this.#reconcileNativeDOM('composition');
+    });
+  };
+
+  #handleDocumentSelectionChange = (): void => {
+    if (!this.isConnected || this.#composing) return;
+    this.#storedMarks = null;
+    this.#syncSelectionFromDOM();
+  };
+
+  #syncSelectionFromDOM(): void {
+    const selection = readDOMSelection(this.#editor);
+    if (!selection) return;
+    const result = this.#engine.dispatch(transaction().setSelection(selection));
+    if (result.selectionChanged) {
+      this.dispatchEvent(new CustomEvent<ARichTextSelectionChangeDetail>('selection-change', {
+        detail: { selection: result.state.selection },
+        bubbles: true,
+        composed: true,
+      }));
+    }
+  }
+
+  #reconcileNativeDOM(source: ARichTextReconcileSource): void {
+    try {
+      const selection = readDOMSelection(this.#editor);
+      const document = fromHTML(this.#editor.innerHTML);
+      this.#replaceEngine(document, selection);
+      this.dispatchEvent(new CustomEvent<ARichTextReconcileDetail>('reconcile', {
+        detail: { source, document: this.getJSON() },
+        bubbles: true,
+        composed: true,
+      }));
+    } catch (error) {
+      this.#emitError('native-reconcile', error);
+      this.#renderFromEngine();
+    }
+  }
+
+  #renderFromEngine(): void {
+    const state = this.#engine.state;
+    renderARTDocument(this.#editor, state.document);
+    if (state.selection && this.shadowRoot?.activeElement === this.#editor) {
+      writeDOMSelection(this.#editor, state.selection);
+    }
+  }
+
+  #toggleStoredMark(mark: ARTTextMark): void {
+    const marks = this.#storedMarks ?? this.#marksAtDOMCaret();
+    const existing = marks.some((candidate) => candidate.type === mark.type);
+    this.#storedMarks = existing
+      ? marks.filter((candidate) => candidate.type !== mark.type)
+      : [...marks.filter((candidate) => candidate.type !== mark.type), mark];
+  }
+
+  #marksAtDOMCaret(): ARTTextMark[] {
+    const selection = this.ownerDocument.getSelection();
+    if (!selection?.anchorNode || !this.#editor.contains(selection.anchorNode)) return [];
+
+    const marks: ARTTextMark[] = [];
+    let current: Node | null = selection.anchorNode.nodeType === 1
+      ? selection.anchorNode
+      : selection.anchorNode.parentNode;
+
+    while (current && current !== this.#editor) {
+      if (current.nodeType === 1) {
+        const element = current as Element;
+        switch (element.tagName) {
+          case 'STRONG':
+          case 'B':
+            addUniqueMark(marks, { type: 'bold' });
+            break;
+          case 'EM':
+          case 'I':
+            addUniqueMark(marks, { type: 'italic' });
+            break;
+          case 'U':
+            addUniqueMark(marks, { type: 'underline' });
+            break;
+          case 'S':
+          case 'STRIKE':
+            addUniqueMark(marks, { type: 'strike' });
+            break;
+          case 'CODE':
+            addUniqueMark(marks, { type: 'code' });
+            break;
+          case 'A': {
+            const href = element.getAttribute('href');
+            if (href) addUniqueMark(marks, { type: 'link', href });
+            break;
+          }
+        }
+      }
+      current = current.parentNode;
+    }
+    return marks;
+  }
+
+  #emitTransactionResult(result: TransactionResult): void {
+    this.dispatchEvent(new CustomEvent<ARichTextTransactionDetail>('transaction', {
+      detail: { result },
+      bubbles: true,
+      composed: true,
+    }));
+    if (result.selectionChanged) {
+      this.dispatchEvent(new CustomEvent<ARichTextSelectionChangeDetail>('selection-change', {
+        detail: { selection: result.state.selection },
+        bubbles: true,
+        composed: true,
+      }));
+    }
+    if (result.documentChanged) this.#emitInput();
+  }
+
+  #emitInput(): void {
+    this.dispatchEvent(new Event('input', { bubbles: true, composed: true }));
+  }
+
+  #emitError(context: string, error: unknown): void {
+    this.dispatchEvent(new CustomEvent<ARichTextErrorDetail>('error', {
+      detail: { context, error },
+      bubbles: true,
+      composed: true,
+    }));
+  }
+
   #syncState(): void {
     const editable = !this.disabled && !this.readOnly;
     this.#editor.contentEditable = editable ? 'true' : 'false';
@@ -246,12 +542,18 @@ export class ARichTextElement extends HTMLElementBase {
   }
 
   #syncDerivedState(): void {
-    this.#editor.dataset.empty = String(this.#editor.textContent?.length === 0);
+    this.#editor.dataset.empty = String(this.getText().length === 0);
   }
 
   #syncFormValue(): void {
     this.#internals?.setFormValue(this.value);
   }
+}
+
+function addUniqueMark(marks: ARTTextMark[], mark: ARTTextMark): void {
+  const index = marks.findIndex((candidate) => candidate.type === mark.type);
+  if (index !== -1) marks.splice(index, 1);
+  marks.push(mark);
 }
 
 export function defineARichText(tagName = 'a-rich-text'): void {
