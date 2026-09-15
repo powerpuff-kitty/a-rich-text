@@ -17,15 +17,16 @@ The primary integration surface is `<a-rich-text>`. The open client runtime is d
 - pluggable persistence, uploads, collaboration and AI
 - accessibility, IME correctness, security and performance as release gates
 
-See [`docs/architecture.md`](docs/architecture.md), [`docs/conversion.md`](docs/conversion.md) and [`docs/forms.md`](docs/forms.md).
+See [`docs/architecture.md`](docs/architecture.md), [`docs/conversion.md`](docs/conversion.md), [`docs/forms.md`](docs/forms.md) and [`docs/local-first.md`](docs/local-first.md).
 
 ## Workspace
 
 ```text
-packages/core           @arichtext/core
-packages/html           @arichtext/html
-packages/markdown       @arichtext/markdown
-packages/web-component  @arichtext/web-component
+packages/core                   @arichtext/core
+packages/html                   @arichtext/html
+packages/markdown               @arichtext/markdown
+packages/persistence-indexeddb  @arichtext/persistence-indexeddb
+packages/web-component          @arichtext/web-component
 ```
 
 All editor packages are prepared for public npm publication. The GitHub repository can remain private during early development; the long-term direction is to open-source the client/editor monorepo while keeping optional managed cloud infrastructure separate.
@@ -58,6 +59,8 @@ text      plain text
 
 The semantic document remains ART regardless of the selected form format.
 
+The Web Component package is safe to **import during SSR**. It only auto-registers when `customElements` exists; constructing an editor instance still requires a real browser DOM.
+
 ## Conversion API
 
 ```ts
@@ -77,6 +80,25 @@ editor.setText(text);
 
 HTML import is allowlist-based: executable/embed nodes and unsafe URL protocols are discarded when content is converted into ART.
 
+## Local-first drafts
+
+```ts
+import {
+  createAutosave,
+  IndexedDBPersistence,
+} from '@arichtext/persistence-indexeddb';
+
+const persistence = new IndexedDBPersistence();
+const autosave = createAutosave(persistence, {
+  documentId: 'article-123',
+  getDocument: () => editor.getJSON(),
+});
+
+editor.addEventListener('input', () => autosave.schedule());
+```
+
+Documents, snapshots and autosave stay entirely in the browser unless the integrating application chooses to sync them elsewhere.
+
 ## Development
 
 ```bash
@@ -86,7 +108,7 @@ pnpm typecheck
 pnpm test
 ```
 
-The initial test suite covers ART schema validation, conversion/sanitization behavior and Web Component format interoperability.
+The regression suite covers ART schema validation, conversion/sanitization behavior, SSR-safe imports, format interoperability, IndexedDB persistence, snapshots and autosave ordering.
 
 ## Business model principle
 
