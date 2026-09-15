@@ -7,12 +7,19 @@
     "build": "pnpm -r build",
     "typecheck": "pnpm -r typecheck",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "quality:packages": "node scripts/validate-packages.mjs",
+    "quality:bundle": "node scripts/check-bundle-size.mjs",
+    "test:browser": "playwright test",
+    "verify": "pnpm quality:packages && pnpm build && pnpm typecheck && pnpm test && pnpm quality:bundle"
   },
   "devDependencies": {
+    "@playwright/test": "^1.55.0",
+    "esbuild": "^0.25.9",
     "fake-indexeddb": "^6.2.5",
     "happy-dom": "^20.14.5",
     "typescript": "^7.0.2",
+    "vite": "^7.1.5",
     "vitest": "^5.0.0"
   }
 }
