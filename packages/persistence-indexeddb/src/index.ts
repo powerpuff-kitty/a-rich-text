@@ -60,8 +60,9 @@ export class IndexedDBPersistence {
     const updatedAt = Date.now();
     const database = await this.#open();
     const transaction = database.transaction(DOCUMENT_STORE, 'readwrite');
+    const done = transactionDone(transaction);
     transaction.objectStore(DOCUMENT_STORE).put({ id, updatedAt, document: copy } satisfies DocumentRecord);
-    await transactionDone(transaction);
+    await done;
     return { id, updatedAt };
   }
 
@@ -69,20 +70,23 @@ export class IndexedDBPersistence {
     assertDocumentId(id);
     const database = await this.#open();
     const transaction = database.transaction(DOCUMENT_STORE, 'readonly');
-    const request = transaction.objectStore(DOCUMENT_STORE).get(id);
-    const record = await requestResult<DocumentRecord | undefined>(request);
-    await transactionDone(transaction);
-    if (!record) return null;
-    return validateStoredDocument(record.document, `document:${id}`);
+    const done = transactionDone(transaction);
+    const record = await requestResult<DocumentRecord | undefined>(
+      transaction.objectStore(DOCUMENT_STORE).get(id),
+    );
+    await done;
+    return record ? validateStoredDocument(record.document, `document:${id}`) : null;
   }
 
   async getDocumentMetadata(id: string): Promise<StoredDocumentMetadata | null> {
     assertDocumentId(id);
     const database = await this.#open();
     const transaction = database.transaction(DOCUMENT_STORE, 'readonly');
-    const request = transaction.objectStore(DOCUMENT_STORE).get(id);
-    const record = await requestResult<DocumentRecord | undefined>(request);
-    await transactionDone(transaction);
+    const done = transactionDone(transaction);
+    const record = await requestResult<DocumentRecord | undefined>(
+      transaction.objectStore(DOCUMENT_STORE).get(id),
+    );
+    await done;
     return record ? { id: record.id, updatedAt: record.updatedAt } : null;
   }
 
@@ -91,6 +95,7 @@ export class IndexedDBPersistence {
     const database = await this.#open();
     const stores = deleteSnapshots ? [DOCUMENT_STORE, SNAPSHOT_STORE] : [DOCUMENT_STORE];
     const transaction = database.transaction(stores, 'readwrite');
+    const done = transactionDone(transaction);
     transaction.objectStore(DOCUMENT_STORE).delete(id);
 
     if (deleteSnapshots) {
@@ -99,7 +104,7 @@ export class IndexedDBPersistence {
       for (const key of keys) snapshots.delete(key);
     }
 
-    await transactionDone(transaction);
+    await done;
   }
 
   async createSnapshot(documentId: string, document: ARTDocument, name?: string): Promise<SnapshotMetadata> {
@@ -117,8 +122,9 @@ export class IndexedDBPersistence {
 
     const database = await this.#open();
     const transaction = database.transaction(SNAPSHOT_STORE, 'readwrite');
+    const done = transactionDone(transaction);
     transaction.objectStore(SNAPSHOT_STORE).add(record);
-    await transactionDone(transaction);
+    await done;
     return snapshotMetadata(record);
   }
 
@@ -126,9 +132,11 @@ export class IndexedDBPersistence {
     assertDocumentId(documentId);
     const database = await this.#open();
     const transaction = database.transaction(SNAPSHOT_STORE, 'readonly');
-    const request = transaction.objectStore(SNAPSHOT_STORE).index(SNAPSHOT_DOCUMENT_INDEX).getAll(documentId);
-    const records = await requestResult<SnapshotRecord[]>(request);
-    await transactionDone(transaction);
+    const done = transactionDone(transaction);
+    const records = await requestResult<SnapshotRecord[]>(
+      transaction.objectStore(SNAPSHOT_STORE).index(SNAPSHOT_DOCUMENT_INDEX).getAll(documentId),
+    );
+    await done;
     return records
       .map(snapshotMetadata)
       .sort((left, right) => right.createdAt - left.createdAt || right.id.localeCompare(left.id));
@@ -138,12 +146,12 @@ export class IndexedDBPersistence {
     assertDocumentId(snapshotId);
     const database = await this.#open();
     const transaction = database.transaction(SNAPSHOT_STORE, 'readonly');
+    const done = transactionDone(transaction);
     const record = await requestResult<SnapshotRecord | undefined>(
       transaction.objectStore(SNAPSHOT_STORE).get(snapshotId),
     );
-    await transactionDone(transaction);
-    if (!record) return null;
-    return validateStoredDocument(record.document, `snapshot:${snapshotId}`);
+    await done;
+    return record ? validateStoredDocument(record.document, `snapshot:${snapshotId}`) : null;
   }
 
   async restoreSnapshot(snapshotId: string): Promise<ARTDocument | null> {
@@ -154,8 +162,9 @@ export class IndexedDBPersistence {
     assertDocumentId(snapshotId);
     const database = await this.#open();
     const transaction = database.transaction(SNAPSHOT_STORE, 'readwrite');
+    const done = transactionDone(transaction);
     transaction.objectStore(SNAPSHOT_STORE).delete(snapshotId);
-    await transactionDone(transaction);
+    await done;
   }
 
   async close(): Promise<void> {
@@ -169,9 +178,7 @@ export class IndexedDBPersistence {
     if (this.#database) return this.#database;
 
     const factory = this.#factory ?? globalThis.indexedDB;
-    if (!factory) {
-      return Promise.reject(new Error('@arichtext/persistence-indexeddb requires IndexedDB'));
-    }
+    if (!factory) return Promise.reject(new Error('@arichtext/persistence-indexeddb requires IndexedDB'));
 
     this.#database = new Promise<IDBDatabase>((resolve, reject) => {
       const request = factory.open(this.databaseName, DATABASE_VERSION);
@@ -210,7 +217,7 @@ export function createAutosave(
   assertDocumentId(options.documentId);
   const debounceMs = Math.max(0, options.debounceMs ?? 500);
   let timer: number | undefined;
-  let chain = Promise.resolve();
+  let chain: Promise<void> = Promise.resolve();
   let disposed = false;
 
   const cancel = (): void => {
@@ -231,6 +238,7 @@ export function createAutosave(
     }
 
     chain = chain
+      .catch(() => undefined)
       .then(() => persistence.saveDocument(options.documentId, document))
       .then(() => undefined)
       .catch((error) => {
