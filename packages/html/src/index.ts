@@ -7,6 +7,7 @@ import {
 import type {
   ARTBlockNode,
   ARTDocument,
+  ARTExtensionBlockNode,
   ARTExtensionMark,
   ARTImageNode,
   ARTListNode,
@@ -23,6 +24,7 @@ const BLOCK_TAGS = new Set([
   'IMG', 'TABLE', 'DIV', 'SECTION', 'ARTICLE', 'MAIN', 'ASIDE', 'HEADER', 'FOOTER', 'FIGURE',
 ]);
 const DROP_TAGS = new Set(['SCRIPT', 'STYLE', 'TEMPLATE', 'IFRAME', 'OBJECT', 'EMBED', 'NOSCRIPT']);
+const FORBIDDEN_DESCRIPTOR_TAGS = new Set(['script', 'style', 'template', 'iframe', 'object', 'embed', 'noscript']);
 const MARK_ORDER: Record<ARTTextMark['type'], number> = {
   bold: 0,
   italic: 1,
@@ -33,16 +35,32 @@ const MARK_ORDER: Record<ARTTextMark['type'], number> = {
   extensionMark: 6,
 };
 
+export interface ExtensionHTMLDescriptorLike {
+  tagName: string;
+  attributes?: Readonly<Record<string, string>>;
+  textContent?: string;
+}
+
+/** Structural interface implemented by `@arichtext/extensions`. */
+export interface HTMLExtensionHooks {
+  parseBlockHTML(element: Element): ARTExtensionBlockNode | undefined;
+  parseMarkHTML(element: Element): ARTExtensionMark | undefined;
+  serializeBlockHTML(node: ARTExtensionBlockNode): ExtensionHTMLDescriptorLike | undefined;
+  serializeMarkHTML(mark: ARTExtensionMark): ExtensionHTMLDescriptorLike | undefined;
+}
+
 export interface HTMLConversionOptions {
   linkProtocols?: readonly string[];
   imageProtocols?: readonly string[];
   allowDataImages?: boolean;
+  extensions?: HTMLExtensionHooks;
 }
 
 interface ResolvedOptions {
   linkProtocols: readonly string[];
   imageProtocols: readonly string[];
   allowDataImages: boolean;
+  extensions?: HTMLExtensionHooks;
 }
 
 export function fromHTML(html: string, options: HTMLConversionOptions = {}): ARTDocument {
@@ -72,6 +90,7 @@ function resolveOptions(options: HTMLConversionOptions): ResolvedOptions {
     linkProtocols: options.linkProtocols ?? DEFAULT_LINK_PROTOCOLS,
     imageProtocols: options.imageProtocols ?? DEFAULT_IMAGE_PROTOCOLS,
     allowDataImages: options.allowDataImages ?? false,
+    ...(options.extensions ? { extensions: options.extensions } : {}),
   };
 }
 
@@ -98,6 +117,14 @@ function parseBlocks(nodes: readonly Node[], options: ResolvedOptions): ARTBlock
       flushInline();
       const extension = parseExtensionBlock(element, options);
       if (extension) blocks.push(extension);
+      continue;
+    }
+
+    const custom = options.extensions?.parseBlockHTML(element);
+    if (custom) {
+      if (!isValidExtensionBlock(custom)) throw new TypeError(`Extension HTML parser returned invalid block: ${custom.name}`);
+      flushInline();
+      blocks.push(custom);
       continue;
     }
 
@@ -180,9 +207,11 @@ function parseInline(nodes: readonly Node[], options: ResolvedOptions, inherited
     }
 
     const marks = [...inheritedMarks];
-    const extensionMark = parseExtensionMark(element);
-    if (extensionMark) marks.push(extensionMark);
-    else {
+    const extensionMark = parseExtensionMark(element) ?? options.extensions?.parseMarkHTML(element) ?? null;
+    if (extensionMark) {
+      if (!isValidExtensionMark(extensionMark)) throw new TypeError(`Extension HTML parser returned invalid mark: ${extensionMark.name}`);
+      marks.push(extensionMark);
+    } else {
       switch (element.tagName) {
         case 'STRONG': case 'B': marks.push({ type: 'bold' }); break;
         case 'EM': case 'I': marks.push({ type: 'italic' }); break;
@@ -251,7 +280,7 @@ function marksEqual(a: readonly ARTTextMark[], b: readonly ARTTextMark[]): boole
     if (!other || mark.type !== other.type) return false;
     if (mark.type === 'link') return other.type === 'link' && mark.href === other.href;
     if (mark.type === 'extensionMark') {
-      return other.type === 'extensionMark' && mark.name === other.name && JSON.stringify(mark.attrs ?? {}) === JSON.stringify(other.attrs ?? {});
+      return other.type === 'extensionMark' && mark.name === other.name && stableJSON(mark.attrs ?? {}) === stableJSON(other.attrs ?? {});
     }
     return true;
   });
@@ -344,8 +373,14 @@ function serializeBlock(block: ARTBlockNode, options: ResolvedOptions): string {
   }
 }
 
-function serializeExtensionBlock(block: Extract<ARTBlockNode, { type: 'extensionBlock' }>, options: ResolvedOptions): string {
-  const attrs = block.attrs ? ` data-art-extension-attrs="${escapeAttribute(JSON.stringify(block.attrs))}"` : '';
+function serializeExtensionBlock(block: ARTExtensionBlockNode, options: ResolvedOptions): string {
+  const custom = options.extensions?.serializeBlockHTML(block);
+  if (custom) {
+    const inner = block.content?.map((child) => serializeBlock(child, options)).join('') ?? escapeText(block.fallbackText ?? '');
+    return serializeDescriptor(custom, inner, options);
+  }
+
+  const attrs = block.attrs ? ` data-art-extension-attrs="${escapeAttribute(stableJSON(block.attrs))}"` : '';
   const fallback = block.fallbackText !== undefined
     ? ` data-art-extension-fallback="${escapeAttribute(block.fallbackText)}"`
     : '';
@@ -371,14 +406,50 @@ function serializeInline(nodes: readonly ARTTextNode[], options: ResolvedOptions
           break;
         }
         case 'extensionMark': {
-          const attrs = mark.attrs ? ` data-art-extension-attrs="${escapeAttribute(JSON.stringify(mark.attrs))}"` : '';
-          value = `<span data-art-extension-mark="${escapeAttribute(mark.name)}"${attrs}>${value}</span>`;
+          const custom = options.extensions?.serializeMarkHTML(mark);
+          if (custom) value = serializeDescriptor(custom, value, options);
+          else {
+            const attrs = mark.attrs ? ` data-art-extension-attrs="${escapeAttribute(stableJSON(mark.attrs))}"` : '';
+            value = `<span data-art-extension-mark="${escapeAttribute(mark.name)}"${attrs}>${value}</span>`;
+          }
           break;
         }
       }
     }
     return value;
   }).join('');
+}
+
+function serializeDescriptor(
+  descriptor: ExtensionHTMLDescriptorLike,
+  fallbackInner: string,
+  options: ResolvedOptions,
+): string {
+  const tag = descriptor.tagName.toLowerCase();
+  if (!/^[a-z][a-z0-9-]*$/.test(tag) || FORBIDDEN_DESCRIPTOR_TAGS.has(tag)) {
+    throw new TypeError(`Unsafe extension HTML tag: ${descriptor.tagName}`);
+  }
+
+  const attributes = Object.entries(descriptor.attributes ?? {}).map(([name, raw]) => {
+    if (!/^[A-Za-z_:][A-Za-z0-9:._-]*$/.test(name) || /^on/i.test(name) || name.toLowerCase() === 'style' || name.toLowerCase() === 'srcdoc') {
+      throw new TypeError(`Unsafe extension HTML attribute: ${name}`);
+    }
+    let value = String(raw);
+    if (name.toLowerCase() === 'href') {
+      const safe = sanitizeUrl(value, options.linkProtocols, false);
+      if (!safe) throw new TypeError('Unsafe extension href');
+      value = safe;
+    }
+    if (name.toLowerCase() === 'src') {
+      const safe = sanitizeUrl(value, options.imageProtocols, options.allowDataImages);
+      if (!safe) throw new TypeError('Unsafe extension src');
+      value = safe;
+    }
+    return ` ${name}="${escapeAttribute(value)}"`;
+  }).join('');
+
+  const inner = descriptor.textContent !== undefined ? escapeText(descriptor.textContent) : fallbackInner;
+  return `<${tag}${attributes}>${inner}</${tag}>`;
 }
 
 function serializeList(list: ARTListNode, options: ResolvedOptions): string {
@@ -408,6 +479,18 @@ function serializeImage(image: ARTImageNode, options: ResolvedOptions): string {
   return `<img${attrs}>`;
 }
 
+function isValidExtensionBlock(block: ARTExtensionBlockNode): boolean {
+  return isARTDocument({ type: 'doc', version: ART_DOCUMENT_VERSION, content: [block] });
+}
+
+function isValidExtensionMark(mark: ARTExtensionMark): boolean {
+  return isARTDocument({
+    type: 'doc',
+    version: ART_DOCUMENT_VERSION,
+    content: [{ type: 'paragraph', content: [{ type: 'text', text: 'x', marks: [mark] }] }],
+  });
+}
+
 function sanitizeUrl(value: string | null, protocols: readonly string[], allowData: boolean): string | null {
   if (!value) return null;
   const trimmed = value.trim();
@@ -419,6 +502,17 @@ function sanitizeUrl(value: string | null, protocols: readonly string[], allowDa
     if (url.origin === 'https://arichtext.invalid' && !trimmed.startsWith('//')) return trimmed;
     return protocols.includes(url.protocol) ? trimmed : null;
   } catch { return null; }
+}
+
+function stableJSON(value: unknown): string {
+  return JSON.stringify(sortJSON(value));
+}
+
+function sortJSON(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(sortJSON);
+  if (!value || typeof value !== 'object') return value;
+  const record = value as Record<string, unknown>;
+  return Object.fromEntries(Object.keys(record).sort().map((key) => [key, sortJSON(record[key])]));
 }
 
 function escapeText(value: string): string {
