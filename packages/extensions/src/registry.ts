@@ -1,9 +1,20 @@
-import { isExtensionName } from '@arichtext/core';
-import type { ARTExtensionBlockNode, ARTExtensionMark, ARTJSONValue } from '@arichtext/core';
+import {
+  ART_DOCUMENT_VERSION,
+  isARTDocument,
+  isARTJSONValue,
+  isExtensionName,
+} from '@arichtext/core';
+import type {
+  ARTExtensionBlockNode,
+  ARTExtensionMark,
+  ARTJSONValue,
+} from '@arichtext/core';
 import type {
   ARichTextExtension,
   ExtensionBlockDefinition,
   ExtensionCommandDefinition,
+  ExtensionDOMRenderContext,
+  ExtensionHTMLDescriptor,
   ExtensionKeyBinding,
   ExtensionMarkDefinition,
   ExtensionRegistryView,
@@ -41,13 +52,83 @@ export class ExtensionRegistry<TContext = unknown> implements ExtensionRegistryV
   getKeyBinding(key: string): ExtensionKeyBinding | undefined { return this.#keybindings.get(normalizeKeyBinding(key)); }
 
   validateBlock(node: ARTExtensionBlockNode): boolean {
+    if (!isValidExtensionBlockEnvelope(node)) return false;
     const definition = this.#blocks.get(node.name);
     return Boolean(definition && (definition.validate?.(node) ?? true));
   }
 
   validateMark(mark: ARTExtensionMark): boolean {
+    if (!isValidExtensionMarkEnvelope(mark)) return false;
     const definition = this.#marks.get(mark.name);
     return Boolean(definition && (definition.validate?.(mark) ?? true));
+  }
+
+  renderBlock(node: ARTExtensionBlockNode, context: ExtensionDOMRenderContext): Node | undefined {
+    const definition = this.#blocks.get(node.name);
+    if (!definition?.renderDOM || !this.validateBlock(node)) return undefined;
+    return definition.renderDOM(node, context);
+  }
+
+  renderMark(mark: ARTExtensionMark, context: ExtensionDOMRenderContext): HTMLElement | undefined {
+    const definition = this.#marks.get(mark.name);
+    if (!definition?.renderDOM || !this.validateMark(mark)) return undefined;
+    return definition.renderDOM(mark, context);
+  }
+
+  serializeBlockHTML(node: ARTExtensionBlockNode): ExtensionHTMLDescriptor | undefined {
+    const definition = this.#blocks.get(node.name);
+    if (!definition?.toHTML || !this.validateBlock(node)) return undefined;
+    return cloneHTMLDescriptor(definition.toHTML(node));
+  }
+
+  serializeMarkHTML(mark: ARTExtensionMark): ExtensionHTMLDescriptor | undefined {
+    const definition = this.#marks.get(mark.name);
+    if (!definition?.toHTML || !this.validateMark(mark)) return undefined;
+    return cloneHTMLDescriptor(definition.toHTML(mark));
+  }
+
+  parseBlockHTML(element: Element): ARTExtensionBlockNode | undefined {
+    for (const definition of this.#blocks.values()) {
+      if (!definition.fromHTML) continue;
+      const node = definition.fromHTML(element);
+      if (!node) continue;
+      if (node.name !== definition.name) {
+        throw new TypeError(`Block parser ${definition.name} returned mismatched extension node ${node.name}`);
+      }
+      if (!this.validateBlock(node)) {
+        throw new TypeError(`Block parser ${definition.name} returned invalid extension data`);
+      }
+      return cloneValue(node);
+    }
+    return undefined;
+  }
+
+  parseMarkHTML(element: Element): ARTExtensionMark | undefined {
+    for (const definition of this.#marks.values()) {
+      if (!definition.fromHTML) continue;
+      const mark = definition.fromHTML(element);
+      if (!mark) continue;
+      if (mark.name !== definition.name) {
+        throw new TypeError(`Mark parser ${definition.name} returned mismatched extension mark ${mark.name}`);
+      }
+      if (!this.validateMark(mark)) {
+        throw new TypeError(`Mark parser ${definition.name} returned invalid extension data`);
+      }
+      return cloneValue(mark);
+    }
+    return undefined;
+  }
+
+  serializeBlockMarkdown(node: ARTExtensionBlockNode): string | undefined {
+    const definition = this.#blocks.get(node.name);
+    if (!definition?.toMarkdown || !this.validateBlock(node)) return undefined;
+    return definition.toMarkdown(node);
+  }
+
+  serializeMarkMarkdown(mark: ARTExtensionMark, text: string): string | undefined {
+    const definition = this.#marks.get(mark.name);
+    if (!definition?.toMarkdown || !this.validateMark(mark)) return undefined;
+    return definition.toMarkdown(mark, text);
   }
 
   install(extension: ARichTextExtension<TContext>): () => void {
@@ -89,16 +170,25 @@ export class ExtensionRegistry<TContext = unknown> implements ExtensionRegistryV
   }
 
   async runCommand(name: string, host: TContext, args?: ARTJSONValue): Promise<unknown> {
+    if (args !== undefined && !isARTJSONValue(args)) {
+      throw new TypeError(`Extension command arguments must be JSON-safe: ${name}`);
+    }
     const command = this.#commands.get(name);
     if (!command) throw new RangeError(`Unknown extension command: ${name}`);
     const extension = this.#extensions.find((candidate) => candidate.commands?.includes(command));
     if (!extension) throw new Error(`Extension ownership missing for command: ${name}`);
-    return command.run({ host, extension }, args);
+    return command.run({ host, extension }, args === undefined ? undefined : cloneValue(args));
   }
 
   resolveKeyBinding(key: string): ExtensionKeyBinding | undefined {
     const binding = this.getKeyBinding(key);
-    return binding ? { ...binding } : undefined;
+    return binding
+      ? {
+          key: binding.key,
+          command: binding.command,
+          ...(binding.args !== undefined ? { args: cloneValue(binding.args) } : {}),
+        }
+      : undefined;
   }
 
   #uninstallExtension(extension: ARichTextExtension<TContext>): void {
@@ -141,6 +231,9 @@ export class ExtensionRegistry<TContext = unknown> implements ExtensionRegistryV
       seenCommands.add(item.name);
     }
     for (const item of keys) {
+      if (item.args !== undefined && !isARTJSONValue(item.args)) {
+        throw new TypeError(`Key binding arguments must be JSON-safe: ${item.key}`);
+      }
       if (!item.command || (!seenCommands.has(item.command) && !this.#commands.has(item.command))) {
         throw new TypeError(`Key binding ${item.key} references unknown command ${item.command} in ${extension.name}`);
       }
@@ -190,8 +283,64 @@ export function normalizeKeyBinding(value: string): string {
 function validateExtension<TContext>(extension: ARichTextExtension<TContext>): void {
   if (!extension || typeof extension !== 'object') throw new TypeError('Extension must be an object');
   validateNamespaced(extension.name, 'extension');
+  if (extension.version !== undefined && (typeof extension.version !== 'string' || extension.version.trim().length === 0)) {
+    throw new TypeError(`Extension version must be a non-empty string: ${extension.name}`);
+  }
+  if (extension.metadata !== undefined && !isARTJSONValue(extension.metadata)) {
+    throw new TypeError(`Extension metadata must be JSON-safe: ${extension.name}`);
+  }
 }
 
 function validateNamespaced(name: string, kind: string): void {
   if (!isExtensionName(name)) throw new TypeError(`${kind} name must be namespaced lowercase identifier (namespace:name): ${name}`);
+}
+
+function isValidExtensionBlockEnvelope(node: ARTExtensionBlockNode): boolean {
+  return isARTDocument({
+    type: 'doc',
+    version: ART_DOCUMENT_VERSION,
+    content: [node],
+  });
+}
+
+function isValidExtensionMarkEnvelope(mark: ARTExtensionMark): boolean {
+  return isARTDocument({
+    type: 'doc',
+    version: ART_DOCUMENT_VERSION,
+    content: [{
+      type: 'paragraph',
+      content: [{ type: 'text', text: 'x', marks: [mark] }],
+    }],
+  });
+}
+
+function cloneHTMLDescriptor(descriptor: ExtensionHTMLDescriptor): ExtensionHTMLDescriptor {
+  if (!descriptor || typeof descriptor !== 'object') throw new TypeError('Extension HTML hook must return a descriptor');
+  if (!isSafeTagName(descriptor.tagName)) throw new TypeError(`Unsafe extension HTML tag: ${descriptor.tagName}`);
+  const attributes: Record<string, string> = {};
+  for (const [name, value] of Object.entries(descriptor.attributes ?? {})) {
+    if (!isSafeAttributeName(name)) throw new TypeError(`Unsafe extension HTML attribute: ${name}`);
+    if (/^on/i.test(name)) throw new TypeError(`Event-handler attributes are forbidden in extension HTML: ${name}`);
+    attributes[name] = String(value);
+  }
+  return {
+    tagName: descriptor.tagName.toLowerCase(),
+    ...(Object.keys(attributes).length > 0 ? { attributes } : {}),
+    ...(descriptor.textContent !== undefined ? { textContent: String(descriptor.textContent) } : {}),
+  };
+}
+
+function isSafeTagName(value: string): boolean {
+  return /^[A-Za-z][A-Za-z0-9-]*$/.test(value)
+    && !['script', 'style', 'iframe', 'object', 'embed', 'template'].includes(value.toLowerCase());
+}
+
+function isSafeAttributeName(value: string): boolean {
+  return /^[A-Za-z_:][A-Za-z0-9:._-]*$/.test(value);
+}
+
+function cloneValue<T>(value: T): T {
+  return typeof structuredClone === 'function'
+    ? structuredClone(value)
+    : JSON.parse(JSON.stringify(value)) as T;
 }
