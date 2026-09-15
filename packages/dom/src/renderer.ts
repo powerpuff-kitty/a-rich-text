@@ -14,6 +14,8 @@ export const ART_BLOCK_PATH_ATTRIBUTE = 'data-art-block-path';
 export const ART_BREAK_ATTRIBUTE = 'data-art-break';
 export const ART_EXTENSION_BLOCK_ATTRIBUTE = 'data-art-extension-block';
 export const ART_EXTENSION_MARK_ATTRIBUTE = 'data-art-extension-mark';
+export const ART_EXTENSION_ATTRS_ATTRIBUTE = 'data-art-extension-attrs';
+export const ART_EXTENSION_FALLBACK_ATTRIBUTE = 'data-art-extension-fallback';
 
 const MARK_ORDER: Record<ARTTextMark['type'], number> = {
   bold: 0,
@@ -150,7 +152,7 @@ function renderBlock(
     }
     case 'extensionBlock': {
       const element = owner.createElement('div');
-      element.setAttribute(ART_EXTENSION_BLOCK_ATTRIBUTE, block.name);
+      writeExtensionEnvelope(element, block.name, block.attrs, block.fallbackText);
       element.contentEditable = 'false';
 
       const custom = options.extensions?.renderBlock(block, { document: owner });
@@ -244,10 +246,34 @@ function markElement(
       if (wrapper.ownerDocument !== owner) {
         throw new TypeError(`Extension mark renderer ${mark.name} returned an element from another document`);
       }
+      writeExtensionEnvelope(wrapper, mark.name, mark.attrs);
       wrapper.setAttribute(ART_EXTENSION_MARK_ATTRIBUTE, mark.name);
+      wrapper.removeAttribute(ART_EXTENSION_BLOCK_ATTRIBUTE);
       return wrapper;
     }
   }
+}
+
+function writeExtensionEnvelope(
+  element: Element,
+  name: string,
+  attrs?: Record<string, unknown>,
+  fallbackText?: string,
+): void {
+  element.setAttribute(ART_EXTENSION_BLOCK_ATTRIBUTE, name);
+  if (attrs) element.setAttribute(ART_EXTENSION_ATTRS_ATTRIBUTE, stableJSON(attrs));
+  if (fallbackText !== undefined) element.setAttribute(ART_EXTENSION_FALLBACK_ATTRIBUTE, fallbackText);
+}
+
+function stableJSON(value: unknown): string {
+  return JSON.stringify(sortJSON(value));
+}
+
+function sortJSON(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(sortJSON);
+  if (!value || typeof value !== 'object') return value;
+  const record = value as Record<string, unknown>;
+  return Object.fromEntries(Object.keys(record).sort().map((key) => [key, sortJSON(record[key])]));
 }
 
 function safeUrl(value: string, image: boolean): string | null {
