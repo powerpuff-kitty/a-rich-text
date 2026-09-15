@@ -1,0 +1,35 @@
+{
+  "name": "@arichtext/html",
+  "version": "0.0.0",
+  "description": "Browser-side HTML conversion for A Rich Text ART documents",
+  "type": "module",
+  "sideEffects": false,
+  "license": "MIT",
+  "homepage": "https://arichtext.com",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/powerpuff-kitty/a-rich-text.git",
+    "directory": "packages/html"
+  },
+  "bugs": {
+    "url": "https://github.com/powerpuff-kitty/a-rich-text/issues"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@arichtext/core": "workspace:*"
+  }
+}
