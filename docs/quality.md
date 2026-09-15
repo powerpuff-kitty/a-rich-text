@@ -14,6 +14,8 @@ pnpm verify:local
 
 Run these checks locally. GitHub Actions availability is not a prerequisite for development or validation. Keep `pnpm-lock.yaml` with dependency changes so clean installations resolve the same versions.
 
+The GitHub Actions workflow has been removed. Integration and release checks use the local commands above; merging or pushing this baseline does not schedule hosted CI.
+
 `pnpm verify` is the non-browser release gate:
 
 ```text
