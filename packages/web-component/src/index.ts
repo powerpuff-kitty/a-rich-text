@@ -23,7 +23,10 @@ import {
   type TransactionResult,
 } from '@arichtext/engine';
 import {
+  deleteBackward,
+  deleteForward,
   deleteSelection,
+  insertParagraph,
   insertText,
   toggleSelectionMark,
 } from '@arichtext/engine/commands';
@@ -379,8 +382,17 @@ export class ARichTextElement extends HTMLElementBase {
       case 'insertLineBreak':
         command = insertText(state, intent.text, this.#storedMarks ?? undefined);
         break;
+      case 'insertParagraph':
+        command = insertParagraph(state);
+        break;
       case 'deleteSelection':
         command = deleteSelection(state);
+        break;
+      case 'deleteBackward':
+        command = deleteBackward(state);
+        break;
+      case 'deleteForward':
+        command = deleteForward(state);
         break;
       case 'toggleMark':
         command = toggleSelectionMark(state, intent.mark);
