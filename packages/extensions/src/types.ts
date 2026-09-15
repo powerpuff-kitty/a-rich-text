@@ -73,6 +73,8 @@ export interface ExtensionRegistryView<TContext = unknown> {
   getMark(name: string): ExtensionMarkDefinition | undefined;
   getCommand(name: string): ExtensionCommandDefinition<TContext> | undefined;
   getKeyBinding(key: string): ExtensionKeyBinding | undefined;
+  validateBlock(node: ARTExtensionBlockNode): boolean;
+  validateMark(mark: ARTExtensionMark): boolean;
 }
 
 export interface ExtensionPreset<TContext = unknown> {
