@@ -1,5 +1,12 @@
 import { isARTDocument } from '@arichtext/core';
-import type { ARTBlockNode, ARTDocument, ARTTextMark, ARTTextNode } from '@arichtext/core';
+import type {
+  ARTBlockNode,
+  ARTDocument,
+  ARTExtensionBlockNode,
+  ARTExtensionMark,
+  ARTTextMark,
+  ARTTextNode,
+} from '@arichtext/core';
 import type { ARTPath } from '@arichtext/engine';
 
 export const ART_TEXT_BLOCK_ATTRIBUTE = 'data-art-text-block';
@@ -18,6 +25,21 @@ const MARK_ORDER: Record<ARTTextMark['type'], number> = {
   extensionMark: 6,
 };
 
+export interface DOMExtensionRenderer {
+  renderBlock(
+    node: ARTExtensionBlockNode,
+    context: { document: Document },
+  ): Node | undefined;
+  renderMark(
+    mark: ARTExtensionMark,
+    context: { document: Document },
+  ): HTMLElement | undefined;
+}
+
+export interface ARTDOMRenderOptions {
+  extensions?: DOMExtensionRenderer;
+}
+
 export function encodeARTPath(path: ARTPath): string {
   return path.join('.');
 }
@@ -27,31 +49,40 @@ export function decodeARTPath(value: string): number[] {
   return value.split('.').map((part) => Number.parseInt(part, 10));
 }
 
-export function renderARTDocument(root: HTMLElement, document: ARTDocument): void {
+export function renderARTDocument(
+  root: HTMLElement,
+  document: ARTDocument,
+  options: ARTDOMRenderOptions = {},
+): void {
   if (!isARTDocument(document)) throw new TypeError('Invalid ART document');
   const owner = root.ownerDocument;
   const fragment = owner.createDocumentFragment();
-  document.content.forEach((block, index) => fragment.append(renderBlock(owner, block, [index])));
+  document.content.forEach((block, index) => fragment.append(renderBlock(owner, block, [index], options)));
   root.replaceChildren(fragment);
 }
 
-function renderBlock(owner: Document, block: ARTBlockNode, path: number[]): Node {
+function renderBlock(
+  owner: Document,
+  block: ARTBlockNode,
+  path: number[],
+  options: ARTDOMRenderOptions,
+): Node {
   switch (block.type) {
     case 'paragraph': {
       const element = owner.createElement('p');
       markTextBlock(element, path);
-      renderInline(owner, element, block.content ?? []);
+      renderInline(owner, element, block.content ?? [], options);
       return element;
     }
     case 'heading': {
       const element = owner.createElement(`h${block.level}`);
       markTextBlock(element, path);
-      renderInline(owner, element, block.content ?? []);
+      renderInline(owner, element, block.content ?? [], options);
       return element;
     }
     case 'blockquote': {
       const element = owner.createElement('blockquote');
-      block.content.forEach((child, index) => element.append(renderBlock(owner, child, [...path, index])));
+      block.content.forEach((child, index) => element.append(renderBlock(owner, child, [...path, index], options)));
       return element;
     }
     case 'codeBlock': {
@@ -81,7 +112,7 @@ function renderBlock(owner: Document, block: ARTBlockNode, path: number[]): Node
           li.append(checkbox);
         }
         item.content.forEach((child, childIndex) => {
-          li.append(renderBlock(owner, child, [...path, itemIndex, childIndex]));
+          li.append(renderBlock(owner, child, [...path, itemIndex, childIndex], options));
         });
         list.append(li);
       });
@@ -108,7 +139,7 @@ function renderBlock(owner: Document, block: ARTBlockNode, path: number[]): Node
           if (cell.colspan && cell.colspan > 1) td.colSpan = cell.colspan;
           if (cell.rowspan && cell.rowspan > 1) td.rowSpan = cell.rowspan;
           cell.content.forEach((child, childIndex) => {
-            td.append(renderBlock(owner, child, [...path, rowIndex, cellIndex, childIndex]));
+            td.append(renderBlock(owner, child, [...path, rowIndex, cellIndex, childIndex], options));
           });
           tr.append(td);
         });
@@ -121,10 +152,17 @@ function renderBlock(owner: Document, block: ARTBlockNode, path: number[]): Node
       const element = owner.createElement('div');
       element.setAttribute(ART_EXTENSION_BLOCK_ATTRIBUTE, block.name);
       element.contentEditable = 'false';
-      if (block.fallbackText !== undefined) {
+
+      const custom = options.extensions?.renderBlock(block, { document: owner });
+      if (custom) {
+        if (custom.ownerDocument !== owner) {
+          throw new TypeError(`Extension renderer ${block.name} returned a node from another document`);
+        }
+        element.append(custom);
+      } else if (block.fallbackText !== undefined) {
         element.textContent = block.fallbackText;
       } else {
-        block.content?.forEach((child, index) => element.append(renderBlock(owner, child, [...path, index])));
+        block.content?.forEach((child, index) => element.append(renderBlock(owner, child, [...path, index], options)));
       }
       return element;
     }
@@ -136,7 +174,12 @@ function markTextBlock(element: HTMLElement, path: ARTPath): void {
   element.setAttribute(ART_BLOCK_PATH_ATTRIBUTE, encodeARTPath(path));
 }
 
-function renderInline(owner: Document, parent: HTMLElement, content: readonly ARTTextNode[]): void {
+function renderInline(
+  owner: Document,
+  parent: HTMLElement,
+  content: readonly ARTTextNode[],
+  options: ARTDOMRenderOptions,
+): void {
   for (const textNode of content) {
     let rendered: Node = renderText(owner, textNode.text);
     const marks = [...(textNode.marks ?? [])].sort((left, right) => {
@@ -148,7 +191,7 @@ function renderInline(owner: Document, parent: HTMLElement, content: readonly AR
     });
 
     for (const mark of marks) {
-      const wrapper = markElement(owner, mark);
+      const wrapper = markElement(owner, mark, options);
       if (!wrapper) continue;
       wrapper.append(rendered);
       rendered = wrapper;
@@ -172,7 +215,11 @@ function renderText(owner: Document, value: string): Node {
   return fragment;
 }
 
-function markElement(owner: Document, mark: ARTTextMark): HTMLElement | null {
+function markElement(
+  owner: Document,
+  mark: ARTTextMark,
+  options: ARTDOMRenderOptions,
+): HTMLElement | null {
   switch (mark.type) {
     case 'bold':
       return owner.createElement('strong');
@@ -192,9 +239,13 @@ function markElement(owner: Document, mark: ARTTextMark): HTMLElement | null {
       return anchor;
     }
     case 'extensionMark': {
-      const span = owner.createElement('span');
-      span.setAttribute(ART_EXTENSION_MARK_ATTRIBUTE, mark.name);
-      return span;
+      const custom = options.extensions?.renderMark(mark, { document: owner });
+      const wrapper = custom ?? owner.createElement('span');
+      if (wrapper.ownerDocument !== owner) {
+        throw new TypeError(`Extension mark renderer ${mark.name} returned an element from another document`);
+      }
+      wrapper.setAttribute(ART_EXTENSION_MARK_ATTRIBUTE, mark.name);
+      return wrapper;
     }
   }
 }
