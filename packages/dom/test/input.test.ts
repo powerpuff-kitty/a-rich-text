@@ -8,7 +8,7 @@ function input(inputType: string, data: string | null = null, isComposing = fals
 }
 
 describe('@arichtext/dom beforeinput classification', () => {
-  it('intercepts deterministic text and format intents', () => {
+  it('intercepts deterministic text, structure and format intents', () => {
     expect(classifyBeforeInput(input('insertText', 'A'))).toEqual({
       kind: 'insertText',
       text: 'A',
@@ -19,6 +19,18 @@ describe('@arichtext/dom beforeinput classification', () => {
       text: '\n',
       intercept: true,
     });
+    expect(classifyBeforeInput(input('insertParagraph'))).toEqual({
+      kind: 'insertParagraph',
+      intercept: true,
+    });
+    expect(classifyBeforeInput(input('deleteContentBackward'))).toEqual({
+      kind: 'deleteBackward',
+      intercept: true,
+    });
+    expect(classifyBeforeInput(input('deleteContentForward'))).toEqual({
+      kind: 'deleteForward',
+      intercept: true,
+    });
     expect(classifyBeforeInput(input('formatBold'))).toEqual({
       kind: 'toggleMark',
       mark: { type: 'bold' },
@@ -26,19 +38,28 @@ describe('@arichtext/dom beforeinput classification', () => {
     });
   });
 
-  it('does not intercept composition or structural browser edits yet', () => {
+  it('does not intercept composition or unsupported structural browser edits', () => {
     expect(classifyBeforeInput(input('insertCompositionText', 'あ', true))).toEqual({
       kind: 'composition',
       inputType: 'insertCompositionText',
       intercept: false,
     });
-    expect(classifyBeforeInput(input('insertParagraph'))).toEqual({
+    expect(classifyBeforeInput(input('insertOrderedList'))).toEqual({
       kind: 'structural',
-      inputType: 'insertParagraph',
+      inputType: 'insertOrderedList',
       intercept: false,
     });
-    expect(classifyBeforeInput(input('deleteContentBackward'))).toEqual({
-      kind: 'deleteBackward',
+  });
+
+  it('leaves word and line deletion to a dedicated fallback', () => {
+    expect(classifyBeforeInput(input('deleteWordBackward'))).toEqual({
+      kind: 'granularDelete',
+      inputType: 'deleteWordBackward',
+      intercept: false,
+    });
+    expect(classifyBeforeInput(input('deleteHardLineForward'))).toEqual({
+      kind: 'granularDelete',
+      inputType: 'deleteHardLineForward',
       intercept: false,
     });
   });
