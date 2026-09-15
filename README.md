@@ -31,6 +31,8 @@ Core architecture docs:
 - [`docs/clipboard.md`](docs/clipboard.md)
 - [`docs/media.md`](docs/media.md)
 - [`docs/media-editor.md`](docs/media-editor.md)
+- [`docs/collaboration.md`](docs/collaboration.md)
+- [`docs/ai.md`](docs/ai.md)
 
 ## Workspace
 
@@ -45,6 +47,10 @@ packages/clipboard              @arichtext/clipboard
 packages/persistence-indexeddb  @arichtext/persistence-indexeddb
 packages/media                  @arichtext/media
 packages/media-editor           @arichtext/media-editor
+packages/collaboration          @arichtext/collaboration
+packages/collaboration-editor   @arichtext/collaboration-editor
+packages/ai                     @arichtext/ai
+packages/ai-editor              @arichtext/ai-editor
 packages/ui                     @arichtext/ui
 packages/web-component          @arichtext/web-component
 ```
@@ -99,7 +105,7 @@ editor.undo();
 editor.redo();
 ```
 
-The engine currently handles ordinary text input, inline formatting, paragraph splitting, grapheme-aware Backspace/Delete, compatible sibling joins and ART fragment insertion. The DOM adapter maps logical block-relative selections to/from browser selections. IME composition and unsupported native browser mutations use an explicit sanitized reconciliation path rather than silently becoming canonical state.
+The engine handles ordinary text input, inline formatting, paragraph splitting, grapheme-aware Backspace/Delete, compatible sibling joins and ART fragment insertion. The DOM adapter maps logical block-relative selections to/from browser selections. IME composition and unsupported native browser mutations use an explicit sanitized reconciliation path rather than silently becoming canonical state.
 
 ## Extensions
 
@@ -125,7 +131,7 @@ const extensions = createExtensionRegistry([
 editor.extensions = extensions;
 ```
 
-If the registry is unavailable, the custom ART data remains valid/serializable and falls back to portable text or nested ART content. See [`docs/extensions.md`](docs/extensions.md).
+If the registry is unavailable, custom ART data remains valid/serializable and falls back to portable text or nested ART content.
 
 ## Conversion API
 
@@ -133,13 +139,10 @@ If the registry is unavailable, the custom ART data remains valid/serializable a
 editor.getJSON();
 editor.setJSON(document);
 editor.serializeJSON();
-
 editor.getHTML();
 editor.setHTML(html);
-
 editor.getMarkdown();
 editor.setMarkdown(markdown);
-
 editor.getText();
 editor.setText(text);
 ```
@@ -178,7 +181,42 @@ Documents, snapshots and autosave stay entirely in the browser unless the integr
 
 ## Media
 
-Browser image validation/resizing/re-encoding lives in the optional `@arichtext/media` package. Applications provide their own upload provider. `@arichtext/media-editor` connects file paste/drop/picker flows to the editor without adding media processing code to the base Web Component bundle.
+Browser image validation/resizing/re-encoding lives in optional `@arichtext/media`. Applications provide their own upload provider. `@arichtext/media-editor` connects file paste/drop/picker flows without adding media processing code to the base Web Component bundle.
+
+## Collaboration
+
+Collaboration is provider-based and optional:
+
+```ts
+import { createMemoryCollaborationProvider } from '@arichtext/collaboration/memory';
+import { connectCollaboration } from '@arichtext/collaboration-editor';
+
+const provider = createMemoryCollaborationProvider();
+const collaboration = await connectCollaboration(editor, provider, {
+  documentId: 'article-123',
+  clientId: crypto.randomUUID(),
+});
+```
+
+Providers explicitly advertise `merge: 'snapshot'` or `merge: 'concurrent'`; snapshot synchronization is never presented as CRDT-safe multi-writer collaboration. The in-memory provider is a reference/test implementation. Yjs and hosted realtime adapters remain optional follow-up packages.
+
+## BYO AI
+
+AI editing is proposal-first and provider-neutral:
+
+```ts
+import { createAIProposal, applyAIProposal } from '@arichtext/ai-editor';
+
+const task = createAIProposal(editor, myProvider, {
+  task: 'rewrite',
+});
+
+const proposal = await task.promise;
+// Present proposal.replacementText for review.
+applyAIProposal(editor, proposal);
+```
+
+Model output is plain text, never trusted HTML. Streaming is preview-only, application is explicit/undoable, and any canonical document change makes an older proposal stale. Hosted-provider secret credentials belong behind application-owned infrastructure; browser-local models can implement the same provider interface directly.
 
 ## Development
 
@@ -189,7 +227,7 @@ pnpm typecheck
 pnpm test
 ```
 
-The regression suite covers ART validation, conversion/sanitization, SSR imports, format interoperability, local persistence, engine transactions/history, safe DOM rendering, selection mapping, clipboard behavior, extension registries and engine-backed Web Component behavior.
+The regression suite covers ART validation, conversion/sanitization, SSR imports, format interoperability, local persistence, engine transactions/history, safe DOM rendering, selection mapping, clipboard behavior, extension registries, collaboration contracts and reviewable AI proposals.
 
 ## Business model principle
 
