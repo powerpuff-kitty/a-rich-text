@@ -71,6 +71,8 @@ export interface AITextProposal {
 
 export type AIErrorCode =
   | 'no-selection'
+  | 'invalid-document'
+  | 'invalid-selection'
   | 'cross-block-selection'
   | 'empty-selection'
   | 'invalid-provider-result'
