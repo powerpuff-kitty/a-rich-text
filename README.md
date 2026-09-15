@@ -35,6 +35,7 @@ Core architecture docs:
 - [`docs/ai.md`](docs/ai.md)
 - [`docs/annotations.md`](docs/annotations.md)
 - [`docs/comments.md`](docs/comments.md)
+- [`docs/suggestions.md`](docs/suggestions.md)
 
 ## Workspace
 
@@ -56,6 +57,8 @@ packages/ai-editor              @arichtext/ai-editor
 packages/annotations            @arichtext/annotations
 packages/comments               @arichtext/comments
 packages/comments-editor        @arichtext/comments-editor
+packages/suggestions            @arichtext/suggestions
+packages/suggestions-editor     @arichtext/suggestions-editor
 packages/ui                     @arichtext/ui
 packages/web-component          @arichtext/web-component
 ```
@@ -246,6 +249,30 @@ await comments.createThread('Can we verify this claim?');
 
 Comments/replies/reactions/resolution never alter `editor.serializeJSON()`. Anchors map through typing, split/join, paste and undo/redo; ambiguous structural native reconciliation fails closed as `orphaned` rather than guessing.
 
+## Tracked suggestions
+
+Suggestions reuse the same anchored-range foundation but remain separate review records until explicitly accepted:
+
+```ts
+import { createMemorySuggestionsProvider } from '@arichtext/suggestions/memory';
+import { connectSuggestions } from '@arichtext/suggestions-editor';
+
+const suggestions = await connectSuggestions(
+  editor,
+  createMemorySuggestionsProvider(),
+  {
+    documentId: 'article-123',
+    clientId: crypto.randomUUID(),
+    author: { id: currentUser.id },
+  },
+);
+
+const suggestion = await suggestions.createSuggestion('replacement text');
+await suggestions.accept(suggestion.id, { id: reviewer.id });
+```
+
+Insert/delete/replace suggestions do not modify ART while pending. Unrelated edits remap their anchors; overlapping source edits become explicit `conflicted` records rather than being silently rebased. Acceptance is a normal undoable engine transaction; rejection changes review metadata only.
+
 ## Development
 
 ```bash
@@ -255,7 +282,7 @@ pnpm typecheck
 pnpm test
 ```
 
-The regression suite covers ART validation, conversion/sanitization, SSR imports, format interoperability, local persistence, engine transactions/history, safe DOM rendering, selection mapping, clipboard behavior, extension registries, collaboration contracts, reviewable AI proposals, transaction-mapped annotations and provider-neutral comments.
+The regression suite covers ART validation, conversion/sanitization, SSR imports, format interoperability, local persistence, engine transactions/history, safe DOM rendering, selection mapping, clipboard behavior, extension registries, collaboration contracts, reviewable AI proposals, transaction-mapped annotations, comments and tracked suggestions.
 
 ## Business model principle
 
