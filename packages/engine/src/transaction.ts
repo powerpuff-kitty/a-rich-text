@@ -1,5 +1,10 @@
 import { isARTDocument } from '@arichtext/core';
-import type { ARTDocument, ARTHeadingNode, ARTTextMark } from '@arichtext/core';
+import type {
+  ARTDocument,
+  ARTHeadingNode,
+  ARTParagraphNode,
+  ARTTextMark,
+} from '@arichtext/core';
 import { textPoint, textSelection } from './model.js';
 import {
   addMark,
@@ -217,23 +222,19 @@ function applySetBlockType(
   if (!isInlineBlock(current)) throw new RangeError('setBlockType path must target a paragraph or heading');
 
   const content = cloneInline(current.content ?? []);
-  const replacement = operation.blockType === 'heading'
+  const replacement: ARTParagraphNode | ARTHeadingNode = operation.blockType === 'heading'
     ? {
-        type: 'heading' as const,
+        type: 'heading',
         level: operation.level ?? (current.type === 'heading' ? current.level : 1),
         content,
       }
-    : { type: 'paragraph' as const, content };
+    : { type: 'paragraph', content };
 
   replaceNodeAtPath(output, operation.path, replacement);
   return output;
 }
 
-function isInlineBlock(value: unknown): value is { type: 'paragraph'; content?: ARTTextMark[] } | {
-  type: 'heading';
-  level: ARTHeadingNode['level'];
-  content?: never;
-} {
+function isInlineBlock(value: unknown): value is ARTParagraphNode | ARTHeadingNode {
   if (!value || typeof value !== 'object') return false;
   const candidate = value as { type?: unknown };
   return candidate.type === 'paragraph' || candidate.type === 'heading';
