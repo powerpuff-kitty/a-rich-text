@@ -47,6 +47,8 @@ export interface ResolveSuggestionInput extends SuggestionMutationOptions {
 export interface ConflictSuggestionInput extends SuggestionMutationOptions {
   reason: string;
   reviewer?: SuggestionAuthor;
+  /** Latest deterministic location, including orphaned state, at conflict time. */
+  anchor?: AnchoredRangeMappingResult;
 }
 
 export interface SuggestionEvent {
