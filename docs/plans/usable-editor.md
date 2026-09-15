@@ -1,5 +1,9 @@
 # Usable editor delivery
 
+Completed locally at `0649180`; see [verification evidence](../verification/2026-09-15-usable.md)
+and [the integration guide](../getting-started.md). Public publication and the
+external production checks listed below remain separate work.
+
 Outcome: a locally installable, framework-independent editor with working typing,
 formatting, links, lists, tables, native forms, and a documented integration path.
 GitHub Actions stays disabled. Public publication is outside this delivery.
