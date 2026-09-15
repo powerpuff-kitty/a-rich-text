@@ -24,6 +24,35 @@ describe('<a-rich-text>', () => {
     expect(editor.getText()).toBe('Browser first');
   });
 
+  it('serializes the value according to the selected form format', () => {
+    const editor = document.createElement('a-rich-text') as ARichTextElement;
+    document.body.append(editor);
+    editor.setHTML('<p>Hello <strong>world</strong></p>');
+
+    expect(editor.format).toBe('html');
+    expect(editor.value).toBe('<p>Hello <strong>world</strong></p>');
+
+    editor.format = 'markdown';
+    expect(editor.value).toBe('Hello **world**');
+
+    editor.format = 'text';
+    expect(editor.value).toBe('Hello world');
+
+    editor.format = 'json';
+    expect(JSON.parse(editor.value)).toMatchObject({ type: 'doc', version: 1 });
+  });
+
+  it('interprets assigned values using the selected format', () => {
+    const editor = document.createElement('a-rich-text') as ARichTextElement;
+    editor.format = 'markdown';
+    document.body.append(editor);
+
+    editor.value = '## Stored as **Markdown**';
+
+    expect(editor.getHTML()).toBe('<h2>Stored as <strong>Markdown</strong></h2>');
+    expect(editor.value).toBe('## Stored as **Markdown**');
+  });
+
   it('sanitizes HTML before inserting it into the editable surface', () => {
     const editor = document.createElement('a-rich-text') as ARichTextElement;
     document.body.append(editor);
