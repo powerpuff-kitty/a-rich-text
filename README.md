@@ -2,7 +2,7 @@
 
 **A browser-first rich-text editor that behaves like a native HTML control.**
 
-The primary integration surface is `<a-rich-text>`. The open client runtime is designed to work without an account, API key, framework runtime, mandatory server, or mandatory network request. Optional paid products will focus on managed infrastructure rather than locking ordinary editor features behind a subscription.
+The primary integration surface is `<a-rich-text>`. The open client runtime is designed to work without an account, API key, framework runtime, mandatory server, or mandatory network request. Optional paid products focus on managed infrastructure rather than locking ordinary editor features behind a subscription.
 
 > Status: early foundation. The repository is not ready for production use yet.
 
@@ -12,25 +12,31 @@ The primary integration surface is `<a-rich-text>`. The open client runtime is d
 - framework-independent TypeScript core
 - canonical versioned ART JSON document model
 - HTML / Markdown / plain-text conversion in the browser
+- format-selectable native form values
 - local-first drafts and history
 - pluggable persistence, uploads, collaboration and AI
 - accessibility, IME correctness, security and performance as release gates
 
-See [`docs/architecture.md`](docs/architecture.md).
+See [`docs/architecture.md`](docs/architecture.md), [`docs/conversion.md`](docs/conversion.md) and [`docs/forms.md`](docs/forms.md).
 
 ## Workspace
 
 ```text
 packages/core           @arichtext/core
+packages/html           @arichtext/html
+packages/markdown       @arichtext/markdown
 packages/web-component  @arichtext/web-component
 ```
 
-## Intended API
+All editor packages are prepared for public npm publication. The GitHub repository can remain private during early development; the long-term direction is to open-source the client/editor monorepo while keeping optional managed cloud infrastructure separate.
+
+## Web Component
 
 ```html
-<form>
+<form method="post">
   <a-rich-text
     name="body"
+    format="markdown"
     placeholder="Write something…"
   ></a-rich-text>
   <button>Submit</button>
@@ -41,14 +47,46 @@ packages/web-component  @arichtext/web-component
 </script>
 ```
 
-The initial element already exposes plain-text value handling, form association, readonly/disabled state, ART JSON serialization and CSS customization hooks. Formatting, structured DOM mapping, Markdown/HTML conversion and extension packages are tracked in the roadmap issues.
+`format` controls the serialized native form value:
+
+```text
+html      rich HTML (default)
+json      serialized ART JSON
+markdown  Markdown
+text      plain text
+```
+
+The semantic document remains ART regardless of the selected form format.
+
+## Conversion API
+
+```ts
+editor.getJSON();
+editor.setJSON(document);
+editor.serializeJSON();
+
+editor.getHTML();
+editor.setHTML(html);
+
+editor.getMarkdown();
+editor.setMarkdown(markdown);
+
+editor.getText();
+editor.setText(text);
+```
+
+HTML import is allowlist-based: executable/embed nodes and unsafe URL protocols are discarded when content is converted into ART.
 
 ## Development
 
 ```bash
 pnpm install
 pnpm build
+pnpm typecheck
+pnpm test
 ```
+
+The initial test suite covers ART schema validation, conversion/sanitization behavior and Web Component format interoperability.
 
 ## Business model principle
 
