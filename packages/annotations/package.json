@@ -1,0 +1,36 @@
+{
+  "name": "@arichtext/annotations",
+  "version": "0.0.0",
+  "description": "Transaction-mapped anchored text ranges for A Rich Text comments and review workflows",
+  "license": "MIT",
+  "type": "module",
+  "sideEffects": false,
+  "homepage": "https://arichtext.com",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/powerpuff-kitty/a-rich-text.git",
+    "directory": "packages/annotations"
+  },
+  "bugs": {
+    "url": "https://github.com/powerpuff-kitty/a-rich-text/issues"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@arichtext/core": "workspace:*",
+    "@arichtext/engine": "workspace:*"
+  }
+}
