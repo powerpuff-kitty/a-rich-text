@@ -26,6 +26,7 @@ import {
   replaceInlineRange,
   replaceNodeAtPath,
   sameDocument,
+  samePath,
   sameSelection,
   validateSelection,
 } from './tree.js';
@@ -78,6 +79,16 @@ export class TransactionBuilder {
       blockType,
       ...(level !== undefined ? { level } : {}),
     });
+    return this;
+  }
+
+  splitBlock(point: ARTTextPoint): this {
+    this.#operations.push({ type: 'splitBlock', point: clonePoint(point) });
+    return this;
+  }
+
+  joinBlocks(leftPath: ARTPath, rightPath: ARTPath): this {
+    this.#operations.push({ type: 'joinBlocks', leftPath: [...leftPath], rightPath: [...rightPath] });
     return this;
   }
 
@@ -140,6 +151,18 @@ export function applyTransaction(state: EditorState, transactionValue: EditorTra
       case 'setBlockType':
         document = applySetBlockType(document, operation);
         break;
+      case 'splitBlock': {
+        const result = applySplitBlock(document, operation);
+        document = result.document;
+        selection = textSelection(result.caret);
+        break;
+      }
+      case 'joinBlocks': {
+        const result = applyJoinBlocks(document, operation);
+        document = result.document;
+        selection = textSelection(result.caret);
+        break;
+      }
     }
   }
 
@@ -232,6 +255,77 @@ function applySetBlockType(
 
   replaceNodeAtPath(output, operation.path, replacement);
   return output;
+}
+
+function applySplitBlock(
+  document: ARTDocument,
+  operation: Extract<EditorOperation, { type: 'splitBlock' }>,
+): { document: ARTDocument; caret: ARTTextPoint } {
+  const output = cloneDocument(document);
+  const current = getInlineBlock(output, operation.point.blockPath);
+  const length = inlineLength(current);
+  if (!Number.isInteger(operation.point.offset) || operation.point.offset < 0 || operation.point.offset > length) {
+    throw new RangeError('splitBlock offset is outside the target block');
+  }
+  if (operation.point.blockPath.length === 0) throw new RangeError('splitBlock requires a block path');
+
+  const parentPath = operation.point.blockPath.slice(0, -1);
+  const index = operation.point.blockPath[operation.point.blockPath.length - 1]!;
+  const parent = getNodeAtPath(output, parentPath);
+  const children = mutableContent(parent);
+  if (children[index] !== current) throw new RangeError('splitBlock path does not target its expected parent child');
+
+  const leftContent = replaceInlineRange(current.content ?? [], operation.point.offset, length, '', []);
+  const rightContent = replaceInlineRange(current.content ?? [], 0, operation.point.offset, '', []);
+  const left: ARTParagraphNode | ARTHeadingNode = current.type === 'heading'
+    ? { type: 'heading', level: current.level, content: leftContent }
+    : { type: 'paragraph', content: leftContent };
+  const right: ARTParagraphNode = { type: 'paragraph', content: rightContent };
+
+  children.splice(index, 1, left, right);
+  const rightPath = [...parentPath, index + 1];
+  return { document: output, caret: textPoint(rightPath, 0) };
+}
+
+function applyJoinBlocks(
+  document: ARTDocument,
+  operation: Extract<EditorOperation, { type: 'joinBlocks' }>,
+): { document: ARTDocument; caret: ARTTextPoint } {
+  if (operation.leftPath.length === 0 || operation.rightPath.length === 0) {
+    throw new RangeError('joinBlocks requires block paths');
+  }
+  const leftParent = operation.leftPath.slice(0, -1);
+  const rightParent = operation.rightPath.slice(0, -1);
+  if (!samePath(leftParent, rightParent)) throw new RangeError('joinBlocks only supports siblings with the same parent');
+
+  const leftIndex = operation.leftPath[operation.leftPath.length - 1]!;
+  const rightIndex = operation.rightPath[operation.rightPath.length - 1]!;
+  if (rightIndex !== leftIndex + 1) throw new RangeError('joinBlocks requires adjacent left/right siblings');
+
+  const output = cloneDocument(document);
+  const parent = getNodeAtPath(output, leftParent);
+  const children = mutableContent(parent);
+  const left = children[leftIndex];
+  const right = children[rightIndex];
+  if (!isInlineBlock(left) || !isInlineBlock(right)) {
+    throw new RangeError('joinBlocks only supports paragraph/heading siblings');
+  }
+
+  const caretOffset = inlineLength(left);
+  const mergedContent = cloneInline([...(left.content ?? []), ...(right.content ?? [])]);
+  const merged: ARTParagraphNode | ARTHeadingNode = left.type === 'heading'
+    ? { type: 'heading', level: left.level, content: mergedContent }
+    : { type: 'paragraph', content: mergedContent };
+  children.splice(leftIndex, 2, merged);
+
+  return { document: output, caret: textPoint(operation.leftPath, caretOffset) };
+}
+
+function mutableContent(value: unknown): unknown[] {
+  if (!value || typeof value !== 'object') throw new RangeError('ART parent has no content array');
+  const content = (value as { content?: unknown }).content;
+  if (!Array.isArray(content)) throw new RangeError('ART parent has no content array');
+  return content;
 }
 
 function isInlineBlock(value: unknown): value is ARTParagraphNode | ARTHeadingNode {
