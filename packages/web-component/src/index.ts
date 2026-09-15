@@ -1,9 +1,12 @@
+import { clipboardToDocument } from '@arichtext/clipboard';
 import {
   createTextDocument,
   parseDocument,
   serializeDocument,
   toPlainText,
   type ARTDocument,
+  type ARTHeadingNode,
+  type ARTJSONValue,
   type ARTTextMark,
 } from '@arichtext/core';
 import {
@@ -11,12 +14,16 @@ import {
   readDOMSelection,
   renderARTDocument,
   writeDOMSelection,
+  type DOMExtensionRenderer,
 } from '@arichtext/dom';
 import {
   EditorEngine,
   createEditorState,
+  getActiveBlock as queryActiveBlock,
+  getActiveMarks as queryActiveMarks,
   isCollapsedSelection,
   transaction,
+  type ActiveBlock,
   type ARTSelection,
   type ARTTextPoint,
   type EditorTransaction,
@@ -26,15 +33,39 @@ import {
   deleteBackward,
   deleteForward,
   deleteSelection,
+  insertFragment,
   insertParagraph,
   insertText,
+  setCurrentHeading,
+  setCurrentParagraph,
   toggleSelectionMark,
 } from '@arichtext/engine/commands';
-import { fromHTML, toHTML } from '@arichtext/html';
+import {
+  fromHTML,
+  toHTML,
+  type HTMLExtensionHooks,
+} from '@arichtext/html';
 import { fromMarkdown, toMarkdown } from '@arichtext/markdown';
 
 export type ARichTextFormat = 'html' | 'json' | 'markdown' | 'text';
 export type ARichTextReconcileSource = 'native-input' | 'composition';
+export type ARichTextSimpleMark = 'bold' | 'italic' | 'underline' | 'strike';
+
+export interface ARichTextExtensionKeyBinding {
+  key: string;
+  command: string;
+  args?: ARTJSONValue;
+}
+
+/**
+ * Structural extension runtime. `ExtensionRegistry` from
+ * `@arichtext/extensions` satisfies this interface without creating a hard
+ * runtime dependency from the base Web Component package.
+ */
+export interface ARichTextExtensionRuntime extends DOMExtensionRenderer, HTMLExtensionHooks {
+  resolveKeyBinding?(key: string): ARichTextExtensionKeyBinding | undefined;
+  runCommand?(name: string, host: unknown, args?: ARTJSONValue): Promise<unknown>;
+}
 
 export interface ARichTextTransactionDetail {
   result: TransactionResult;
@@ -47,6 +78,10 @@ export interface ARichTextSelectionChangeDetail {
 export interface ARichTextReconcileDetail {
   source: ARichTextReconcileSource;
   document: ARTDocument;
+}
+
+export interface ARichTextFormatStateDetail {
+  marks: ARTTextMark[];
 }
 
 export interface ARichTextErrorDetail {
@@ -128,6 +163,7 @@ export class ARichTextElement extends HTMLElementBase {
   #internals: ElementInternals | null;
   #editor: HTMLDivElement;
   #engine: EditorEngine;
+  #extensions?: ARichTextExtensionRuntime;
   #unsubscribeEngine?: () => void;
   #selectionDocument?: Document;
   #composing = false;
@@ -151,6 +187,8 @@ export class ARichTextElement extends HTMLElementBase {
     this.#editor.addEventListener('input', this.#handleNativeInput);
     this.#editor.addEventListener('compositionstart', this.#handleCompositionStart);
     this.#editor.addEventListener('compositionend', this.#handleCompositionEnd);
+    this.#editor.addEventListener('keydown', this.#handleKeyDown);
+    this.#editor.addEventListener('paste', this.#handlePaste);
     this.#editor.addEventListener('blur', () => {
       this.dispatchEvent(new Event('change', { bubbles: true }));
     });
@@ -179,6 +217,17 @@ export class ARichTextElement extends HTMLElementBase {
     }
     this.#syncState();
     this.#syncDerivedState();
+    this.#syncFormValue();
+  }
+
+  get extensions(): ARichTextExtensionRuntime | undefined {
+    return this.#extensions;
+  }
+
+  set extensions(value: ARichTextExtensionRuntime | undefined) {
+    if (this.#extensions === value) return;
+    this.#extensions = value;
+    this.#renderFromEngine();
     this.#syncFormValue();
   }
 
@@ -240,8 +289,18 @@ export class ARichTextElement extends HTMLElementBase {
     this.toggleAttribute('readonly', value);
   }
 
+  get canUndo(): boolean {
+    return this.#engine.canUndo;
+  }
+
+  get canRedo(): boolean {
+    return this.#engine.canRedo;
+  }
+
   override focus(options?: FocusOptions): void {
     this.#editor.focus(options);
+    const selection = this.#engine.state.selection;
+    if (selection) writeDOMSelection(this.#editor, selection);
   }
 
   clear(): void {
@@ -269,6 +328,68 @@ export class ARichTextElement extends HTMLElementBase {
     return result;
   }
 
+  getSelection(): ARTSelection | null {
+    const selection = this.#engine.state.selection;
+    return selection ? cloneSelection(selection) : null;
+  }
+
+  getActiveMarks(): ARTTextMark[] {
+    const selection = this.#engine.state.selection;
+    if (this.#storedMarks && selection && isCollapsedSelection(selection)) {
+      return this.#storedMarks.map(cloneMark);
+    }
+    return queryActiveMarks(this.#engine.state).map(cloneMark);
+  }
+
+  isMarkActive(mark: ARichTextSimpleMark | ARTTextMark['type']): boolean {
+    return this.getActiveMarks().some((candidate) => candidate.type === mark);
+  }
+
+  getActiveBlock(): ActiveBlock | null {
+    return queryActiveBlock(this.#engine.state);
+  }
+
+  toggleMark(mark: ARichTextSimpleMark | ARTTextMark): boolean {
+    if (this.disabled || this.readOnly) return false;
+    const normalized: ARTTextMark = typeof mark === 'string' ? { type: mark } : cloneMark(mark);
+    const state = this.#engine.state;
+    const selection = state.selection;
+    if (!selection) return false;
+
+    if (isCollapsedSelection(selection)) {
+      this.#toggleStoredMark(normalized);
+      this.#emitFormatState();
+      return true;
+    }
+
+    const command = toggleSelectionMark(state, normalized);
+    if (!command) return false;
+    const result = this.#engine.dispatch(command);
+    this.#emitTransactionResult(result);
+    return true;
+  }
+
+  setParagraph(): boolean {
+    if (this.disabled || this.readOnly) return false;
+    const command = setCurrentParagraph(this.#engine.state);
+    if (!command) return false;
+    this.#emitTransactionResult(this.#engine.dispatch(command));
+    return true;
+  }
+
+  setHeading(level: ARTHeadingNode['level']): boolean {
+    if (this.disabled || this.readOnly) return false;
+    const command = setCurrentHeading(this.#engine.state, level);
+    if (!command) return false;
+    this.#emitTransactionResult(this.#engine.dispatch(command));
+    return true;
+  }
+
+  async runExtensionCommand(name: string, args?: ARTJSONValue): Promise<unknown> {
+    if (!this.#extensions?.runCommand) throw new RangeError(`No extension command runtime is installed: ${name}`);
+    return this.#extensions.runCommand(name, this, args);
+  }
+
   getText(): string {
     return toPlainText(this.#engine.state.document);
   }
@@ -291,11 +412,11 @@ export class ARichTextElement extends HTMLElementBase {
   }
 
   getHTML(): string {
-    return toHTML(this.#engine.state.document);
+    return toHTML(this.#engine.state.document, this.#extensions ? { extensions: this.#extensions } : {});
   }
 
   setHTML(html: string): void {
-    this.setJSON(fromHTML(html));
+    this.setJSON(fromHTML(html, this.#extensions ? { extensions: this.#extensions } : {}));
   }
 
   getMarkdown(): string {
@@ -334,6 +455,7 @@ export class ARichTextElement extends HTMLElementBase {
     this.#renderFromEngine();
     this.#syncDerivedState();
     this.#syncFormValue();
+    this.#emitFormatState();
   }
 
   #handleEngineResult = (result: TransactionResult): void => {
@@ -373,6 +495,7 @@ export class ARichTextElement extends HTMLElementBase {
     if (intent.kind === 'toggleMark' && isCollapsedSelection(selection)) {
       event.preventDefault();
       this.#toggleStoredMark(intent.mark);
+      this.#emitFormatState();
       return;
     }
 
@@ -405,6 +528,65 @@ export class ARichTextElement extends HTMLElementBase {
     this.#emitTransactionResult(result);
   };
 
+  #handleKeyDown = (event: KeyboardEvent): void => {
+    if (this.disabled || this.readOnly || this.#composing || event.altKey) return;
+
+    const mod = event.ctrlKey || event.metaKey;
+    const key = event.key.toLowerCase();
+    let handled = false;
+
+    if (mod && key === 'b') handled = this.toggleMark('bold');
+    else if (mod && key === 'i') handled = this.toggleMark('italic');
+    else if (mod && key === 'u') handled = this.toggleMark('underline');
+    else if (mod && key === 'z' && event.shiftKey) handled = this.redo();
+    else if (mod && key === 'z') handled = this.undo();
+    else if (event.ctrlKey && key === 'y') handled = this.redo();
+
+    if (handled) {
+      event.preventDefault();
+      return;
+    }
+
+    if (!this.#extensions?.resolveKeyBinding || !this.#extensions.runCommand) return;
+    if (!event.ctrlKey && !event.metaKey && !event.altKey) return;
+    const binding = this.#extensions.resolveKeyBinding(keyboardChord(event));
+    if (!binding) return;
+    event.preventDefault();
+    void this.#extensions.runCommand(binding.command, this, binding.args).catch((error) => {
+      this.#emitError('extension-command', error);
+    });
+  };
+
+  #handlePaste = (event: ClipboardEvent): void => {
+    if (this.disabled || this.readOnly) {
+      event.preventDefault();
+      return;
+    }
+
+    event.preventDefault();
+    const data = event.clipboardData;
+    if (!data) {
+      this.#emitError('paste-unsupported-payload', new TypeError('Clipboard data is unavailable'));
+      return;
+    }
+
+    const parsed = clipboardToDocument(data);
+    if (!parsed) {
+      this.#emitError('paste-unsupported-payload', new TypeError('Clipboard does not contain supported text content'));
+      return;
+    }
+
+    this.#syncSelectionFromDOM();
+    const command = insertFragment(this.#engine.state, parsed.document.content);
+    if (!command) {
+      this.#emitError('paste-unsupported-selection', new RangeError('Paste currently requires a selection within one text block'));
+      return;
+    }
+
+    const result = this.#engine.dispatch(command);
+    this.#emitTransactionResult(result);
+  };
+
   #handleNativeInput = (): void => {
     if (this.#composing || this.#reconcileQueued) return;
     this.#reconcileNativeDOM('native-input');
@@ -428,6 +610,7 @@ export class ARichTextElement extends HTMLElementBase {
     if (!this.isConnected || this.#composing) return;
     this.#storedMarks = null;
     this.#syncSelectionFromDOM();
+    this.#emitFormatState();
   };
 
   #syncSelectionFromDOM(): void {
@@ -436,7 +619,7 @@ export class ARichTextElement extends HTMLElementBase {
     const result = this.#engine.dispatch(transaction().setSelection(selection));
     if (result.selectionChanged) {
       this.dispatchEvent(new CustomEvent<ARichTextSelectionChangeDetail>('selection-change', {
-        detail: { selection: result.state.selection },
+        detail: { selection: result.state.selection ? cloneSelection(result.state.selection) : null },
         bubbles: true,
         composed: true,
       }));
@@ -446,7 +629,10 @@ export class ARichTextElement extends HTMLElementBase {
   #reconcileNativeDOM(source: ARichTextReconcileSource): void {
     try {
       const selection = readDOMSelection(this.#editor);
-      const document = fromHTML(this.#editor.innerHTML);
+      const document = fromHTML(
+        this.#editor.innerHTML,
+        this.#extensions ? { extensions: this.#extensions } : {},
+      );
       this.#replaceEngine(document, selection);
       this.dispatchEvent(new CustomEvent<ARichTextReconcileDetail>('reconcile', {
         detail: { source, document: this.getJSON() },
@@ -461,7 +647,11 @@ export class ARichTextElement extends HTMLElementBase {
 
   #renderFromEngine(): void {
     const state = this.#engine.state;
-    renderARTDocument(this.#editor, state.document);
+    renderARTDocument(
+      this.#editor,
+      state.document,
+      this.#extensions ? { extensions: this.#extensions } : {},
+    );
     if (state.selection && this.shadowRoot?.activeElement === this.#editor) {
       writeDOMSelection(this.#editor, state.selection);
     }
@@ -471,10 +661,10 @@ export class ARichTextElement extends HTMLElementBase {
     const state = this.#engine.state;
     const point = state.selection?.anchor;
     const marks = this.#storedMarks ?? (point ? marksAtARTPoint(state.document, point) : []);
-    const existing = marks.some((candidate) => candidate.type === mark.type);
-    this.#storedMarks = existing
-      ? marks.filter((candidate) => candidate.type !== mark.type)
-      : [...marks.filter((candidate) => candidate.type !== mark.type), cloneMark(mark)];
+    const exists = marks.some((candidate) => sameMarkIdentity(candidate, mark));
+    this.#storedMarks = exists
+      ? marks.filter((candidate) => !sameMarkIdentity(candidate, mark))
+      : [...marks.filter((candidate) => !sameMarkIdentity(candidate, mark)), cloneMark(mark)];
   }
 
   #emitTransactionResult(result: TransactionResult): void {
@@ -485,12 +675,21 @@ export class ARichTextElement extends HTMLElementBase {
     }));
     if (result.selectionChanged) {
       this.dispatchEvent(new CustomEvent<ARichTextSelectionChangeDetail>('selection-change', {
-        detail: { selection: result.state.selection },
+        detail: { selection: result.state.selection ? cloneSelection(result.state.selection) : null },
         bubbles: true,
         composed: true,
       }));
     }
+    this.#emitFormatState();
     if (result.documentChanged) this.#emitInput();
+  }
+
+  #emitFormatState(): void {
+    this.dispatchEvent(new CustomEvent<ARichTextFormatStateDetail>('format-state-change', {
+      detail: { marks: this.getActiveMarks() },
+      bubbles: true,
+      composed: true,
+    }));
   }
 
   #emitInput(): void {
@@ -552,7 +751,44 @@ function marksAtARTPoint(document: ARTDocument, point: ARTTextPoint): ARTTextMar
 }
 
 function cloneMark(mark: ARTTextMark): ARTTextMark {
-  return mark.type === 'link' ? { type: 'link', href: mark.href } : { type: mark.type };
+  if (mark.type === 'link') return { type: 'link', href: mark.href };
+  if (mark.type === 'extensionMark') {
+    return {
+      type: 'extensionMark',
+      name: mark.name,
+      ...(mark.attrs ? { attrs: cloneJSON(mark.attrs) } : {}),
+    };
+  }
+  return { type: mark.type };
+}
+
+function sameMarkIdentity(left: ARTTextMark, right: ARTTextMark): boolean {
+  if (left.type !== right.type) return false;
+  if (left.type === 'extensionMark') return right.type === 'extensionMark' && left.name === right.name;
+  return true;
+}
+
+function cloneSelection(selection: ARTSelection): ARTSelection {
+  return {
+    anchor: { blockPath: [...selection.anchor.blockPath], offset: selection.anchor.offset },
+    head: { blockPath: [...selection.head.blockPath], offset: selection.head.offset },
+  };
+}
+
+function cloneJSON<T>(value: T): T {
+  return typeof structuredClone === 'function'
+    ? structuredClone(value)
+    : JSON.parse(JSON.stringify(value)) as T;
+}
+
+function keyboardChord(event: KeyboardEvent): string {
+  const parts: string[] = [];
+  if (event.ctrlKey || event.metaKey) parts.push('Mod');
+  if (event.altKey) parts.push('Alt');
+  if (event.shiftKey) parts.push('Shift');
+  const key = event.key.length === 1 ? event.key.toUpperCase() : event.key;
+  parts.push(key);
+  return parts.join('-');
 }
 
 export function defineARichText(tagName = 'a-rich-text'): void {
