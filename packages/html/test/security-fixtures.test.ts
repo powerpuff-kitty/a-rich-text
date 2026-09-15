@@ -42,8 +42,10 @@ describe('@arichtext/html security fixtures', () => {
   });
 
   it('rejects data images by default and allows only explicit image data when opted in', () => {
-    expect(sanitizeHTML('<img src="data:image/png;base64,AAAA" alt="x">')).toBe('');
-    expect(sanitizeHTML('<img src="data:text/html;base64,AAAA" alt="x">', { allowDataImages: true })).toBe('');
+    // If every input block is rejected, ART normalizes to its canonical empty paragraph.
+    expect(sanitizeHTML('<img src="data:image/png;base64,AAAA" alt="x">')).toBe('<p></p>');
+    expect(sanitizeHTML('<img src="data:text/html;base64,AAAA" alt="x">', { allowDataImages: true }))
+      .toBe('<p></p>');
     expect(sanitizeHTML('<img src="data:image/png;base64,AAAA" alt="x">', { allowDataImages: true }))
       .toBe('<img src="data:image/png;base64,AAAA" alt="x">');
   });
