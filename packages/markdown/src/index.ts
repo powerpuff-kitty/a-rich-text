@@ -14,6 +14,7 @@ const MARK_ORDER: Record<ARTTextMark['type'], number> = {
   strike: 3,
   code: 4,
   link: 5,
+  extensionMark: 6,
 };
 
 interface ListMatch {
@@ -45,10 +46,7 @@ function parseBlocks(lines: readonly string[]): ARTBlockNode[] {
 
   while (index < lines.length) {
     const line = lines[index] ?? '';
-    if (line.trim() === '') {
-      index += 1;
-      continue;
-    }
+    if (line.trim() === '') { index += 1; continue; }
 
     const fence = line.match(/^\s{0,3}(`{3,}|~{3,})(.*)$/);
     if (fence) {
@@ -61,11 +59,7 @@ function parseBlocks(lines: readonly string[]): ARTBlockNode[] {
         index += 1;
       }
       if (index < lines.length) index += 1;
-      blocks.push({
-        type: 'codeBlock',
-        ...(info ? { language: info } : {}),
-        text: code.join('\n'),
-      });
+      blocks.push({ type: 'codeBlock', ...(info ? { language: info } : {}), text: code.join('\n') });
       continue;
     }
 
@@ -80,11 +74,7 @@ function parseBlocks(lines: readonly string[]): ARTBlockNode[] {
       continue;
     }
 
-    if (isHorizontalRule(line)) {
-      blocks.push({ type: 'horizontalRule' });
-      index += 1;
-      continue;
-    }
+    if (isHorizontalRule(line)) { blocks.push({ type: 'horizontalRule' }); index += 1; continue; }
 
     if (/^\s{0,3}>/.test(line)) {
       const quoted: string[] = [];
@@ -109,19 +99,11 @@ function parseBlocks(lines: readonly string[]): ARTBlockNode[] {
 
     if (isTableStart(lines, index)) {
       const parsed = parseTable(lines, index);
-      if (parsed) {
-        blocks.push(parsed.node);
-        index = parsed.next;
-        continue;
-      }
+      if (parsed) { blocks.push(parsed.node); index = parsed.next; continue; }
     }
 
     const image = parseImage(line);
-    if (image) {
-      blocks.push(image);
-      index += 1;
-      continue;
-    }
+    if (image) { blocks.push(image); index += 1; continue; }
 
     const paragraph: string[] = [line];
     index += 1;
@@ -162,41 +144,18 @@ function isHorizontalRule(line: string): boolean {
 function matchListItem(line: string): ListMatch | null {
   const task = line.match(/^(\s*)[-+*]\s+\[([ xX])\]\s+(.*)$/);
   if (task) {
-    return {
-      indent: indentationWidth(task[1] ?? ''),
-      style: 'task',
-      checked: (task[2] ?? '').toLowerCase() === 'x',
-      body: task[3] ?? '',
-    };
+    return { indent: indentationWidth(task[1] ?? ''), style: 'task', checked: (task[2] ?? '').toLowerCase() === 'x', body: task[3] ?? '' };
   }
-
   const ordered = line.match(/^(\s*)(\d+)[.)]\s+(.*)$/);
   if (ordered) {
-    return {
-      indent: indentationWidth(ordered[1] ?? ''),
-      style: 'ordered',
-      number: Number.parseInt(ordered[2] ?? '1', 10),
-      body: ordered[3] ?? '',
-    };
+    return { indent: indentationWidth(ordered[1] ?? ''), style: 'ordered', number: Number.parseInt(ordered[2] ?? '1', 10), body: ordered[3] ?? '' };
   }
-
   const bullet = line.match(/^(\s*)[-+*]\s+(.*)$/);
-  if (bullet) {
-    return {
-      indent: indentationWidth(bullet[1] ?? ''),
-      style: 'bullet',
-      body: bullet[2] ?? '',
-    };
-  }
-
+  if (bullet) return { indent: indentationWidth(bullet[1] ?? ''), style: 'bullet', body: bullet[2] ?? '' };
   return null;
 }
 
-function parseList(
-  lines: readonly string[],
-  start: number,
-  first: ListMatch,
-): { node: ARTListNode; next: number } {
+function parseList(lines: readonly string[], start: number, first: ListMatch): { node: ARTListNode; next: number } {
   const items: ARTListNode['content'] = [];
   const baseIndent = first.indent;
   const style = first.style;
@@ -205,7 +164,6 @@ function parseList(
   while (index < lines.length) {
     const current = matchListItem(lines[index] ?? '');
     if (!current || current.indent !== baseIndent || current.style !== style) break;
-
     const itemLines = [current.body];
     index += 1;
 
@@ -216,29 +174,15 @@ function parseList(
 
       if (line.trim() === '') {
         const next = findNextNonEmpty(lines, index + 1);
-        if (next === -1) {
-          index = lines.length;
-          break;
-        }
+        if (next === -1) { index = lines.length; break; }
         const following = lines[next] ?? '';
         const followingItem = matchListItem(following);
-        if (followingItem && followingItem.indent === baseIndent && followingItem.style === style) {
-          index = next;
-          break;
-        }
-        if (leadingIndent(following) > baseIndent) {
-          itemLines.push('');
-          index += 1;
-          continue;
-        }
+        if (followingItem && followingItem.indent === baseIndent && followingItem.style === style) { index = next; break; }
+        if (leadingIndent(following) > baseIndent) { itemLines.push(''); index += 1; continue; }
         break;
       }
 
-      if (leadingIndent(line) > baseIndent) {
-        itemLines.push(removeIndent(line, baseIndent + 2));
-        index += 1;
-        continue;
-      }
+      if (leadingIndent(line) > baseIndent) { itemLines.push(removeIndent(line, baseIndent + 2)); index += 1; continue; }
       break;
     }
 
@@ -262,9 +206,7 @@ function parseList(
 }
 
 function isTableStart(lines: readonly string[], index: number): boolean {
-  return index + 1 < lines.length
-    && (lines[index] ?? '').includes('|')
-    && isTableSeparator(lines[index + 1] ?? '');
+  return index + 1 < lines.length && (lines[index] ?? '').includes('|') && isTableSeparator(lines[index + 1] ?? '');
 }
 
 function isTableSeparator(line: string): boolean {
@@ -275,7 +217,6 @@ function isTableSeparator(line: string): boolean {
 function parseTable(lines: readonly string[], start: number): { node: ARTBlockNode; next: number } | null {
   const header = splitTableRow(lines[start] ?? '');
   if (header.length === 0) return null;
-
   const rows = [header];
   let index = start + 2;
   while (index < lines.length && (lines[index] ?? '').trim() !== '' && (lines[index] ?? '').includes('|')) {
@@ -284,16 +225,12 @@ function parseTable(lines: readonly string[], start: number): { node: ARTBlockNo
     rows.push(row);
     index += 1;
   }
-
   return {
     node: {
       type: 'table',
       content: rows.map((row) => ({
         type: 'tableRow',
-        content: row.map((cell) => ({
-          type: 'tableCell',
-          content: [{ type: 'paragraph', content: parseInline(cell.trim()) }],
-        })),
+        content: row.map((cell) => ({ type: 'tableCell', content: [{ type: 'paragraph', content: parseInline(cell.trim()) }] })),
       })),
     },
     next: index,
@@ -303,22 +240,14 @@ function parseTable(lines: readonly string[], start: number): { node: ARTBlockNo
 function splitTableRow(line: string): string[] {
   const trimmed = line.trim().replace(/^\|/, '').replace(/\|$/, '');
   if (!trimmed) return [];
-
   const cells: string[] = [];
   let current = '';
   let escaped = false;
   for (const character of trimmed) {
-    if (escaped) {
-      current += `\\${character}`;
-      escaped = false;
-    } else if (character === '\\') {
-      escaped = true;
-    } else if (character === '|') {
-      cells.push(current);
-      current = '';
-    } else {
-      current += character;
-    }
+    if (escaped) { current += `\\${character}`; escaped = false; }
+    else if (character === '\\') escaped = true;
+    else if (character === '|') { cells.push(current); current = ''; }
+    else current += character;
   }
   if (escaped) current += '\\';
   cells.push(current);
@@ -330,12 +259,7 @@ function parseImage(line: string): ARTBlockNode | null {
   if (!match) return null;
   const src = safeUrl(match[2] ?? '', true);
   if (!src) return null;
-  return {
-    type: 'image',
-    src,
-    alt: unescapeMarkdown(match[1] ?? ''),
-    ...(match[3] !== undefined ? { title: match[3] } : {}),
-  };
+  return { type: 'image', src, alt: unescapeMarkdown(match[1] ?? ''), ...(match[3] !== undefined ? { title: match[3] } : {}) };
 }
 
 function joinParagraphLines(lines: readonly string[]): string {
@@ -350,53 +274,27 @@ function joinParagraphLines(lines: readonly string[]): string {
 function parseInline(text: string, inherited: readonly ARTTextMark[] = []): ARTTextNode[] {
   const output: ARTTextNode[] = [];
   let index = 0;
-
   while (index < text.length) {
-    if (text[index] === '\\' && index + 1 < text.length) {
-      appendText(output, text[index + 1] ?? '', inherited);
-      index += 2;
-      continue;
-    }
-
+    if (text[index] === '\\' && index + 1 < text.length) { appendText(output, text[index + 1] ?? '', inherited); index += 2; continue; }
     if (text[index] === '`') {
       const length = countRun(text, index, '`');
       const delimiter = '`'.repeat(length);
       const end = text.indexOf(delimiter, index + length);
-      if (end !== -1) {
-        appendText(output, text.slice(index + length, end), [...inherited, { type: 'code' }]);
-        index = end + length;
-        continue;
-      }
+      if (end !== -1) { appendText(output, text.slice(index + length, end), [...inherited, { type: 'code' }]); index = end + length; continue; }
     }
-
     const strong = text.startsWith('**', index) ? '**' : text.startsWith('__', index) ? '__' : null;
     if (strong) {
       const end = text.indexOf(strong, index + 2);
-      if (end !== -1) {
-        appendParsed(output, text.slice(index + 2, end), [...inherited, { type: 'bold' }]);
-        index = end + 2;
-        continue;
-      }
+      if (end !== -1) { appendParsed(output, text.slice(index + 2, end), [...inherited, { type: 'bold' }]); index = end + 2; continue; }
     }
-
     if (text.startsWith('~~', index)) {
       const end = text.indexOf('~~', index + 2);
-      if (end !== -1) {
-        appendParsed(output, text.slice(index + 2, end), [...inherited, { type: 'strike' }]);
-        index = end + 2;
-        continue;
-      }
+      if (end !== -1) { appendParsed(output, text.slice(index + 2, end), [...inherited, { type: 'strike' }]); index = end + 2; continue; }
     }
-
     if (text.startsWith('<u>', index)) {
       const end = text.indexOf('</u>', index + 3);
-      if (end !== -1) {
-        appendParsed(output, text.slice(index + 3, end), [...inherited, { type: 'underline' }]);
-        index = end + 4;
-        continue;
-      }
+      if (end !== -1) { appendParsed(output, text.slice(index + 3, end), [...inherited, { type: 'underline' }]); index = end + 4; continue; }
     }
-
     if (text[index] === '[') {
       const labelEnd = text.indexOf('](', index + 1);
       if (labelEnd !== -1) {
@@ -413,21 +311,14 @@ function parseInline(text: string, inherited: readonly ARTTextMark[] = []): ARTT
         }
       }
     }
-
     if (text[index] === '*' || text[index] === '_') {
       const delimiter = text[index]!;
       const end = text.indexOf(delimiter, index + 1);
-      if (end > index + 1) {
-        appendParsed(output, text.slice(index + 1, end), [...inherited, { type: 'italic' }]);
-        index = end + 1;
-        continue;
-      }
+      if (end > index + 1) { appendParsed(output, text.slice(index + 1, end), [...inherited, { type: 'italic' }]); index = end + 1; continue; }
     }
-
     appendText(output, text[index] ?? '', inherited);
     index += 1;
   }
-
   return output;
 }
 
@@ -436,19 +327,10 @@ function findMatchingParen(text: string, openIndex: number): number {
   let escaped = false;
   for (let index = openIndex; index < text.length; index += 1) {
     const character = text[index];
-    if (escaped) {
-      escaped = false;
-      continue;
-    }
-    if (character === '\\') {
-      escaped = true;
-      continue;
-    }
+    if (escaped) { escaped = false; continue; }
+    if (character === '\\') { escaped = true; continue; }
     if (character === '(') depth += 1;
-    if (character === ')') {
-      depth -= 1;
-      if (depth === 0) return index;
-    }
+    if (character === ')') { depth -= 1; if (depth === 0) return index; }
   }
   return -1;
 }
@@ -461,24 +343,34 @@ function appendText(output: ARTTextNode[], text: string, marks: readonly ARTText
   if (!text) return;
   const normalized = normalizeMarks(marks);
   const previous = output.at(-1);
-  if (previous && marksEqual(previous.marks ?? [], normalized)) {
-    previous.text += text;
-    return;
-  }
+  if (previous && marksEqual(previous.marks ?? [], normalized)) { previous.text += text; return; }
   output.push({ type: 'text', text, ...(normalized.length > 0 ? { marks: normalized } : {}) });
+}
+
+function markKey(mark: ARTTextMark): string {
+  if (mark.type === 'link') return `link:${mark.href}`;
+  if (mark.type === 'extensionMark') return `extensionMark:${mark.name}`;
+  return mark.type;
 }
 
 function normalizeMarks(marks: readonly ARTTextMark[]): ARTTextMark[] {
   const unique = new Map<string, ARTTextMark>();
-  for (const mark of marks) unique.set(mark.type === 'link' ? `link:${mark.href}` : mark.type, mark);
-  return [...unique.values()].sort((a, b) => MARK_ORDER[a.type] - MARK_ORDER[b.type]);
+  for (const mark of marks) unique.set(markKey(mark), mark);
+  return [...unique.values()].sort((a, b) => {
+    const order = MARK_ORDER[a.type] - MARK_ORDER[b.type];
+    return order !== 0 ? order : markKey(a).localeCompare(markKey(b));
+  });
 }
 
 function marksEqual(left: readonly ARTTextMark[], right: readonly ARTTextMark[]): boolean {
   return left.length === right.length && left.every((mark, index) => {
     const other = right[index];
     if (!other || mark.type !== other.type) return false;
-    return mark.type !== 'link' || (other.type === 'link' && mark.href === other.href);
+    if (mark.type === 'link') return other.type === 'link' && mark.href === other.href;
+    if (mark.type === 'extensionMark') {
+      return other.type === 'extensionMark' && mark.name === other.name && JSON.stringify(mark.attrs ?? {}) === JSON.stringify(other.attrs ?? {});
+    }
+    return true;
   });
 }
 
@@ -488,28 +380,20 @@ function serializeBlocks(blocks: readonly ARTBlockNode[]): string {
 
 function serializeBlock(block: ARTBlockNode): string {
   switch (block.type) {
-    case 'paragraph':
-      return serializeInline(block.content ?? []);
-    case 'heading':
-      return `${'#'.repeat(block.level)} ${serializeInline(block.content ?? [])}`;
-    case 'blockquote':
-      return serializeBlocks(block.content).split('\n').map((line) => `> ${line}`).join('\n');
-    case 'codeBlock': {
-      const fence = createFence(block.text);
-      return `${fence}${block.language ?? ''}\n${block.text}\n${fence}`;
-    }
-    case 'horizontalRule':
-      return '---';
-    case 'list':
-      return serializeList(block);
+    case 'paragraph': return serializeInline(block.content ?? []);
+    case 'heading': return `${'#'.repeat(block.level)} ${serializeInline(block.content ?? [])}`;
+    case 'blockquote': return serializeBlocks(block.content).split('\n').map((line) => `> ${line}`).join('\n');
+    case 'codeBlock': { const fence = createFence(block.text); return `${fence}${block.language ?? ''}\n${block.text}\n${fence}`; }
+    case 'horizontalRule': return '---';
+    case 'list': return serializeList(block);
     case 'image': {
       const src = safeUrl(block.src, true);
       if (!src) return escapeMarkdown(block.alt ?? '');
       const title = block.title ? ` "${block.title.replaceAll('"', '\\"')}"` : '';
       return `![${escapeMarkdown(block.alt ?? '')}](${src}${title})`;
     }
-    case 'table':
-      return serializeTable(block);
+    case 'table': return serializeTable(block);
+    case 'extensionBlock': return block.fallbackText ?? (block.content ? serializeBlocks(block.content) : '');
   }
 }
 
@@ -517,28 +401,15 @@ function serializeInline(nodes: readonly ARTTextNode[]): string {
   return nodes.map((node) => {
     const marks = normalizeMarks(node.marks ?? []);
     let value = marks.some((mark) => mark.type === 'code') ? codeSpan(node.text) : escapeMarkdown(node.text);
-
     for (const mark of marks) {
       switch (mark.type) {
-        case 'bold':
-          value = `**${value}**`;
-          break;
-        case 'italic':
-          value = `*${value}*`;
-          break;
-        case 'underline':
-          value = `<u>${value}</u>`;
-          break;
-        case 'strike':
-          value = `~~${value}~~`;
-          break;
-        case 'code':
-          break;
-        case 'link': {
-          const href = safeUrl(mark.href, false);
-          if (href) value = `[${value}](${href})`;
-          break;
-        }
+        case 'bold': value = `**${value}**`; break;
+        case 'italic': value = `*${value}*`; break;
+        case 'underline': value = `<u>${value}</u>`; break;
+        case 'strike': value = `~~${value}~~`; break;
+        case 'code': break;
+        case 'link': { const href = safeUrl(mark.href, false); if (href) value = `[${value}](${href})`; break; }
+        case 'extensionMark': break;
       }
     }
     return value;
@@ -549,9 +420,7 @@ function serializeList(list: ARTListNode): string {
   return list.content.map((item, itemIndex) => {
     const marker = list.style === 'ordered'
       ? `${(list.start ?? 1) + itemIndex}. `
-      : list.style === 'task'
-        ? `- [${item.checked ? 'x' : ' '}] `
-        : '- ';
+      : list.style === 'task' ? `- [${item.checked ? 'x' : ' '}] ` : '- ';
     const body = serializeBlocks(item.content);
     const indent = ' '.repeat(marker.length);
     return body.split('\n').map((line, lineIndex) => `${lineIndex === 0 ? marker : indent}${line}`).join('\n');
@@ -563,8 +432,7 @@ function serializeTable(table: Extract<ARTBlockNode, { type: 'table' }>): string
     cell.content.map(serializeBlock).join('<br>').replaceAll('\n', '<br>').replaceAll('|', '\\|'),
   ));
   const width = Math.max(1, ...rows.map((row) => row.length));
-  const normalize = (row: readonly string[]): string[] =>
-    Array.from({ length: width }, (_, index) => row[index] ?? '');
+  const normalize = (row: readonly string[]): string[] => Array.from({ length: width }, (_, index) => row[index] ?? '');
   const header = normalize(rows[0] ?? []);
   return [
     `| ${header.join(' | ')} |`,
@@ -590,35 +458,23 @@ function safeUrl(value: string, image: boolean): string | null {
   if (!trimmed) return null;
   if (/^(?:\/|\.\/|\.\.\/|#|\?)/.test(trimmed)) return trimmed;
   if (image && /^data:image\/(?:png|gif|jpe?g|webp|avif);/i.test(trimmed)) return trimmed;
-
   try {
     const url = new URL(trimmed, 'https://arichtext.invalid');
     if (url.origin === 'https://arichtext.invalid' && !trimmed.startsWith('//')) return trimmed;
     const allowed = image ? ['http:', 'https:', 'blob:'] : ['http:', 'https:', 'mailto:', 'tel:'];
     return allowed.includes(url.protocol) ? trimmed : null;
-  } catch {
-    return null;
-  }
+  } catch { return null; }
 }
 
 function findNextNonEmpty(lines: readonly string[], from: number): number {
-  for (let index = from; index < lines.length; index += 1) {
-    if ((lines[index] ?? '').trim() !== '') return index;
-  }
+  for (let index = from; index < lines.length; index += 1) if ((lines[index] ?? '').trim() !== '') return index;
   return -1;
 }
 
-function leadingIndent(line: string): number {
-  return indentationWidth(line.match(/^\s*/)?.[0] ?? '');
-}
-
-function indentationWidth(value: string): number {
-  return [...value].reduce((width, character) => width + (character === '\t' ? 4 : 1), 0);
-}
-
+function leadingIndent(line: string): number { return indentationWidth(line.match(/^\s*/)?.[0] ?? ''); }
+function indentationWidth(value: string): number { return [...value].reduce((width, character) => width + (character === '\t' ? 4 : 1), 0); }
 function removeIndent(line: string, width: number): string {
-  let consumed = 0;
-  let index = 0;
+  let consumed = 0; let index = 0;
   while (index < line.length && consumed < width) {
     if (line[index] === ' ') consumed += 1;
     else if (line[index] === '\t') consumed += 4;
@@ -627,21 +483,7 @@ function removeIndent(line: string, width: number): string {
   }
   return line.slice(index);
 }
-
-function countRun(value: string, start: number, character: string): number {
-  let index = start;
-  while (value[index] === character) index += 1;
-  return index - start;
-}
-
-function escapeMarkdown(value: string): string {
-  return value.replace(/([\\`*_[\]<>])/g, '\\$1');
-}
-
-function unescapeMarkdown(value: string): string {
-  return value.replace(/\\([\\`*_[\]<>])/g, '$1');
-}
-
-function escapeRegExp(value: string): string {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
+function countRun(value: string, start: number, character: string): number { let index = start; while (value[index] === character) index += 1; return index - start; }
+function escapeMarkdown(value: string): string { return value.replace(/([\\`*_[\]<>])/g, '\\$1'); }
+function unescapeMarkdown(value: string): string { return value.replace(/\\([\\`*_[\]<>])/g, '$1'); }
+function escapeRegExp(value: string): string { return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
