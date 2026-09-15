@@ -1,3 +1,4 @@
+import { ExtensionConflictError } from './registry.js';
 import type { ARichTextExtension, ExtensionPreset } from './types.js';
 
 export const coreCapability: ARichTextExtension = {
@@ -81,14 +82,27 @@ export function extendPreset<TContext = unknown>(
   preset: ExtensionPreset<TContext>,
   ...extensions: readonly ARichTextExtension<TContext>[]
 ): ExtensionPreset<TContext> {
+  const output: ARichTextExtension<TContext>[] = [];
   const byName = new Map<string, ARichTextExtension<TContext>>();
-  for (const extension of [...preset.extensions, ...extensions]) byName.set(extension.name, extension);
-  return { name: preset.name, extensions: [...byName.values()] };
+
+  for (const extension of [...preset.extensions, ...extensions]) {
+    const existing = byName.get(extension.name);
+    if (existing) {
+      if (existing !== extension) {
+        throw new ExtensionConflictError(`Preset extension conflict: ${extension.name}`);
+      }
+      continue;
+    }
+    byName.set(extension.name, extension);
+    output.push(extension);
+  }
+
+  return { name: preset.name, extensions: output };
 }
 
 export function createPreset<TContext = unknown>(
   name: string,
   extensions: readonly ARichTextExtension<TContext>[],
 ): ExtensionPreset<TContext> {
-  return { name, extensions: [...extensions] };
+  return extendPreset({ name, extensions: [] }, ...extensions);
 }
