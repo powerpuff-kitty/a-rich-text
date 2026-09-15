@@ -1,12 +1,26 @@
 export const ART_DOCUMENT_VERSION = 1 as const;
 
+export type ARTJSONPrimitive = string | number | boolean | null;
+export type ARTJSONValue = ARTJSONPrimitive | ARTJSONObject | ARTJSONValue[];
+export interface ARTJSONObject {
+  [key: string]: ARTJSONValue;
+}
+
+export interface ARTExtensionMark {
+  type: 'extensionMark';
+  /** Namespaced identifier, for example `acme:mention`. */
+  name: string;
+  attrs?: ARTJSONObject;
+}
+
 export type ARTTextMark =
   | { type: 'bold' }
   | { type: 'italic' }
   | { type: 'underline' }
   | { type: 'strike' }
   | { type: 'code' }
-  | { type: 'link'; href: string };
+  | { type: 'link'; href: string }
+  | ARTExtensionMark;
 
 export interface ARTTextNode {
   type: 'text';
@@ -79,6 +93,17 @@ export interface ARTTableNode {
   content: ARTTableRowNode[];
 }
 
+export interface ARTExtensionBlockNode {
+  type: 'extensionBlock';
+  /** Namespaced identifier, for example `acme:property-card`. */
+  name: string;
+  attrs?: ARTJSONObject;
+  /** Optional nested ART blocks owned by the extension. */
+  content?: ARTBlockNode[];
+  /** Portable/readable fallback when the extension is unavailable. */
+  fallbackText?: string;
+}
+
 export type ARTBlockNode =
   | ARTParagraphNode
   | ARTHeadingNode
@@ -87,7 +112,8 @@ export type ARTBlockNode =
   | ARTHorizontalRuleNode
   | ARTListNode
   | ARTImageNode
-  | ARTTableNode;
+  | ARTTableNode
+  | ARTExtensionBlockNode;
 
 export interface ARTDocument {
   type: 'doc';
@@ -96,6 +122,20 @@ export interface ARTDocument {
 }
 
 const MAX_DOCUMENT_DEPTH = 32;
+const EXTENSION_NAME = /^[a-z0-9][a-z0-9._-]*:[a-z0-9][a-z0-9._-]*$/;
+
+export function isExtensionName(value: unknown): value is string {
+  return typeof value === 'string' && EXTENSION_NAME.test(value);
+}
+
+export function isARTJSONValue(value: unknown, depth = 0): value is ARTJSONValue {
+  if (depth > MAX_DOCUMENT_DEPTH) return false;
+  if (value === null || typeof value === 'string' || typeof value === 'boolean') return true;
+  if (typeof value === 'number') return Number.isFinite(value);
+  if (Array.isArray(value)) return value.every((item) => isARTJSONValue(item, depth + 1));
+  if (!isRecord(value)) return false;
+  return Object.values(value).every((item) => isARTJSONValue(item, depth + 1));
+}
 
 export function createEmptyDocument(): ARTDocument {
   return {
@@ -150,9 +190,22 @@ function isBlockNode(value: unknown, depth: number): value is ARTBlockNode {
       return isImageNode(value);
     case 'table':
       return isTableNode(value, depth);
+    case 'extensionBlock':
+      return isExtensionBlockNode(value, depth);
     default:
       return false;
   }
+}
+
+function isExtensionBlockNode(value: Record<string, unknown>, depth: number): value is ARTExtensionBlockNode {
+  if (!isExtensionName(value.name)) return false;
+  if (value.attrs !== undefined && (!isRecord(value.attrs) || !isARTJSONValue(value.attrs))) return false;
+  if (value.fallbackText !== undefined && typeof value.fallbackText !== 'string') return false;
+  if (value.content !== undefined) {
+    if (!Array.isArray(value.content)) return false;
+    if (!value.content.every((node) => isBlockNode(node, depth + 1))) return false;
+  }
+  return true;
 }
 
 function isListNode(value: Record<string, unknown>, depth: number): value is ARTListNode {
@@ -226,6 +279,11 @@ function isTextMark(value: unknown): value is ARTTextMark {
       return true;
     case 'link':
       return typeof value.href === 'string' && value.href.length > 0;
+    case 'extensionMark':
+      return (
+        isExtensionName(value.name) &&
+        (value.attrs === undefined || (isRecord(value.attrs) && isARTJSONValue(value.attrs)))
+      );
     default:
       return false;
   }
@@ -269,6 +327,10 @@ function blockToPlainText(block: ARTBlockNode): string {
       return block.content
         .map((row) => row.content.map((cell) => cell.content.map(blockToPlainText).join(' ')).join('\t'))
         .join('\n');
+    case 'extensionBlock': {
+      const nested = block.content?.map(blockToPlainText).join('\n') ?? '';
+      return block.fallbackText ?? nested;
+    }
   }
 }
 
