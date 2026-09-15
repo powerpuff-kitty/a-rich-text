@@ -1,0 +1,14 @@
+{
+  "name": "a-rich-text",
+  "private": true,
+  "version": "0.0.0",
+  "packageManager": "pnpm@10.17.1",
+  "scripts": {
+    "build": "pnpm -r build",
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm -r test --if-present"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.2"
+  }
+}
