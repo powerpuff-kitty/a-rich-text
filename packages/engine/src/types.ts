@@ -1,4 +1,4 @@
-import type { ARTDocument, ARTHeadingNode, ARTTextMark } from '@arichtext/core';
+import type { ARTBlockNode, ARTDocument, ARTHeadingNode, ARTTextMark } from '@arichtext/core';
 
 export type ARTPath = readonly number[];
 export type ARTMarkType = ARTTextMark['type'];
@@ -27,6 +27,12 @@ export type EditorOperation =
       to: ARTTextPoint;
       text: string;
       marks?: ARTTextMark[];
+    }
+  | {
+      type: 'replaceFragment';
+      from: ARTTextPoint;
+      to: ARTTextPoint;
+      content: ARTBlockNode[];
     }
   | {
       type: 'addMark';
