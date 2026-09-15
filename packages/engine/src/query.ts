@@ -17,10 +17,7 @@ export function getActiveMarks(state: EditorState): ARTTextMark[] {
   if (!selection) return [];
 
   const range = normalizeRange(state.document, selection.anchor, selection.head);
-  if (
-    range.fromIndex === range.toIndex
-    && range.from.offset === range.to.offset
-  ) {
+  if (range.fromIndex === range.toIndex && range.from.offset === range.to.offset) {
     return marksAtOffset(range.blocks[range.fromIndex]!.block, range.from.offset);
   }
 
@@ -62,11 +59,24 @@ export function getActiveBlock(state: EditorState): ActiveBlock | null {
 function hasEquivalentMark(marks: readonly ARTTextMark[], expected: ARTTextMark): boolean {
   return marks.some((mark) => {
     if (mark.type !== expected.type) return false;
-    return expected.type !== 'link'
-      || (mark.type === 'link' && mark.href === expected.href);
+    if (expected.type === 'link') return mark.type === 'link' && mark.href === expected.href;
+    if (expected.type === 'extensionMark') {
+      return mark.type === 'extensionMark'
+        && mark.name === expected.name
+        && JSON.stringify(mark.attrs ?? {}) === JSON.stringify(expected.attrs ?? {});
+    }
+    return true;
   });
 }
 
 function cloneMark(mark: ARTTextMark): ARTTextMark {
-  return mark.type === 'link' ? { type: 'link', href: mark.href } : { type: mark.type };
+  if (mark.type === 'link') return { type: 'link', href: mark.href };
+  if (mark.type === 'extensionMark') {
+    return {
+      type: 'extensionMark',
+      name: mark.name,
+      ...(mark.attrs ? { attrs: structuredClone(mark.attrs) } : {}),
+    };
+  }
+  return { type: mark.type };
 }
