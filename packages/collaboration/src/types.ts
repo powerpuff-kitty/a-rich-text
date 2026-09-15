@@ -50,15 +50,17 @@ export type PresenceUpdate =
   | { type: 'remove'; clientId: string; timestamp: number };
 
 export interface UpdatePresenceOptions {
+  /** `undefined` keeps the previous value; `null` explicitly clears selection. */
   selection?: ARTSelection | null;
-  data?: ARTJSONObject;
+  /** `undefined` keeps previous metadata; `null` explicitly clears metadata. */
+  data?: ARTJSONObject | null;
 }
 
 export interface CollaborationConnectionOptions {
   documentId: string;
   clientId: string;
   initialDocument?: ARTDocument;
-  initialPresence?: Omit<UpdatePresenceOptions, 'selection'> & { selection?: ARTSelection | null };
+  initialPresence?: UpdatePresenceOptions;
   signal?: AbortSignal;
 }
 
