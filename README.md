@@ -4,25 +4,36 @@
 
 The primary integration surface is `<a-rich-text>`. The open client runtime is designed to work without an account, API key, framework runtime, mandatory server, or mandatory network request. Optional paid products focus on managed infrastructure rather than locking ordinary editor features behind a subscription.
 
-> Status: early foundation. The repository is not ready for production use yet.
+> Status: early development. The repository is not ready for production use yet.
 
 ## Direction
 
 - native Web Component first
-- framework-independent TypeScript core
+- framework-independent TypeScript engine
 - canonical versioned ART JSON document model
-- HTML / Markdown / plain-text conversion in the browser
+- deterministic client-side HTML / Markdown / plain-text conversion
 - format-selectable native form values
 - local-first drafts and history
+- explicit browser selection/input adapter
 - pluggable persistence, uploads, collaboration and AI
 - accessibility, IME correctness, security and performance as release gates
 
-See [`docs/architecture.md`](docs/architecture.md), [`docs/conversion.md`](docs/conversion.md), [`docs/forms.md`](docs/forms.md) and [`docs/local-first.md`](docs/local-first.md).
+Core architecture docs:
+
+- [`docs/architecture.md`](docs/architecture.md)
+- [`docs/engine.md`](docs/engine.md)
+- [`docs/dom-adapter.md`](docs/dom-adapter.md)
+- [`docs/web-component-runtime.md`](docs/web-component-runtime.md)
+- [`docs/conversion.md`](docs/conversion.md)
+- [`docs/forms.md`](docs/forms.md)
+- [`docs/local-first.md`](docs/local-first.md)
 
 ## Workspace
 
 ```text
 packages/core                   @arichtext/core
+packages/engine                 @arichtext/engine
+packages/dom                    @arichtext/dom
 packages/html                   @arichtext/html
 packages/markdown               @arichtext/markdown
 packages/persistence-indexeddb  @arichtext/persistence-indexeddb
@@ -60,6 +71,26 @@ text      plain text
 The semantic document remains ART regardless of the selected form format.
 
 The Web Component package is safe to **import during SSR**. It only auto-registers when `customElements` exists; constructing an editor instance still requires a real browser DOM.
+
+## Canonical editing state
+
+Normal supported editing runs through `@arichtext/engine`, not through HTML parsing:
+
+```ts
+import { textPoint, textSelection, transaction } from '@arichtext/engine';
+
+editor.dispatch(
+  transaction()
+    .setSelection(textSelection(textPoint([0], 0), textPoint([0], 5)))
+    .toggleMark(textPoint([0], 0), textPoint([0], 5), { type: 'bold' })
+    .build(),
+);
+
+editor.undo();
+editor.redo();
+```
+
+The DOM adapter maps logical block-relative selections to/from browser selections. Browser behaviors not yet implemented as deterministic ART operations—such as IME composition and structural editing—use an explicit sanitized reconciliation path rather than silently becoming canonical state.
 
 ## Conversion API
 
@@ -108,7 +139,7 @@ pnpm typecheck
 pnpm test
 ```
 
-The regression suite covers ART schema validation, conversion/sanitization behavior, SSR-safe imports, format interoperability, IndexedDB persistence, snapshots and autosave ordering.
+The regression suite covers ART validation, conversion/sanitization, SSR imports, format interoperability, local persistence, engine transactions/history, safe DOM rendering, selection mapping and engine-backed Web Component behavior.
 
 ## Business model principle
 
