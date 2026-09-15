@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>A Rich Text browser fixture</title>
+  </head>
+  <body>
+    <main>
+      <form id="fixture-form">
+        <label id="body-label" for="editor">Body</label>
+        <a-rich-text-toolbar for="editor"></a-rich-text-toolbar>
+        <a-rich-text
+          id="editor"
+          name="body"
+          format="html"
+          aria-labelledby="body-label"
+          placeholder="Write something…"
+        ></a-rich-text>
+        <button type="submit">Submit</button>
+      </form>
+      <output id="submitted"></output>
+    </main>
+    <script type="module" src="/tests/browser/app.ts"></script>
+  </body>
+</html>
