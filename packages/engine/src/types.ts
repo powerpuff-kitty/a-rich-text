@@ -15,6 +15,19 @@ export interface ARTSelection {
   head: ARTTextPoint;
 }
 
+/**
+ * Explicit path continuity for a structural block replacement.
+ *
+ * Paths are absolute and refer to the document immediately before/after the
+ * operation. Review/annotation layers may use these mappings to preserve
+ * locations through deterministic structural transforms. Unmapped content
+ * inside the replaced subtree is intentionally considered structurally lost.
+ */
+export interface ARTPathMapping {
+  from: ARTPath;
+  to: ARTPath;
+}
+
 export interface EditorState {
   document: ARTDocument;
   selection: ARTSelection | null;
@@ -33,6 +46,16 @@ export type EditorOperation =
       from: ARTTextPoint;
       to: ARTTextPoint;
       content: ARTBlockNode[];
+    }
+  | {
+      /**
+       * Replace one block with zero or more validated ART blocks.
+       * `pathMappings` describe only paths whose logical content survives.
+       */
+      type: 'replaceBlock';
+      path: ARTPath;
+      content: ARTBlockNode[];
+      pathMappings?: ARTPathMapping[];
     }
   | {
       type: 'addMark';
