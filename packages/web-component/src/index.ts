@@ -18,6 +18,7 @@ import {
   isCollapsedSelection,
   transaction,
   type ARTSelection,
+  type ARTTextPoint,
   type EditorTransaction,
   type TransactionResult,
 } from '@arichtext/engine';
@@ -393,7 +394,7 @@ export class ARichTextElement extends HTMLElementBase {
   };
 
   #handleNativeInput = (): void => {
-    if (this.#composing) return;
+    if (this.#composing || this.#reconcileQueued) return;
     this.#reconcileNativeDOM('native-input');
   };
 
@@ -455,54 +456,13 @@ export class ARichTextElement extends HTMLElementBase {
   }
 
   #toggleStoredMark(mark: ARTTextMark): void {
-    const marks = this.#storedMarks ?? this.#marksAtDOMCaret();
+    const state = this.#engine.state;
+    const point = state.selection?.anchor;
+    const marks = this.#storedMarks ?? (point ? marksAtARTPoint(state.document, point) : []);
     const existing = marks.some((candidate) => candidate.type === mark.type);
     this.#storedMarks = existing
       ? marks.filter((candidate) => candidate.type !== mark.type)
-      : [...marks.filter((candidate) => candidate.type !== mark.type), mark];
-  }
-
-  #marksAtDOMCaret(): ARTTextMark[] {
-    const selection = this.ownerDocument.getSelection();
-    if (!selection?.anchorNode || !this.#editor.contains(selection.anchorNode)) return [];
-
-    const marks: ARTTextMark[] = [];
-    let current: Node | null = selection.anchorNode.nodeType === 1
-      ? selection.anchorNode
-      : selection.anchorNode.parentNode;
-
-    while (current && current !== this.#editor) {
-      if (current.nodeType === 1) {
-        const element = current as Element;
-        switch (element.tagName) {
-          case 'STRONG':
-          case 'B':
-            addUniqueMark(marks, { type: 'bold' });
-            break;
-          case 'EM':
-          case 'I':
-            addUniqueMark(marks, { type: 'italic' });
-            break;
-          case 'U':
-            addUniqueMark(marks, { type: 'underline' });
-            break;
-          case 'S':
-          case 'STRIKE':
-            addUniqueMark(marks, { type: 'strike' });
-            break;
-          case 'CODE':
-            addUniqueMark(marks, { type: 'code' });
-            break;
-          case 'A': {
-            const href = element.getAttribute('href');
-            if (href) addUniqueMark(marks, { type: 'link', href });
-            break;
-          }
-        }
-      }
-      current = current.parentNode;
-    }
-    return marks;
+      : [...marks.filter((candidate) => candidate.type !== mark.type), cloneMark(mark)];
   }
 
   #emitTransactionResult(result: TransactionResult): void {
@@ -550,10 +510,37 @@ export class ARichTextElement extends HTMLElementBase {
   }
 }
 
-function addUniqueMark(marks: ARTTextMark[], mark: ARTTextMark): void {
-  const index = marks.findIndex((candidate) => candidate.type === mark.type);
-  if (index !== -1) marks.splice(index, 1);
-  marks.push(mark);
+function marksAtARTPoint(document: ARTDocument, point: ARTTextPoint): ARTTextMark[] {
+  let current: unknown = document;
+  for (const index of point.blockPath) {
+    if (!current || typeof current !== 'object') return [];
+    const content = (current as { content?: unknown }).content;
+    if (!Array.isArray(content) || index < 0 || index >= content.length) return [];
+    current = content[index];
+  }
+
+  if (!current || typeof current !== 'object') return [];
+  const block = current as { type?: unknown; content?: unknown };
+  if ((block.type !== 'paragraph' && block.type !== 'heading') || !Array.isArray(block.content)) return [];
+
+  let cursor = 0;
+  for (const candidate of block.content) {
+    if (!candidate || typeof candidate !== 'object') continue;
+    const node = candidate as { type?: unknown; text?: unknown; marks?: unknown };
+    if (node.type !== 'text' || typeof node.text !== 'string') continue;
+    const end = cursor + node.text.length;
+    if ((point.offset >= cursor && point.offset < end) || (point.offset === end && end > 0)) {
+      return Array.isArray(node.marks)
+        ? (node.marks as ARTTextMark[]).map(cloneMark)
+        : [];
+    }
+    cursor = end;
+  }
+  return [];
+}
+
+function cloneMark(mark: ARTTextMark): ARTTextMark {
+  return mark.type === 'link' ? { type: 'link', href: mark.href } : { type: mark.type };
 }
 
 export function defineARichText(tagName = 'a-rich-text'): void {
