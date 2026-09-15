@@ -90,6 +90,13 @@ export interface ARichTextErrorDetail {
 }
 
 const FORMATS: readonly ARichTextFormat[] = ['html', 'json', 'markdown', 'text'];
+const ARIA_FORWARD_ATTRIBUTES = [
+  'aria-label',
+  'aria-labelledby',
+  'aria-describedby',
+  'aria-required',
+  'aria-invalid',
+] as const;
 const HTMLElementBase: typeof HTMLElement = typeof HTMLElement === 'undefined'
   ? class {} as unknown as typeof HTMLElement
   : HTMLElement;
@@ -158,7 +165,14 @@ function getTemplate(): HTMLTemplateElement {
 
 export class ARichTextElement extends HTMLElementBase {
   static readonly formAssociated = true;
-  static readonly observedAttributes = ['disabled', 'readonly', 'placeholder', 'value', 'format'];
+  static readonly observedAttributes = [
+    'disabled',
+    'readonly',
+    'placeholder',
+    'value',
+    'format',
+    ...ARIA_FORWARD_ATTRIBUTES,
+  ];
 
   #internals: ElementInternals | null;
   #editor: HTMLDivElement;
@@ -709,7 +723,17 @@ export class ARichTextElement extends HTMLElementBase {
     this.#editor.contentEditable = editable ? 'true' : 'false';
     this.#editor.setAttribute('aria-disabled', String(this.disabled));
     this.#editor.setAttribute('aria-readonly', String(this.readOnly));
-    this.#editor.dataset.placeholder = this.getAttribute('placeholder') ?? '';
+
+    for (const attribute of ARIA_FORWARD_ATTRIBUTES) {
+      const value = this.getAttribute(attribute);
+      if (value === null) this.#editor.removeAttribute(attribute);
+      else this.#editor.setAttribute(attribute, value);
+    }
+
+    const placeholder = this.getAttribute('placeholder') ?? '';
+    this.#editor.dataset.placeholder = placeholder;
+    if (placeholder) this.#editor.setAttribute('aria-placeholder', placeholder);
+    else this.#editor.removeAttribute('aria-placeholder');
   }
 
   #syncDerivedState(): void {
