@@ -1,4 +1,5 @@
 import {
+  isARTDocument,
   isARTJSONValue,
   serializeDocument,
   toPlainText,
@@ -8,6 +9,7 @@ import {
   type ARTHeadingNode,
 } from '@arichtext/core';
 import {
+  createEditorState,
   transaction,
   type ARTSelection,
   type ARTTextPoint,
@@ -24,25 +26,39 @@ import {
 
 type InlineBlock = ARTParagraphNode | ARTHeadingNode;
 
+const DEFAULT_DOCUMENT_CONTEXT_CHARS = 6000;
+const MAX_DOCUMENT_CONTEXT_CHARS = 100_000;
+
 export async function generateTextProposal(
   document: ARTDocument,
   selection: ARTSelection | null,
   provider: AITextProvider,
   options: GenerateTextProposalOptions,
 ): Promise<AITextProposal> {
+  if (!isARTDocument(document)) {
+    throw new AIError('invalid-document', 'AI text proposals require a valid ART document');
+  }
   if (!selection) throw new AIError('no-selection', 'AI text proposals require a logical editor selection');
-  if (!samePath(selection.anchor.blockPath, selection.head.blockPath)) {
+  if (!provider || typeof provider.generateText !== 'function' || typeof provider.name !== 'string' || !provider.name.trim()) {
+    throw new AIError('invalid-provider-result', 'AI provider must expose a non-empty name and generateText()');
+  }
+
+  let validatedSelection: ARTSelection;
+  try {
+    validatedSelection = createEditorState(document, selection).selection!;
+  } catch (error) {
+    throw new AIError('invalid-selection', 'AI selection is not valid for the current ART document', error);
+  }
+
+  if (!samePath(validatedSelection.anchor.blockPath, validatedSelection.head.blockPath)) {
     throw new AIError('cross-block-selection', 'AI text proposals currently require one paragraph/heading block');
   }
   throwIfAborted(options.signal);
 
-  const block = getInlineBlock(document, selection.anchor.blockPath);
+  const block = getInlineBlock(document, validatedSelection.anchor.blockPath);
   const text = blockText(block);
-  const from = Math.min(selection.anchor.offset, selection.head.offset);
-  const to = Math.max(selection.anchor.offset, selection.head.offset);
-  if (from < 0 || to > text.length) {
-    throw new AIError('cross-block-selection', 'AI selection offsets are outside the target block');
-  }
+  const from = Math.min(validatedSelection.anchor.offset, validatedSelection.head.offset);
+  const to = Math.max(validatedSelection.anchor.offset, validatedSelection.head.offset);
 
   const originalText = text.slice(from, to);
   if (!originalText && options.task !== 'continue' && options.task !== 'custom') {
@@ -56,7 +72,7 @@ export async function generateTextProposal(
     before: text.slice(0, from),
     after: text.slice(to),
     ...(options.includeDocumentContext
-      ? { documentContext: boundedDocumentContext(document, options.maxDocumentContextChars ?? 6000) }
+      ? { documentContext: boundedDocumentContext(document, resolveDocumentContextLimit(options.maxDocumentContextChars)) }
       : {}),
     ...(options.instructions ? { instructions: options.instructions } : {}),
     ...(options.language ? { language: options.language } : {}),
@@ -83,7 +99,7 @@ export async function generateTextProposal(
     id: randomId(),
     provider: provider.name,
     task: options.task,
-    selection: cloneSelection(selection),
+    selection: cloneSelection(validatedSelection),
     originalText,
     replacementText,
     baseDocument: serializeDocument(document),
@@ -127,8 +143,17 @@ export function proposalToTransaction(
   currentDocument: ARTDocument,
   proposal: AITextProposal,
 ): EditorTransaction {
+  if (!isARTDocument(currentDocument)) {
+    throw new AIError('invalid-document', 'Cannot apply an AI proposal to invalid ART');
+  }
   if (serializeDocument(currentDocument) !== proposal.baseDocument) {
     throw new AIError('stale-proposal', 'The document changed after this AI proposal was created');
+  }
+
+  try {
+    createEditorState(currentDocument, proposal.selection);
+  } catch (error) {
+    throw new AIError('invalid-selection', 'AI proposal selection is no longer valid', error);
   }
 
   return transaction()
@@ -147,11 +172,11 @@ function getInlineBlock(document: ARTDocument, path: readonly number[]): InlineB
   let current: unknown = document;
   for (const index of path) {
     if (!Number.isInteger(index) || index < 0 || !current || typeof current !== 'object') {
-      throw new AIError('cross-block-selection', 'AI selection path is invalid');
+      throw new AIError('invalid-selection', 'AI selection path is invalid');
     }
     const content = (current as { content?: unknown }).content;
     if (!Array.isArray(content) || index >= content.length) {
-      throw new AIError('cross-block-selection', 'AI selection path does not resolve to a document node');
+      throw new AIError('invalid-selection', 'AI selection path does not resolve to a document node');
     }
     current = content[index];
   }
@@ -170,12 +195,17 @@ function blockText(block: InlineBlock): string {
   return (block.content ?? []).map((node) => node.text).join('');
 }
 
+function resolveDocumentContextLimit(value: number | undefined): number {
+  if (value === undefined) return DEFAULT_DOCUMENT_CONTEXT_CHARS;
+  if (!Number.isFinite(value)) return DEFAULT_DOCUMENT_CONTEXT_CHARS;
+  return Math.min(MAX_DOCUMENT_CONTEXT_CHARS, Math.max(0, Math.floor(value)));
+}
+
 function boundedDocumentContext(document: ARTDocument, maxChars: number): string {
-  const limit = Math.max(0, Math.floor(maxChars));
   const value = toPlainText(document);
-  if (value.length <= limit) return value;
-  if (limit === 0) return '';
-  return `${value.slice(0, Math.max(0, limit - 1))}…`;
+  if (value.length <= maxChars) return value;
+  if (maxChars === 0) return '';
+  return `${value.slice(0, Math.max(0, maxChars - 1))}…`;
 }
 
 function cloneMetadata(value: ARTJSONObject | undefined): ARTJSONObject | undefined {
@@ -202,7 +232,11 @@ function samePath(left: readonly number[], right: readonly number[]): boolean {
 }
 
 function isAsyncIterable(value: unknown): value is AsyncIterable<string> {
-  return Boolean(value && typeof value === 'object' && Symbol.asyncIterator in value);
+  return Boolean(
+    value
+    && (typeof value === 'object' || typeof value === 'function')
+    && Symbol.asyncIterator in value,
+  );
 }
 
 function throwIfAborted(signal: AbortSignal | undefined): void {
