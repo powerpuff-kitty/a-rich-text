@@ -123,18 +123,57 @@ export interface ARTDocument {
 
 const MAX_DOCUMENT_DEPTH = 32;
 const EXTENSION_NAME = /^[a-z0-9][a-z0-9._-]*:[a-z0-9][a-z0-9._-]*$/;
+const ARRAY_INDEX = /^(?:0|[1-9]\d*)$/;
 
 export function isExtensionName(value: unknown): value is string {
   return typeof value === 'string' && EXTENSION_NAME.test(value);
 }
 
+/**
+ * Validate data that will survive JSON serialization without executing getters,
+ * dropping hidden/symbol properties, or coercing runtime objects.
+ */
 export function isARTJSONValue(value: unknown, depth = 0): value is ARTJSONValue {
   if (depth > MAX_DOCUMENT_DEPTH) return false;
   if (value === null || typeof value === 'string' || typeof value === 'boolean') return true;
   if (typeof value === 'number') return Number.isFinite(value);
-  if (Array.isArray(value)) return value.every((item) => isARTJSONValue(item, depth + 1));
+  if (Array.isArray(value)) return isARTJSONArray(value, depth);
+  if (!isPlainJSONObject(value)) return false;
+
+  for (const key of Reflect.ownKeys(value)) {
+    if (typeof key !== 'string') return false;
+    const descriptor = Object.getOwnPropertyDescriptor(value, key);
+    if (!descriptor || !descriptor.enumerable || !('value' in descriptor)) return false;
+    if (!isARTJSONValue(descriptor.value, depth + 1)) return false;
+  }
+  return true;
+}
+
+function isARTJSONArray(value: unknown[], depth: number): value is ARTJSONValue[] {
+  if (Object.getOwnPropertySymbols(value).length > 0) return false;
+
+  for (const key of Reflect.ownKeys(value)) {
+    if (typeof key !== 'string') return false;
+    if (key === 'length') continue;
+    if (!ARRAY_INDEX.test(key)) return false;
+    const index = Number(key);
+    if (index >= value.length) return false;
+  }
+
+  for (let index = 0; index < value.length; index += 1) {
+    const descriptor = Object.getOwnPropertyDescriptor(value, String(index));
+    if (!descriptor || !descriptor.enumerable || !('value' in descriptor)) return false;
+    if (!isARTJSONValue(descriptor.value, depth + 1)) return false;
+  }
+  return true;
+}
+
+function isPlainJSONObject(value: unknown): value is Record<string, unknown> {
   if (!isRecord(value)) return false;
-  return Object.values(value).every((item) => isARTJSONValue(item, depth + 1));
+  const prototype = Object.getPrototypeOf(value);
+  if (prototype === null) return true;
+  const constructor = Object.getOwnPropertyDescriptor(prototype, 'constructor')?.value;
+  return typeof constructor === 'function' && constructor.name === 'Object';
 }
 
 export function createEmptyDocument(): ARTDocument {
