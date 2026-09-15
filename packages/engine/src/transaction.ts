@@ -25,6 +25,7 @@ import {
   normalizeRange,
   rangeHasMark,
   removeMark,
+  removeMarkValue,
   replaceInlineRange,
   replaceNodeAtPath,
   sameDocument,
@@ -107,9 +108,7 @@ export class TransactionBuilder {
   }
 }
 
-export function transaction(): TransactionBuilder {
-  return new TransactionBuilder();
-}
+export function transaction(): TransactionBuilder { return new TransactionBuilder(); }
 
 export function applyTransaction(state: EditorState, transactionValue: EditorTransaction): TransactionResult {
   const originalDocument = cloneDocument(state.document);
@@ -144,7 +143,7 @@ export function applyTransaction(state: EditorState, transactionValue: EditorTra
           document,
           operation.from,
           operation.to,
-          (marks) => shouldRemove ? removeMark(marks, operation.mark.type) : addMark(marks, operation.mark),
+          (marks) => shouldRemove ? removeMarkValue(marks, operation.mark) : addMark(marks, operation.mark),
         );
         break;
       }
@@ -177,10 +176,7 @@ export function applyTransaction(state: EditorState, transactionValue: EditorTra
 
   const nextState: EditorState = { document, selection };
   return {
-    state: {
-      document: cloneDocument(nextState.document),
-      selection: nextState.selection ? cloneSelection(nextState.selection) : null,
-    },
+    state: { document: cloneDocument(nextState.document), selection: nextState.selection ? cloneSelection(nextState.selection) : null },
     documentChanged: !sameDocument(originalDocument, nextState.document),
     selectionChanged: !sameSelection(originalSelection, nextState.selection),
     operations: transactionValue.operations.map(cloneOperation),
@@ -192,7 +188,6 @@ function applyReplaceText(document: ARTDocument, operation: Extract<EditorOperat
   const range = normalizeRange(document, operation.from, operation.to);
   const output = cloneDocument(document);
   const insertionMarks = operation.marks ? cloneMarks(operation.marks) : marksAtOffset(range.blocks[range.fromIndex]!.block, range.from.offset);
-
   for (let index = range.fromIndex; index <= range.toIndex; index += 1) {
     const entry = range.blocks[index]!;
     const block = getInlineBlock(output, entry.path);
@@ -202,19 +197,12 @@ function applyReplaceText(document: ARTDocument, operation: Extract<EditorOperat
     const insertion = index === range.fromIndex ? operation.text : '';
     block.content = replaceInlineRange(block.content ?? [], from, to, insertion, insertionMarks);
   }
-
   return { document: output, caret: textPoint(range.from.blockPath, range.from.offset + operation.text.length) };
 }
 
-function applyMarkOperation(
-  document: ARTDocument,
-  fromPoint: ARTTextPoint,
-  toPoint: ARTTextPoint,
-  mutateMarks: (marks: ARTTextMark[]) => ARTTextMark[],
-): ARTDocument {
+function applyMarkOperation(document: ARTDocument, fromPoint: ARTTextPoint, toPoint: ARTTextPoint, mutateMarks: (marks: ARTTextMark[]) => ARTTextMark[]): ARTDocument {
   const range = normalizeRange(document, fromPoint, toPoint);
   if (range.fromIndex === range.toIndex && range.from.offset === range.to.offset) return cloneDocument(document);
-
   const output = cloneDocument(document);
   for (let index = range.fromIndex; index <= range.toIndex; index += 1) {
     const entry = range.blocks[index]!;
@@ -244,17 +232,13 @@ function applySplitBlock(document: ARTDocument, operation: Extract<EditorOperati
   const output = cloneDocument(document);
   const current = getInlineBlock(output, operation.point.blockPath);
   const length = inlineLength(current);
-  if (!Number.isInteger(operation.point.offset) || operation.point.offset < 0 || operation.point.offset > length) {
-    throw new RangeError('splitBlock offset is outside the target block');
-  }
+  if (!Number.isInteger(operation.point.offset) || operation.point.offset < 0 || operation.point.offset > length) throw new RangeError('splitBlock offset is outside the target block');
   if (operation.point.blockPath.length === 0) throw new RangeError('splitBlock requires a block path');
-
   const parentPath = operation.point.blockPath.slice(0, -1);
   const index = operation.point.blockPath[operation.point.blockPath.length - 1]!;
   const parent = getNodeAtPath(output, parentPath);
   const children = mutableContent(parent);
   if (children[index] !== current) throw new RangeError('splitBlock path does not target its expected parent child');
-
   const leftContent = replaceInlineRange(current.content ?? [], operation.point.offset, length, '', []);
   const rightContent = replaceInlineRange(current.content ?? [], 0, operation.point.offset, '', []);
   const left: ARTParagraphNode | ARTHeadingNode = current.type === 'heading'
@@ -273,13 +257,11 @@ function applyJoinBlocks(document: ARTDocument, operation: Extract<EditorOperati
   const leftIndex = operation.leftPath.at(-1)!;
   const rightIndex = operation.rightPath.at(-1)!;
   if (rightIndex !== leftIndex + 1) throw new RangeError('joinBlocks requires adjacent left/right siblings');
-
   const output = cloneDocument(document);
   const children = mutableContent(getNodeAtPath(output, leftParent));
   const left = children[leftIndex];
   const right = children[rightIndex];
   if (!isInlineBlock(left) || !isInlineBlock(right)) throw new RangeError('joinBlocks only supports paragraph/heading siblings');
-
   const caretOffset = inlineLength(left);
   const mergedContent = cloneInline([...(left.content ?? []), ...(right.content ?? [])]);
   const merged: ARTParagraphNode | ARTHeadingNode = left.type === 'heading'
