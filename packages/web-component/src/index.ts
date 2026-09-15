@@ -11,57 +11,71 @@ import { fromMarkdown, toMarkdown } from '@arichtext/markdown';
 export type ARichTextFormat = 'html' | 'json' | 'markdown' | 'text';
 
 const FORMATS: readonly ARichTextFormat[] = ['html', 'json', 'markdown', 'text'];
+const HTMLElementBase: typeof HTMLElement = typeof HTMLElement === 'undefined'
+  ? class {} as unknown as typeof HTMLElement
+  : HTMLElement;
 
-const template = document.createElement('template');
-template.innerHTML = `
-  <style>
-    :host {
-      --art-font-family: ui-sans-serif, system-ui, sans-serif;
-      --art-font-size: 1rem;
-      --art-line-height: 1.6;
-      --art-color: CanvasText;
-      --art-background: Canvas;
-      --art-border-color: color-mix(in srgb, CanvasText 18%, transparent);
-      --art-radius: 0.375rem;
-      display: block;
-      font-family: var(--art-font-family);
-      color: var(--art-color);
-    }
+let cachedTemplate: HTMLTemplateElement | undefined;
 
-    [part='editor'] {
-      min-height: 8rem;
-      box-sizing: border-box;
-      padding: 0.75rem;
-      border: 1px solid var(--art-border-color);
-      border-radius: var(--art-radius);
-      background: var(--art-background);
-      font-size: var(--art-font-size);
-      line-height: var(--art-line-height);
-      outline: none;
-      white-space: pre-wrap;
-      overflow-wrap: anywhere;
-    }
+function getTemplate(): HTMLTemplateElement {
+  if (typeof document === 'undefined') {
+    throw new Error('<a-rich-text> can only be instantiated in a browser DOM');
+  }
+  if (cachedTemplate) return cachedTemplate;
 
-    [part='editor']:focus-visible {
-      outline: 2px solid currentColor;
-      outline-offset: 2px;
-    }
+  const template = document.createElement('template');
+  template.innerHTML = `
+    <style>
+      :host {
+        --art-font-family: ui-sans-serif, system-ui, sans-serif;
+        --art-font-size: 1rem;
+        --art-line-height: 1.6;
+        --art-color: CanvasText;
+        --art-background: Canvas;
+        --art-border-color: color-mix(in srgb, CanvasText 18%, transparent);
+        --art-radius: 0.375rem;
+        display: block;
+        font-family: var(--art-font-family);
+        color: var(--art-color);
+      }
 
-    :host([disabled]) [part='editor'] {
-      cursor: not-allowed;
-      opacity: 0.6;
-    }
+      [part='editor'] {
+        min-height: 8rem;
+        box-sizing: border-box;
+        padding: 0.75rem;
+        border: 1px solid var(--art-border-color);
+        border-radius: var(--art-radius);
+        background: var(--art-background);
+        font-size: var(--art-font-size);
+        line-height: var(--art-line-height);
+        outline: none;
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+      }
 
-    [part='editor'][data-empty='true']::before {
-      content: attr(data-placeholder);
-      opacity: 0.55;
-      pointer-events: none;
-    }
-  </style>
-  <div part="editor" role="textbox" aria-multiline="true"></div>
-`;
+      [part='editor']:focus-visible {
+        outline: 2px solid currentColor;
+        outline-offset: 2px;
+      }
 
-export class ARichTextElement extends HTMLElement {
+      :host([disabled]) [part='editor'] {
+        cursor: not-allowed;
+        opacity: 0.6;
+      }
+
+      [part='editor'][data-empty='true']::before {
+        content: attr(data-placeholder);
+        opacity: 0.55;
+        pointer-events: none;
+      }
+    </style>
+    <div part="editor" role="textbox" aria-multiline="true"></div>
+  `;
+  cachedTemplate = template;
+  return template;
+}
+
+export class ARichTextElement extends HTMLElementBase {
   static readonly formAssociated = true;
   static readonly observedAttributes = ['disabled', 'readonly', 'placeholder', 'value', 'format'];
 
@@ -70,10 +84,14 @@ export class ARichTextElement extends HTMLElement {
 
   constructor() {
     super();
+    if (typeof document === 'undefined' || typeof this.attachShadow !== 'function') {
+      throw new Error('<a-rich-text> can only be instantiated in a browser DOM');
+    }
+
     const shadow = this.attachShadow({ mode: 'open' });
-    shadow.append(template.content.cloneNode(true));
+    shadow.append(getTemplate().content.cloneNode(true));
     this.#editor = shadow.querySelector<HTMLDivElement>('[part="editor"]')!;
-    this.#internals = 'attachInternals' in this ? this.attachInternals() : null;
+    this.#internals = typeof this.attachInternals === 'function' ? this.attachInternals() : null;
 
     this.#editor.addEventListener('input', () => {
       this.#syncDerivedState();
@@ -237,9 +255,8 @@ export class ARichTextElement extends HTMLElement {
 }
 
 export function defineARichText(tagName = 'a-rich-text'): void {
-  if (!customElements.get(tagName)) {
-    customElements.define(tagName, ARichTextElement);
-  }
+  if (typeof customElements === 'undefined') return;
+  if (!customElements.get(tagName)) customElements.define(tagName, ARichTextElement);
 }
 
 defineARichText();
