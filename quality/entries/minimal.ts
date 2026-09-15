@@ -1,0 +1,1 @@
+import '@arichtext/web-component';
