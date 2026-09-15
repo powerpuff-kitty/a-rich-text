@@ -31,6 +31,7 @@
   },
   "dependencies": {
     "@arichtext/core": "workspace:*",
-    "@arichtext/html": "workspace:*"
+    "@arichtext/html": "workspace:*",
+    "@arichtext/markdown": "workspace:*"
   }
 }
