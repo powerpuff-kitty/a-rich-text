@@ -39,6 +39,7 @@ const MARK_ORDER: Record<ARTMarkType, number> = {
   strike: 3,
   code: 4,
   link: 5,
+  extensionMark: 6,
 };
 
 export function cloneDocument(document: ARTDocument): ARTDocument {
@@ -51,10 +52,7 @@ export function cloneDocument(document: ARTDocument): ARTDocument {
 export function cloneState(state: EditorState): EditorState {
   const document = cloneDocument(state.document);
   if (state.selection) validateSelection(document, state.selection);
-  return {
-    document,
-    selection: state.selection ? cloneSelection(state.selection) : null,
-  };
+  return { document, selection: state.selection ? cloneSelection(state.selection) : null };
 }
 
 export function cloneResult(result: TransactionResult): TransactionResult {
@@ -92,7 +90,15 @@ export function cloneMarks(marks: readonly ARTTextMark[]): ARTTextMark[] {
 }
 
 export function cloneMark(mark: ARTTextMark): ARTTextMark {
-  return mark.type === 'link' ? { type: 'link', href: mark.href } : { type: mark.type };
+  if (mark.type === 'link') return { type: 'link', href: mark.href };
+  if (mark.type === 'extensionMark') {
+    return {
+      type: 'extensionMark',
+      name: mark.name,
+      ...(mark.attrs ? { attrs: cloneValue(mark.attrs) } : {}),
+    };
+  }
+  return { type: mark.type };
 }
 
 export function sameDocument(left: ARTDocument, right: ARTDocument): boolean {
@@ -111,11 +117,7 @@ export function samePath(left: ARTPath, right: ARTPath): boolean {
   return left.length === right.length && left.every((value, index) => value === right[index]);
 }
 
-export function normalizeRange(
-  document: ARTDocument,
-  fromPoint: ARTTextPoint,
-  toPoint: ARTTextPoint,
-): NormalizedRange {
+export function normalizeRange(document: ARTDocument, fromPoint: ARTTextPoint, toPoint: ARTTextPoint): NormalizedRange {
   const blocks = listInlineBlocks(document);
   const fromIndex = findBlockIndex(blocks, fromPoint.blockPath);
   const toIndex = findBlockIndex(blocks, toPoint.blockPath);
@@ -123,15 +125,8 @@ export function normalizeRange(
   validatePoint(blocks[toIndex]!.block, toPoint);
 
   if (fromIndex < toIndex || (fromIndex === toIndex && fromPoint.offset <= toPoint.offset)) {
-    return {
-      from: clonePoint(fromPoint),
-      to: clonePoint(toPoint),
-      fromIndex,
-      toIndex,
-      blocks,
-    };
+    return { from: clonePoint(fromPoint), to: clonePoint(toPoint), fromIndex, toIndex, blocks };
   }
-
   return {
     from: clonePoint(toPoint),
     to: clonePoint(fromPoint),
@@ -147,29 +142,21 @@ export function validateSelection(document: ARTDocument, selection: ARTSelection
 
 export function listInlineBlocks(document: ARTDocument): TextBlockEntry[] {
   const output: TextBlockEntry[] = [];
-
   const visit = (node: unknown, path: number[]): void => {
     if (isInlineBlock(node)) {
       output.push({ path: [...path], block: node });
       return;
     }
     const children = getChildren(node);
-    for (let index = 0; index < children.length; index += 1) {
-      visit(children[index], [...path, index]);
-    }
+    for (let index = 0; index < children.length; index += 1) visit(children[index], [...path, index]);
   };
-
-  for (let index = 0; index < document.content.length; index += 1) {
-    visit(document.content[index], [index]);
-  }
+  for (let index = 0; index < document.content.length; index += 1) visit(document.content[index], [index]);
   return output;
 }
 
 export function getInlineBlock(document: ARTDocument, path: ARTPath): InlineBlock {
   const node = getNodeAtPath(document, path);
-  if (!isInlineBlock(node)) {
-    throw new RangeError(`Path [${path.join(',')}] does not target an inline text block`);
-  }
+  if (!isInlineBlock(node)) throw new RangeError(`Path [${path.join(',')}] does not target an inline text block`);
   return node;
 }
 
@@ -177,9 +164,7 @@ export function getNodeAtPath(document: ARTDocument, path: ARTPath): unknown {
   if (path.length === 0) return document;
   let current: unknown = document;
   for (const index of path) {
-    if (!Number.isInteger(index) || index < 0) {
-      throw new RangeError('ART paths contain non-negative integer indexes');
-    }
+    if (!Number.isInteger(index) || index < 0) throw new RangeError('ART paths contain non-negative integer indexes');
     const children = getChildren(current);
     if (index >= children.length) throw new RangeError(`ART path index ${index} is out of bounds`);
     current = children[index];
@@ -209,26 +194,20 @@ export function mutateInlineRange(
 ): ARTTextNode[] {
   const output: ARTTextNode[] = [];
   let cursor = 0;
-
   for (const node of content) {
     const start = cursor;
     const end = cursor + node.text.length;
     cursor = end;
-
     if (end <= from || start >= to) {
       pushTextNode(output, node.text, node.marks ?? []);
       continue;
     }
-
     const localFrom = Math.max(0, from - start);
     const localTo = Math.min(node.text.length, to - start);
     if (localFrom > 0) pushTextNode(output, node.text.slice(0, localFrom), node.marks ?? []);
-    if (localTo > localFrom) {
-      pushTextNode(output, node.text.slice(localFrom, localTo), mutateMarks(cloneMarks(node.marks ?? [])));
-    }
+    if (localTo > localFrom) pushTextNode(output, node.text.slice(localFrom, localTo), mutateMarks(cloneMarks(node.marks ?? [])));
     if (localTo < node.text.length) pushTextNode(output, node.text.slice(localTo), node.marks ?? []);
   }
-
   return output;
 }
 
@@ -241,11 +220,9 @@ export function replaceInlineRange(
 ): ARTTextNode[] {
   const output: ARTTextNode[] = [];
   const totalLength = content.reduce((length, node) => length + node.text.length, 0);
-  const before = sliceInline(content, 0, from);
-  const after = sliceInline(content, to, totalLength);
-  for (const node of before) pushTextNode(output, node.text, node.marks ?? []);
+  for (const node of sliceInline(content, 0, from)) pushTextNode(output, node.text, node.marks ?? []);
   if (text) pushTextNode(output, text, marks);
-  for (const node of after) pushTextNode(output, node.text, node.marks ?? []);
+  for (const node of sliceInline(content, to, totalLength)) pushTextNode(output, node.text, node.marks ?? []);
   return output;
 }
 
@@ -253,7 +230,6 @@ export function marksAtOffset(block: InlineBlock, offset: number): ARTTextMark[]
   const content = block.content ?? [];
   if (content.length === 0) return [];
   let cursor = 0;
-
   for (const node of content) {
     const end = cursor + node.text.length;
     if (offset >= cursor && offset < end) return cloneMarks(node.marks ?? []);
@@ -271,7 +247,6 @@ export function rangeHasMark(range: NormalizedRange, mark: ARTTextMark): boolean
     const from = index === range.fromIndex ? range.from.offset : 0;
     const to = index === range.toIndex ? range.to.offset : length;
     if (to <= from) continue;
-
     let cursor = 0;
     for (const node of block.content ?? []) {
       const start = cursor;
@@ -286,7 +261,8 @@ export function rangeHasMark(range: NormalizedRange, mark: ARTTextMark): boolean
 }
 
 export function addMark(marks: readonly ARTTextMark[], mark: ARTTextMark): ARTTextMark[] {
-  return normalizeMarks([...marks.filter((candidate) => candidate.type !== mark.type), cloneMark(mark)]);
+  const key = markKey(mark);
+  return normalizeMarks([...marks.filter((candidate) => markKey(candidate) !== key), cloneMark(mark)]);
 }
 
 export function removeMark(marks: readonly ARTTextMark[], type: ARTMarkType): ARTTextMark[] {
@@ -308,14 +284,7 @@ function findBlockIndex(blocks: readonly TextBlockEntry[], path: ARTPath): numbe
 function getChildren(node: unknown): readonly unknown[] {
   if (!node || typeof node !== 'object') return [];
   const candidate = node as { type?: unknown; content?: unknown };
-  if (
-    candidate.type === 'codeBlock'
-    || candidate.type === 'horizontalRule'
-    || candidate.type === 'image'
-    || candidate.type === 'text'
-  ) {
-    return [];
-  }
+  if (candidate.type === 'codeBlock' || candidate.type === 'horizontalRule' || candidate.type === 'image' || candidate.type === 'text') return [];
   return Array.isArray(candidate.content) ? candidate.content : [];
 }
 
@@ -336,7 +305,6 @@ function sliceInline(content: readonly ARTTextNode[], from: number, to: number):
   if (to <= from) return [];
   const output: ARTTextNode[] = [];
   let cursor = 0;
-
   for (const node of content) {
     const start = cursor;
     const end = cursor + node.text.length;
@@ -350,16 +318,21 @@ function sliceInline(content: readonly ARTTextNode[], from: number, to: number):
 }
 
 function hasMark(marks: readonly ARTTextMark[], mark: ARTTextMark): boolean {
-  return marks.some((candidate) => {
-    if (candidate.type !== mark.type) return false;
-    return mark.type !== 'link' || (candidate.type === 'link' && candidate.href === mark.href);
-  });
+  const target = markKey(mark);
+  return marks.some((candidate) => markKey(candidate) === target && sameMarkValue(candidate, mark));
+}
+
+function markKey(mark: ARTTextMark): string {
+  return mark.type === 'extensionMark' ? `extensionMark:${mark.name}` : mark.type;
 }
 
 function normalizeMarks(marks: readonly ARTTextMark[]): ARTTextMark[] {
-  const byType = new Map<ARTMarkType, ARTTextMark>();
-  for (const mark of marks) byType.set(mark.type, cloneMark(mark));
-  return [...byType.values()].sort((left, right) => MARK_ORDER[left.type] - MARK_ORDER[right.type]);
+  const byKey = new Map<string, ARTTextMark>();
+  for (const mark of marks) byKey.set(markKey(mark), cloneMark(mark));
+  return [...byKey.values()].sort((left, right) => {
+    const order = MARK_ORDER[left.type] - MARK_ORDER[right.type];
+    return order !== 0 ? order : markKey(left).localeCompare(markKey(right));
+  });
 }
 
 function pushTextNode(output: ARTTextNode[], text: string, marks: readonly ARTTextMark[]): void {
@@ -377,13 +350,21 @@ function sameMarks(left: readonly ARTTextMark[], right: readonly ARTTextMark[]):
   if (left.length !== right.length) return false;
   return left.every((mark, index) => {
     const other = right[index];
-    if (!other || mark.type !== other.type) return false;
-    return mark.type !== 'link' || (other.type === 'link' && mark.href === other.href);
+    return !!other && sameMarkValue(mark, other);
   });
 }
 
+function sameMarkValue(left: ARTTextMark, right: ARTTextMark): boolean {
+  if (left.type !== right.type) return false;
+  if (left.type === 'link') return right.type === 'link' && left.href === right.href;
+  if (left.type === 'extensionMark') {
+    return right.type === 'extensionMark'
+      && left.name === right.name
+      && JSON.stringify(left.attrs ?? {}) === JSON.stringify(right.attrs ?? {});
+  }
+  return true;
+}
+
 function cloneValue<T>(value: T): T {
-  return typeof structuredClone === 'function'
-    ? structuredClone(value)
-    : JSON.parse(JSON.stringify(value)) as T;
+  return typeof structuredClone === 'function' ? structuredClone(value) : JSON.parse(JSON.stringify(value)) as T;
 }
