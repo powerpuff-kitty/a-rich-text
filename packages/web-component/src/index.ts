@@ -5,6 +5,7 @@ import {
   toPlainText,
   type ARTDocument,
 } from '@arichtext/core';
+import { fromHTML, toHTML } from '@arichtext/html';
 
 const template = document.createElement('template');
 template.innerHTML = `
@@ -46,7 +47,7 @@ template.innerHTML = `
       opacity: 0.6;
     }
 
-    [part='editor']:empty::before {
+    [part='editor'][data-empty='true']::before {
       content: attr(data-placeholder);
       opacity: 0.55;
       pointer-events: none;
@@ -70,6 +71,7 @@ export class ARichTextElement extends HTMLElement {
     this.#internals = 'attachInternals' in this ? this.attachInternals() : null;
 
     this.#editor.addEventListener('input', () => {
+      this.#syncDerivedState();
       this.#syncFormValue();
       this.dispatchEvent(new Event('input', { bubbles: true, composed: true }));
     });
@@ -84,19 +86,23 @@ export class ARichTextElement extends HTMLElement {
       this.#editor.textContent = this.getAttribute('value') ?? '';
     }
     this.#syncState();
+    this.#syncDerivedState();
     this.#syncFormValue();
   }
 
   attributeChangedCallback(): void {
     this.#syncState();
+    this.#syncDerivedState();
   }
 
+  /** Plain-text value for native form compatibility. */
   get value(): string {
-    return this.#editor.textContent ?? '';
+    return this.getText();
   }
 
   set value(value: string) {
     this.#editor.textContent = value;
+    this.#syncDerivedState();
     this.#syncFormValue();
   }
 
@@ -121,25 +127,35 @@ export class ARichTextElement extends HTMLElement {
   }
 
   clear(): void {
-    this.value = '';
+    this.setJSON(createTextDocument(''));
     this.dispatchEvent(new Event('input', { bubbles: true, composed: true }));
   }
 
   getText(): string {
-    return this.value;
+    return toPlainText(this.getJSON());
   }
 
   getJSON(): ARTDocument {
-    return createTextDocument(this.value);
+    return fromHTML(this.#editor.innerHTML);
   }
 
   setJSON(document: ARTDocument | string): void {
     const parsed = typeof document === 'string' ? parseDocument(document) : document;
-    this.value = toPlainText(parsed);
+    this.#editor.innerHTML = toHTML(parsed);
+    this.#syncDerivedState();
+    this.#syncFormValue();
   }
 
   serializeJSON(): string {
     return serializeDocument(this.getJSON());
+  }
+
+  getHTML(): string {
+    return toHTML(this.getJSON());
+  }
+
+  setHTML(html: string): void {
+    this.setJSON(fromHTML(html));
   }
 
   formResetCallback(): void {
@@ -162,6 +178,10 @@ export class ARichTextElement extends HTMLElement {
       this.#editor.textContent = valueAttribute;
       this.#syncFormValue();
     }
+  }
+
+  #syncDerivedState(): void {
+    this.#editor.dataset.empty = String(this.#editor.textContent?.length === 0);
   }
 
   #syncFormValue(): void {
