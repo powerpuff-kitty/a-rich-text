@@ -1,0 +1,36 @@
+{
+  "name": "@arichtext/dom",
+  "version": "0.0.0",
+  "description": "Browser rendering and selection mapping for the A Rich Text editing engine",
+  "type": "module",
+  "sideEffects": false,
+  "license": "MIT",
+  "homepage": "https://arichtext.com",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/powerpuff-kitty/a-rich-text.git",
+    "directory": "packages/dom"
+  },
+  "bugs": {
+    "url": "https://github.com/powerpuff-kitty/a-rich-text/issues"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@arichtext/core": "workspace:*",
+    "@arichtext/engine": "workspace:*"
+  }
+}
