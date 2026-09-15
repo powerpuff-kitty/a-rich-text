@@ -1,6 +1,8 @@
 import type { ARTHeadingNode, ARTTextMark } from '@arichtext/core';
+import { nextGraphemeBoundary, previousGraphemeBoundary } from './grapheme.js';
+import { getInlineBlock, getNodeAtPath, inlineLength, samePath } from './tree.js';
 import { transaction } from './transaction.js';
-import type { EditorState, EditorTransaction } from './types.js';
+import type { ARTPath, EditorState, EditorTransaction } from './types.js';
 
 /** Replace the current selection, or insert at a collapsed caret. */
 export function insertText(
@@ -19,17 +21,74 @@ export function insertText(
 /** Delete the current selection. Collapsed selections are a no-op. */
 export function deleteSelection(state: EditorState): EditorTransaction | null {
   const selection = state.selection;
-  if (!selection) return null;
-  if (
-    selection.anchor.offset === selection.head.offset
-    && selection.anchor.blockPath.length === selection.head.blockPath.length
-    && selection.anchor.blockPath.every((value, index) => value === selection.head.blockPath[index])
-  ) {
-    return null;
-  }
+  if (!selection || isCollapsed(state)) return null;
   return transaction()
     .replaceText(selection.anchor, selection.head, '')
     .setMeta('command', 'deleteSelection')
+    .build();
+}
+
+/** Split the current paragraph/heading. A heading always creates a paragraph on the right. */
+export function insertParagraph(state: EditorState): EditorTransaction | null {
+  const selection = state.selection;
+  if (!selection || !samePath(selection.anchor.blockPath, selection.head.blockPath)) return null;
+
+  const offset = Math.min(selection.anchor.offset, selection.head.offset);
+  const point = { blockPath: [...selection.anchor.blockPath], offset };
+  const builder = transaction();
+  if (!isCollapsed(state)) builder.replaceText(selection.anchor, selection.head, '');
+  return builder
+    .splitBlock(point)
+    .setMeta('command', 'insertParagraph')
+    .build();
+}
+
+/** Delete one grapheme before a collapsed caret, or join the previous inline sibling. */
+export function deleteBackward(state: EditorState): EditorTransaction | null {
+  if (!state.selection) return null;
+  if (!isCollapsed(state)) return deleteSelection(state);
+
+  const point = state.selection.anchor;
+  const block = getInlineBlock(state.document, point.blockPath);
+  if (point.offset > 0) {
+    const text = inlineText(block);
+    const from = previousGraphemeBoundary(text, point.offset);
+    return transaction()
+      .replaceText({ blockPath: [...point.blockPath], offset: from }, point, '')
+      .setMeta('command', 'deleteBackward')
+      .build();
+  }
+
+  const previousPath = adjacentSiblingPath(state.document, point.blockPath, -1);
+  if (!previousPath) return null;
+  return transaction()
+    .joinBlocks(previousPath, point.blockPath)
+    .setMeta('command', 'deleteBackward:join')
+    .build();
+}
+
+/** Delete one grapheme after a collapsed caret, or join the next inline sibling. */
+export function deleteForward(state: EditorState): EditorTransaction | null {
+  if (!state.selection) return null;
+  if (!isCollapsed(state)) return deleteSelection(state);
+
+  const point = state.selection.anchor;
+  const block = getInlineBlock(state.document, point.blockPath);
+  const length = inlineLength(block);
+  if (point.offset < length) {
+    const text = inlineText(block);
+    const to = nextGraphemeBoundary(text, point.offset);
+    return transaction()
+      .replaceText(point, { blockPath: [...point.blockPath], offset: to }, '')
+      .setMeta('command', 'deleteForward')
+      .build();
+  }
+
+  const nextPath = adjacentSiblingPath(state.document, point.blockPath, 1);
+  if (!nextPath) return null;
+  return transaction()
+    .joinBlocks(point.blockPath, nextPath)
+    .setMeta('command', 'deleteForward:join')
     .build();
 }
 
@@ -80,4 +139,33 @@ export function setCurrentHeading(
     .setBlockType(selection.anchor.blockPath, 'heading', level)
     .setMeta('command', `setHeading:${level}`)
     .build();
+}
+
+function isCollapsed(state: EditorState): boolean {
+  const selection = state.selection;
+  return selection !== null
+    && samePath(selection.anchor.blockPath, selection.head.blockPath)
+    && selection.anchor.offset === selection.head.offset;
+}
+
+function inlineText(block: ReturnType<typeof getInlineBlock>): string {
+  return (block.content ?? []).map((node) => node.text).join('');
+}
+
+function adjacentSiblingPath(document: EditorState['document'], path: ARTPath, direction: -1 | 1): number[] | null {
+  if (path.length === 0) return null;
+  const parentPath = path.slice(0, -1);
+  const currentIndex = path[path.length - 1]!;
+  const siblingIndex = currentIndex + direction;
+  if (siblingIndex < 0) return null;
+
+  const parent = getNodeAtPath(document, parentPath);
+  if (!parent || typeof parent !== 'object') return null;
+  const content = (parent as { content?: unknown }).content;
+  if (!Array.isArray(content) || siblingIndex >= content.length) return null;
+  const sibling = content[siblingIndex];
+  if (!sibling || typeof sibling !== 'object') return null;
+  const type = (sibling as { type?: unknown }).type;
+  if (type !== 'paragraph' && type !== 'heading') return null;
+  return [...parentPath, siblingIndex];
 }
