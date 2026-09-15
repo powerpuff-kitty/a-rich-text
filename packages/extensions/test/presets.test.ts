@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createExtensionRegistry } from '../src/index.js';
+import { createExtensionRegistry, ExtensionConflictError } from '../src/index.js';
 import {
   createPreset,
   documentPreset,
@@ -17,11 +17,17 @@ describe('@arichtext/extensions presets', () => {
     expect(documentPreset.extensions.length).toBeGreaterThan(standardPreset.extensions.length);
   });
 
-  it('extends a preset without duplicating extension names', () => {
+  it('deduplicates the exact same extension object', () => {
     const custom = { name: 'acme:properties' } as const;
     const preset = extendPreset(standardPreset, custom, custom);
     expect(preset.extensions.filter((extension) => extension.name === custom.name)).toHaveLength(1);
     expect(() => createExtensionRegistry(preset.extensions)).not.toThrow();
+  });
+
+  it('rejects a different extension object with the same name', () => {
+    const first = { name: 'acme:properties', metadata: { version: 1 } } as const;
+    const second = { name: 'acme:properties', metadata: { version: 2 } } as const;
+    expect(() => extendPreset(createPreset('custom', [first]), second)).toThrowError(ExtensionConflictError);
   });
 
   it('creates custom presets without editor forks', () => {
