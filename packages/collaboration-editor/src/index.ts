@@ -1,4 +1,5 @@
 import {
+  CollaborationError,
   cloneARTDocument,
   clonePresenceData,
   type CollaborationDocumentUpdate,
@@ -48,6 +49,7 @@ export class CollaborationEditorController {
   #destroyed = false;
   #presenceData?: ARTJSONObject;
   #revision?: string;
+  #remoteEpoch = 0;
   #publishQueue: Promise<void> = Promise.resolve();
   #presenceQueue: Promise<void> = Promise.resolve();
   #seenChanges = new Set<string>();
@@ -135,6 +137,7 @@ export class CollaborationEditorController {
 
     try {
       const document = cloneARTDocument(update.document);
+      this.#remoteEpoch += 1;
       this.#revision = update.revision;
       if (serializeDocument(this.editor.getJSON()) !== serializeDocument(document)) {
         this.editor.setJSON(document);
@@ -176,8 +179,17 @@ export class CollaborationEditorController {
   };
 
   #queuePublish(document: ReturnType<typeof cloneARTDocument>): void {
+    const queuedRemoteEpoch = this.#remoteEpoch;
     this.#publishQueue = this.#publishQueue
-      .then(() => this.#publishDocument(document).then(() => undefined))
+      .then(async () => {
+        if (this.session.capabilities.merge === 'snapshot' && queuedRemoteEpoch !== this.#remoteEpoch) {
+          throw new CollaborationError(
+            'revision-conflict',
+            'Remote document changed before a queued local snapshot could be published',
+          );
+        }
+        await this.#publishDocument(document);
+      })
       .catch((error) => this.#emitError(error));
   }
 
