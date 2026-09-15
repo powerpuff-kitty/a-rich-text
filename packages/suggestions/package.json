@@ -1,0 +1,40 @@
+{
+  "name": "@arichtext/suggestions",
+  "version": "0.0.0",
+  "description": "Provider-neutral tracked text suggestions and review metadata for A Rich Text",
+  "license": "MIT",
+  "type": "module",
+  "sideEffects": false,
+  "homepage": "https://arichtext.com",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/powerpuff-kitty/a-rich-text.git",
+    "directory": "packages/suggestions"
+  },
+  "bugs": {
+    "url": "https://github.com/powerpuff-kitty/a-rich-text/issues"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./memory": {
+      "types": "./dist/memory.d.ts",
+      "import": "./dist/memory.js"
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@arichtext/annotations": "workspace:*",
+    "@arichtext/core": "workspace:*"
+  }
+}

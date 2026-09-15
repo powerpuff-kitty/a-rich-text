@@ -1,0 +1,38 @@
+{
+  "name": "@arichtext/ui",
+  "version": "0.0.0",
+  "description": "Optional framework-independent UI components for A Rich Text",
+  "type": "module",
+  "sideEffects": true,
+  "license": "MIT",
+  "homepage": "https://arichtext.com",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/powerpuff-kitty/a-rich-text.git",
+    "directory": "packages/ui"
+  },
+  "bugs": {
+    "url": "https://github.com/powerpuff-kitty/a-rich-text/issues"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@arichtext/links": "workspace:*",
+    "@arichtext/lists": "workspace:*",
+    "@arichtext/tables": "workspace:*",
+    "@arichtext/web-component": "workspace:*"
+  }
+}

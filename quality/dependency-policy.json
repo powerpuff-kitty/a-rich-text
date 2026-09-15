@@ -1,0 +1,36 @@
+{
+  "frameworkRuntimePackages": [
+    "react",
+    "react-dom",
+    "vue",
+    "@vue/runtime-dom",
+    "svelte",
+    "preact",
+    "solid-js",
+    "@angular/core"
+  ],
+  "networkFreePackages": [
+    "@arichtext/core",
+    "@arichtext/engine",
+    "@arichtext/dom",
+    "@arichtext/html",
+    "@arichtext/markdown",
+    "@arichtext/clipboard",
+    "@arichtext/extensions",
+    "@arichtext/web-component",
+    "@arichtext/ui"
+  ],
+  "baseEditorForbiddenDependencies": [
+    "@arichtext/media",
+    "@arichtext/media-editor",
+    "@arichtext/collaboration",
+    "@arichtext/collaboration-editor",
+    "@arichtext/ai",
+    "@arichtext/ai-editor",
+    "@arichtext/annotations",
+    "@arichtext/comments",
+    "@arichtext/comments-editor",
+    "@arichtext/suggestions",
+    "@arichtext/suggestions-editor"
+  ]
+}

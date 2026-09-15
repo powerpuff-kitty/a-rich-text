@@ -1,0 +1,12 @@
+{
+  "minimal": {
+    "entry": "quality/entries/minimal.ts",
+    "maxGzipBytes": 51200,
+    "targetGzipBytes": 51200
+  },
+  "standard": {
+    "entry": "quality/entries/standard.ts",
+    "maxGzipBytes": 66560,
+    "targetGzipBytes": 66560
+  }
+}

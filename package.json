@@ -1,0 +1,30 @@
+{
+  "name": "a-rich-text",
+  "private": true,
+  "type": "module",
+  "version": "0.0.0",
+  "packageManager": "pnpm@10.17.1",
+  "scripts": {
+    "build": "pnpm -r build",
+    "typecheck": "pnpm -r typecheck",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "quality:packages": "node scripts/validate-packages.mjs",
+    "quality:bundle": "node scripts/check-bundle-size.mjs",
+    "test:browser": "playwright test",
+    "verify": "pnpm quality:packages && pnpm build && pnpm typecheck && pnpm test && pnpm quality:bundle",
+    "verify:local": "pnpm verify && pnpm test:browser"
+  },
+  "devDependencies": {
+    "@arichtext/web-component": "workspace:*",
+    "@arichtext/ui": "workspace:*",
+    "@arichtext/lists-editor": "workspace:*",
+    "@playwright/test": "^1.63.0",
+    "esbuild": "^0.28.2",
+    "fake-indexeddb": "^6.2.5",
+    "happy-dom": "^20.14.5",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.0",
+    "vitest": "^5.0.0"
+  }
+}

@@ -1,0 +1,40 @@
+{
+  "name": "@arichtext/web-component",
+  "version": "0.0.0",
+  "description": "Native <a-rich-text> Web Component for framework-independent rich text editing.",
+  "license": "MIT",
+  "type": "module",
+  "sideEffects": true,
+  "homepage": "https://arichtext.com",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/powerpuff-kitty/a-rich-text.git",
+    "directory": "packages/web-component"
+  },
+  "bugs": {
+    "url": "https://github.com/powerpuff-kitty/a-rich-text/issues"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": ["dist", "README.md", "LICENSE"],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@arichtext/clipboard": "workspace:*",
+    "@arichtext/core": "workspace:*",
+    "@arichtext/dom": "workspace:*",
+    "@arichtext/engine": "workspace:*",
+    "@arichtext/html": "workspace:*",
+    "@arichtext/markdown": "workspace:*"
+  }
+}
