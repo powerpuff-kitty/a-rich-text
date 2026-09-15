@@ -51,6 +51,17 @@ export type EditorOperation =
       path: ARTPath;
       blockType: 'paragraph' | 'heading';
       level?: ARTHeadingNode['level'];
+    }
+  | {
+      /** Split a paragraph/heading. The right-hand block becomes a paragraph. */
+      type: 'splitBlock';
+      point: ARTTextPoint;
+    }
+  | {
+      /** Join two adjacent paragraph/heading siblings, preserving the left block type. */
+      type: 'joinBlocks';
+      leftPath: ARTPath;
+      rightPath: ARTPath;
     };
 
 export interface EditorTransaction {
