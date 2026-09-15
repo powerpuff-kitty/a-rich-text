@@ -6,6 +6,7 @@ import {
   type ARTDocument,
 } from '@arichtext/core';
 import { fromHTML, toHTML } from '@arichtext/html';
+import { fromMarkdown, toMarkdown } from '@arichtext/markdown';
 
 const template = document.createElement('template');
 template.innerHTML = `
@@ -156,6 +157,14 @@ export class ARichTextElement extends HTMLElement {
 
   setHTML(html: string): void {
     this.setJSON(fromHTML(html));
+  }
+
+  getMarkdown(): string {
+    return toMarkdown(this.getJSON());
+  }
+
+  setMarkdown(markdown: string): void {
+    this.setJSON(fromMarkdown(markdown));
   }
 
   formResetCallback(): void {
