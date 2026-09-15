@@ -1,10 +1,12 @@
 import { isARTDocument } from '@arichtext/core';
 import type {
+  ARTBlockNode,
   ARTDocument,
   ARTHeadingNode,
   ARTParagraphNode,
   ARTTextMark,
 } from '@arichtext/core';
+import { replaceRangeWithFragment } from './fragment.js';
 import { textPoint, textSelection } from './model.js';
 import {
   addMark,
@@ -47,13 +49,12 @@ export class TransactionBuilder {
   #meta: Record<string, unknown> = {};
 
   replaceText(from: ARTTextPoint, to: ARTTextPoint, text: string, marks?: ARTTextMark[]): this {
-    this.#operations.push({
-      type: 'replaceText',
-      from: clonePoint(from),
-      to: clonePoint(to),
-      text,
-      ...(marks ? { marks: cloneMarks(marks) } : {}),
-    });
+    this.#operations.push({ type: 'replaceText', from: clonePoint(from), to: clonePoint(to), text, ...(marks ? { marks: cloneMarks(marks) } : {}) });
+    return this;
+  }
+
+  replaceFragment(from: ARTTextPoint, to: ARTTextPoint, content: readonly ARTBlockNode[]): this {
+    this.#operations.push({ type: 'replaceFragment', from: clonePoint(from), to: clonePoint(to), content: structuredClone(content) });
     return this;
   }
 
@@ -73,12 +74,7 @@ export class TransactionBuilder {
   }
 
   setBlockType(path: ARTPath, blockType: 'paragraph' | 'heading', level?: ARTHeadingNode['level']): this {
-    this.#operations.push({
-      type: 'setBlockType',
-      path: [...path],
-      blockType,
-      ...(level !== undefined ? { level } : {}),
-    });
+    this.#operations.push({ type: 'setBlockType', path: [...path], blockType, ...(level !== undefined ? { level } : {}) });
     return this;
   }
 
@@ -105,9 +101,7 @@ export class TransactionBuilder {
   build(): EditorTransaction {
     return {
       operations: this.#operations.map(cloneOperation),
-      ...(this.#selection !== undefined
-        ? { selection: this.#selection ? cloneSelection(this.#selection) : null }
-        : {}),
+      ...(this.#selection !== undefined ? { selection: this.#selection ? cloneSelection(this.#selection) : null } : {}),
       ...(Object.keys(this.#meta).length > 0 ? { meta: { ...this.#meta } } : {}),
     };
   }
@@ -127,6 +121,12 @@ export function applyTransaction(state: EditorState, transactionValue: EditorTra
     switch (operation.type) {
       case 'replaceText': {
         const result = applyReplaceText(document, operation);
+        document = result.document;
+        selection = textSelection(result.caret);
+        break;
+      }
+      case 'replaceFragment': {
+        const result = replaceRangeWithFragment(document, operation.from, operation.to, operation.content);
         document = result.document;
         selection = textSelection(result.caret);
         break;
@@ -188,15 +188,10 @@ export function applyTransaction(state: EditorState, transactionValue: EditorTra
   };
 }
 
-function applyReplaceText(
-  document: ARTDocument,
-  operation: Extract<EditorOperation, { type: 'replaceText' }>,
-): { document: ARTDocument; caret: ARTTextPoint } {
+function applyReplaceText(document: ARTDocument, operation: Extract<EditorOperation, { type: 'replaceText' }>): { document: ARTDocument; caret: ARTTextPoint } {
   const range = normalizeRange(document, operation.from, operation.to);
   const output = cloneDocument(document);
-  const insertionMarks = operation.marks
-    ? cloneMarks(operation.marks)
-    : marksAtOffset(range.blocks[range.fromIndex]!.block, range.from.offset);
+  const insertionMarks = operation.marks ? cloneMarks(operation.marks) : marksAtOffset(range.blocks[range.fromIndex]!.block, range.from.offset);
 
   for (let index = range.fromIndex; index <= range.toIndex; index += 1) {
     const entry = range.blocks[index]!;
@@ -208,10 +203,7 @@ function applyReplaceText(
     block.content = replaceInlineRange(block.content ?? [], from, to, insertion, insertionMarks);
   }
 
-  return {
-    document: output,
-    caret: textPoint(range.from.blockPath, range.from.offset + operation.text.length),
-  };
+  return { document: output, caret: textPoint(range.from.blockPath, range.from.offset + operation.text.length) };
 }
 
 function applyMarkOperation(
@@ -236,31 +228,19 @@ function applyMarkOperation(
   return output;
 }
 
-function applySetBlockType(
-  document: ARTDocument,
-  operation: Extract<EditorOperation, { type: 'setBlockType' }>,
-): ARTDocument {
+function applySetBlockType(document: ARTDocument, operation: Extract<EditorOperation, { type: 'setBlockType' }>): ARTDocument {
   const output = cloneDocument(document);
   const current = getNodeAtPath(output, operation.path);
   if (!isInlineBlock(current)) throw new RangeError('setBlockType path must target a paragraph or heading');
-
   const content = cloneInline(current.content ?? []);
   const replacement: ARTParagraphNode | ARTHeadingNode = operation.blockType === 'heading'
-    ? {
-        type: 'heading',
-        level: operation.level ?? (current.type === 'heading' ? current.level : 1),
-        content,
-      }
+    ? { type: 'heading', level: operation.level ?? (current.type === 'heading' ? current.level : 1), content }
     : { type: 'paragraph', content };
-
   replaceNodeAtPath(output, operation.path, replacement);
   return output;
 }
 
-function applySplitBlock(
-  document: ARTDocument,
-  operation: Extract<EditorOperation, { type: 'splitBlock' }>,
-): { document: ARTDocument; caret: ARTTextPoint } {
+function applySplitBlock(document: ARTDocument, operation: Extract<EditorOperation, { type: 'splitBlock' }>): { document: ARTDocument; caret: ARTTextPoint } {
   const output = cloneDocument(document);
   const current = getInlineBlock(output, operation.point.blockPath);
   const length = inlineLength(current);
@@ -281,35 +261,24 @@ function applySplitBlock(
     ? { type: 'heading', level: current.level, content: leftContent }
     : { type: 'paragraph', content: leftContent };
   const right: ARTParagraphNode = { type: 'paragraph', content: rightContent };
-
   children.splice(index, 1, left, right);
-  const rightPath = [...parentPath, index + 1];
-  return { document: output, caret: textPoint(rightPath, 0) };
+  return { document: output, caret: textPoint([...parentPath, index + 1], 0) };
 }
 
-function applyJoinBlocks(
-  document: ARTDocument,
-  operation: Extract<EditorOperation, { type: 'joinBlocks' }>,
-): { document: ARTDocument; caret: ARTTextPoint } {
-  if (operation.leftPath.length === 0 || operation.rightPath.length === 0) {
-    throw new RangeError('joinBlocks requires block paths');
-  }
+function applyJoinBlocks(document: ARTDocument, operation: Extract<EditorOperation, { type: 'joinBlocks' }>): { document: ARTDocument; caret: ARTTextPoint } {
+  if (operation.leftPath.length === 0 || operation.rightPath.length === 0) throw new RangeError('joinBlocks requires block paths');
   const leftParent = operation.leftPath.slice(0, -1);
   const rightParent = operation.rightPath.slice(0, -1);
   if (!samePath(leftParent, rightParent)) throw new RangeError('joinBlocks only supports siblings with the same parent');
-
-  const leftIndex = operation.leftPath[operation.leftPath.length - 1]!;
-  const rightIndex = operation.rightPath[operation.rightPath.length - 1]!;
+  const leftIndex = operation.leftPath.at(-1)!;
+  const rightIndex = operation.rightPath.at(-1)!;
   if (rightIndex !== leftIndex + 1) throw new RangeError('joinBlocks requires adjacent left/right siblings');
 
   const output = cloneDocument(document);
-  const parent = getNodeAtPath(output, leftParent);
-  const children = mutableContent(parent);
+  const children = mutableContent(getNodeAtPath(output, leftParent));
   const left = children[leftIndex];
   const right = children[rightIndex];
-  if (!isInlineBlock(left) || !isInlineBlock(right)) {
-    throw new RangeError('joinBlocks only supports paragraph/heading siblings');
-  }
+  if (!isInlineBlock(left) || !isInlineBlock(right)) throw new RangeError('joinBlocks only supports paragraph/heading siblings');
 
   const caretOffset = inlineLength(left);
   const mergedContent = cloneInline([...(left.content ?? []), ...(right.content ?? [])]);
@@ -317,7 +286,6 @@ function applyJoinBlocks(
     ? { type: 'heading', level: left.level, content: mergedContent }
     : { type: 'paragraph', content: mergedContent };
   children.splice(leftIndex, 2, merged);
-
   return { document: output, caret: textPoint(operation.leftPath, caretOffset) };
 }
 
