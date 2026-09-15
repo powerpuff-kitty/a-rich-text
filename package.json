@@ -10,8 +10,8 @@
     "test:watch": "vitest"
   },
   "devDependencies": {
-    "happy-dom": "^18.0.1",
-    "typescript": "^5.9.2",
-    "vitest": "^3.2.4"
+    "happy-dom": "^20.14.5",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.0"
   }
 }
