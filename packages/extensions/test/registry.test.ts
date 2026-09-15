@@ -42,6 +42,49 @@ describe('@arichtext/extensions registry', () => {
     expect(registry.getBlock(block.name)).toBeUndefined();
   });
 
+  it('always removes owned resources when onUninstall throws', () => {
+    const registry = createExtensionRegistry([{
+      name: 'acme:broken-cleanup',
+      blocks: [block],
+      onUninstall: () => { throw new Error('cleanup failed'); },
+    }]);
+
+    expect(() => registry.uninstall('acme:broken-cleanup')).toThrow('cleanup failed');
+    expect(registry.hasExtension('acme:broken-cleanup')).toBe(false);
+    expect(registry.getBlock(block.name)).toBeUndefined();
+  });
+
+  it('validates registered extension block and mark payloads', () => {
+    const registry = createExtensionRegistry([{
+      name: 'acme:validated',
+      blocks: [{
+        name: 'acme:property-card',
+        validate: (node) => node.attrs?.kind === 'house',
+      }],
+      marks: [{
+        name: 'acme:mention',
+        validate: (value) => typeof value.attrs?.id === 'string',
+      }],
+    }]);
+
+    expect(registry.validateBlock({
+      type: 'extensionBlock',
+      name: 'acme:property-card',
+      attrs: { kind: 'house' },
+    })).toBe(true);
+    expect(registry.validateBlock({
+      type: 'extensionBlock',
+      name: 'acme:property-card',
+      attrs: { kind: 'land' },
+    })).toBe(false);
+    expect(registry.validateMark({
+      type: 'extensionMark',
+      name: 'acme:mention',
+      attrs: { id: 'u-1' },
+    })).toBe(true);
+    expect(registry.validateMark({ type: 'extensionMark', name: 'other:missing' })).toBe(false);
+  });
+
   it('uninstalls only resources owned by the target extension', () => {
     const registry = createExtensionRegistry([
       { name: 'acme:one', blocks: [block] },
