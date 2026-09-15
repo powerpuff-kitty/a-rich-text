@@ -127,8 +127,11 @@ class MemoryCommentsSession implements CommentsSession {
     return this.#mutate(threadId, input, (thread, now) => {
       const message = findMessage(thread, messageId);
       if (message.deletedAt !== undefined) throw new CommentsError('invalid-message', 'Deleted comments cannot be edited');
-      message.body = normalizeBody(input.body);
-      message.mentions = normalizeMentions(input.mentions);
+      const body = normalizeBody(input.body);
+      const mentions = normalizeMentions(input.mentions);
+      if (message.body === body && JSON.stringify(message.mentions ?? []) === JSON.stringify(mentions ?? [])) return;
+      message.body = body;
+      message.mentions = mentions;
       message.updatedAt = now;
     });
   }
@@ -147,6 +150,7 @@ class MemoryCommentsSession implements CommentsSession {
 
   async resolveThread(threadId: string, author: CommentAuthor, options: ThreadMutationOptions = {}): Promise<CommentThread> {
     return this.#mutate(threadId, options, (thread, now) => {
+      if (thread.status === 'resolved') return;
       thread.status = 'resolved';
       thread.resolvedAt = now;
       thread.resolvedBy = cloneAuthor(author);
@@ -155,6 +159,7 @@ class MemoryCommentsSession implements CommentsSession {
 
   async reopenThread(threadId: string, options: ThreadMutationOptions = {}): Promise<CommentThread> {
     return this.#mutate(threadId, options, (thread) => {
+      if (thread.status === 'open') return;
       thread.status = 'open';
       delete thread.resolvedAt;
       delete thread.resolvedBy;
@@ -203,6 +208,7 @@ class MemoryCommentsSession implements CommentsSession {
   ): Promise<CommentThread> {
     const safeAnchor = cloneAnchor(anchor);
     return this.#mutate(threadId, options, (thread) => {
+      if (JSON.stringify(thread.anchor) === JSON.stringify(safeAnchor)) return;
       thread.anchor = safeAnchor;
     });
   }
@@ -250,8 +256,11 @@ class MemoryCommentsSession implements CommentsSession {
     }
 
     const thread = cloneThread(stored);
+    const before = JSON.stringify(thread);
     const now = Date.now();
     mutate(thread, now);
+    if (JSON.stringify(thread) === before) return cloneThread(stored);
+
     thread.updatedAt = now;
     thread.revision = String(Number.parseInt(stored.revision, 10) + 1);
     this.#room.threads.set(threadId, cloneThread(thread));
@@ -286,11 +295,12 @@ function createMessage(input: {
   now: number;
 }): CommentMessage {
   assertIdentifier(input.id, 'message id');
+  const mentions = normalizeMentions(input.mentions);
   return {
     id: input.id,
     author: cloneAuthor(input.author),
     body: normalizeBody(input.body),
-    ...(normalizeMentions(input.mentions) ? { mentions: normalizeMentions(input.mentions) } : {}),
+    ...(mentions ? { mentions } : {}),
     reactions: [],
     createdAt: input.now,
     updatedAt: input.now,
