@@ -27,7 +27,7 @@ interface SuggestionsRoom {
 
 export class MemorySuggestionsProvider implements SuggestionsProvider {
   readonly name = 'memory';
-  #rooms = new Map<string, SuggestionsRoom>();
+  readonly #rooms = new Map<string, SuggestionsRoom>();
 
   async connect(options: SuggestionsConnectionOptions): Promise<SuggestionsSession> {
     assertIdentifier(options.documentId, 'document id');
@@ -44,13 +44,11 @@ export class MemorySuggestionsProvider implements SuggestionsProvider {
 
     const session = new MemorySuggestionsSession(room, options.documentId, options.clientId);
     room.sessions.add(session);
-
     if (options.signal) {
       const abort = () => { void session.close(); };
       options.signal.addEventListener('abort', abort, { once: true });
       session.onClose(() => options.signal?.removeEventListener('abort', abort));
     }
-
     return session;
   }
 }
@@ -171,7 +169,9 @@ class MemorySuggestionsSession implements SuggestionsSession {
   ): Promise<TrackedSuggestion> {
     const reason = normalizeConflictReason(input.reason);
     const reviewer = input.reviewer ? cloneAuthor(input.reviewer) : undefined;
+    const anchor = input.anchor ? cloneAnchor(input.anchor) : undefined;
     return this.#mutatePending(suggestionId, input, (suggestion, now) => {
+      if (anchor) suggestion.anchor = anchor;
       suggestion.status = 'conflicted';
       suggestion.conflictReason = reason;
       suggestion.resolvedAt = now;
