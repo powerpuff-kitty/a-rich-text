@@ -65,46 +65,23 @@ export function cloneResult(result: TransactionResult): TransactionResult {
   };
 }
 
-export function cloneOperation(operation: EditorOperation): EditorOperation {
-  return cloneValue(operation);
-}
-
-export function cloneSelection(selection: ARTSelection): ARTSelection {
-  return { anchor: clonePoint(selection.anchor), head: clonePoint(selection.head) };
-}
-
-export function clonePoint(point: ARTTextPoint): ARTTextPoint {
-  return { blockPath: [...point.blockPath], offset: point.offset };
-}
+export function cloneOperation(operation: EditorOperation): EditorOperation { return cloneValue(operation); }
+export function cloneSelection(selection: ARTSelection): ARTSelection { return { anchor: clonePoint(selection.anchor), head: clonePoint(selection.head) }; }
+export function clonePoint(point: ARTTextPoint): ARTTextPoint { return { blockPath: [...point.blockPath], offset: point.offset }; }
 
 export function cloneInline(content: readonly ARTTextNode[]): ARTTextNode[] {
-  return content.map((node) => ({
-    type: 'text',
-    text: node.text,
-    ...(node.marks ? { marks: cloneMarks(node.marks) } : {}),
-  }));
+  return content.map((node) => ({ type: 'text', text: node.text, ...(node.marks ? { marks: cloneMarks(node.marks) } : {}) }));
 }
 
-export function cloneMarks(marks: readonly ARTTextMark[]): ARTTextMark[] {
-  return marks.map(cloneMark);
-}
+export function cloneMarks(marks: readonly ARTTextMark[]): ARTTextMark[] { return marks.map(cloneMark); }
 
 export function cloneMark(mark: ARTTextMark): ARTTextMark {
   if (mark.type === 'link') return { type: 'link', href: mark.href };
-  if (mark.type === 'extensionMark') {
-    return {
-      type: 'extensionMark',
-      name: mark.name,
-      ...(mark.attrs ? { attrs: cloneValue(mark.attrs) } : {}),
-    };
-  }
+  if (mark.type === 'extensionMark') return { type: 'extensionMark', name: mark.name, ...(mark.attrs ? { attrs: cloneValue(mark.attrs) } : {}) };
   return { type: mark.type };
 }
 
-export function sameDocument(left: ARTDocument, right: ARTDocument): boolean {
-  return JSON.stringify(left) === JSON.stringify(right);
-}
-
+export function sameDocument(left: ARTDocument, right: ARTDocument): boolean { return JSON.stringify(left) === JSON.stringify(right); }
 export function sameSelection(left: ARTSelection | null, right: ARTSelection | null): boolean {
   if (!left || !right) return left === right;
   return samePath(left.anchor.blockPath, right.anchor.blockPath)
@@ -112,10 +89,7 @@ export function sameSelection(left: ARTSelection | null, right: ARTSelection | n
     && samePath(left.head.blockPath, right.head.blockPath)
     && left.head.offset === right.head.offset;
 }
-
-export function samePath(left: ARTPath, right: ARTPath): boolean {
-  return left.length === right.length && left.every((value, index) => value === right[index]);
-}
+export function samePath(left: ARTPath, right: ARTPath): boolean { return left.length === right.length && left.every((value, index) => value === right[index]); }
 
 export function normalizeRange(document: ARTDocument, fromPoint: ARTTextPoint, toPoint: ARTTextPoint): NormalizedRange {
   const blocks = listInlineBlocks(document);
@@ -123,30 +97,18 @@ export function normalizeRange(document: ARTDocument, fromPoint: ARTTextPoint, t
   const toIndex = findBlockIndex(blocks, toPoint.blockPath);
   validatePoint(blocks[fromIndex]!.block, fromPoint);
   validatePoint(blocks[toIndex]!.block, toPoint);
-
   if (fromIndex < toIndex || (fromIndex === toIndex && fromPoint.offset <= toPoint.offset)) {
     return { from: clonePoint(fromPoint), to: clonePoint(toPoint), fromIndex, toIndex, blocks };
   }
-  return {
-    from: clonePoint(toPoint),
-    to: clonePoint(fromPoint),
-    fromIndex: toIndex,
-    toIndex: fromIndex,
-    blocks,
-  };
+  return { from: clonePoint(toPoint), to: clonePoint(fromPoint), fromIndex: toIndex, toIndex: fromIndex, blocks };
 }
 
-export function validateSelection(document: ARTDocument, selection: ARTSelection): void {
-  normalizeRange(document, selection.anchor, selection.head);
-}
+export function validateSelection(document: ARTDocument, selection: ARTSelection): void { normalizeRange(document, selection.anchor, selection.head); }
 
 export function listInlineBlocks(document: ARTDocument): TextBlockEntry[] {
   const output: TextBlockEntry[] = [];
   const visit = (node: unknown, path: number[]): void => {
-    if (isInlineBlock(node)) {
-      output.push({ path: [...path], block: node });
-      return;
-    }
+    if (isInlineBlock(node)) { output.push({ path: [...path], block: node }); return; }
     const children = getChildren(node);
     for (let index = 0; index < children.length; index += 1) visit(children[index], [...path, index]);
   };
@@ -182,9 +144,7 @@ export function replaceNodeAtPath(document: ARTDocument, path: ARTPath, replacem
   children[index] = replacement;
 }
 
-export function inlineLength(block: InlineBlock): number {
-  return (block.content ?? []).reduce((length, node) => length + node.text.length, 0);
-}
+export function inlineLength(block: InlineBlock): number { return (block.content ?? []).reduce((length, node) => length + node.text.length, 0); }
 
 export function mutateInlineRange(
   content: readonly ARTTextNode[],
@@ -198,10 +158,7 @@ export function mutateInlineRange(
     const start = cursor;
     const end = cursor + node.text.length;
     cursor = end;
-    if (end <= from || start >= to) {
-      pushTextNode(output, node.text, node.marks ?? []);
-      continue;
-    }
+    if (end <= from || start >= to) { pushTextNode(output, node.text, node.marks ?? []); continue; }
     const localFrom = Math.max(0, from - start);
     const localTo = Math.min(node.text.length, to - start);
     if (localFrom > 0) pushTextNode(output, node.text.slice(0, localFrom), node.marks ?? []);
@@ -212,11 +169,7 @@ export function mutateInlineRange(
 }
 
 export function replaceInlineRange(
-  content: readonly ARTTextNode[],
-  from: number,
-  to: number,
-  text: string,
-  marks: readonly ARTTextMark[],
+  content: readonly ARTTextNode[], from: number, to: number, text: string, marks: readonly ARTTextMark[],
 ): ARTTextNode[] {
   const output: ARTTextNode[] = [];
   const totalLength = content.reduce((length, node) => length + node.text.length, 0);
@@ -265,14 +218,19 @@ export function addMark(marks: readonly ARTTextMark[], mark: ARTTextMark): ARTTe
   return normalizeMarks([...marks.filter((candidate) => markKey(candidate) !== key), cloneMark(mark)]);
 }
 
+/** Remove all marks of a built-in type, or all extension marks when type is extensionMark. */
 export function removeMark(marks: readonly ARTTextMark[], type: ARTMarkType): ARTTextMark[] {
   return normalizeMarks(marks.filter((mark) => mark.type !== type));
 }
 
+/** Remove only the specific logical mark identity (including extension namespace). */
+export function removeMarkValue(marks: readonly ARTTextMark[], target: ARTTextMark): ARTTextMark[] {
+  const key = markKey(target);
+  return normalizeMarks(marks.filter((mark) => markKey(mark) !== key));
+}
+
 function validatePoint(block: InlineBlock, point: ARTTextPoint): void {
-  if (!Number.isInteger(point.offset) || point.offset < 0 || point.offset > inlineLength(block)) {
-    throw new RangeError(`Text offset ${point.offset} is outside the target block`);
-  }
+  if (!Number.isInteger(point.offset) || point.offset < 0 || point.offset > inlineLength(block)) throw new RangeError(`Text offset ${point.offset} is outside the target block`);
 }
 
 function findBlockIndex(blocks: readonly TextBlockEntry[], path: ARTPath): number {
@@ -322,9 +280,7 @@ function hasMark(marks: readonly ARTTextMark[], mark: ARTTextMark): boolean {
   return marks.some((candidate) => markKey(candidate) === target && sameMarkValue(candidate, mark));
 }
 
-function markKey(mark: ARTTextMark): string {
-  return mark.type === 'extensionMark' ? `extensionMark:${mark.name}` : mark.type;
-}
+function markKey(mark: ARTTextMark): string { return mark.type === 'extensionMark' ? `extensionMark:${mark.name}` : mark.type; }
 
 function normalizeMarks(marks: readonly ARTTextMark[]): ARTTextMark[] {
   const byKey = new Map<string, ARTTextMark>();
@@ -339,28 +295,20 @@ function pushTextNode(output: ARTTextNode[], text: string, marks: readonly ARTTe
   if (!text) return;
   const normalized = normalizeMarks(marks);
   const previous = output.at(-1);
-  if (previous && sameMarks(previous.marks ?? [], normalized)) {
-    previous.text += text;
-    return;
-  }
+  if (previous && sameMarks(previous.marks ?? [], normalized)) { previous.text += text; return; }
   output.push({ type: 'text', text, ...(normalized.length ? { marks: normalized } : {}) });
 }
 
 function sameMarks(left: readonly ARTTextMark[], right: readonly ARTTextMark[]): boolean {
   if (left.length !== right.length) return false;
-  return left.every((mark, index) => {
-    const other = right[index];
-    return !!other && sameMarkValue(mark, other);
-  });
+  return left.every((mark, index) => { const other = right[index]; return !!other && sameMarkValue(mark, other); });
 }
 
 function sameMarkValue(left: ARTTextMark, right: ARTTextMark): boolean {
   if (left.type !== right.type) return false;
   if (left.type === 'link') return right.type === 'link' && left.href === right.href;
   if (left.type === 'extensionMark') {
-    return right.type === 'extensionMark'
-      && left.name === right.name
-      && JSON.stringify(left.attrs ?? {}) === JSON.stringify(right.attrs ?? {});
+    return right.type === 'extensionMark' && left.name === right.name && JSON.stringify(left.attrs ?? {}) === JSON.stringify(right.attrs ?? {});
   }
   return true;
 }
