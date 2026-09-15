@@ -118,7 +118,7 @@ describe('@arichtext/lists Enter semantics', () => {
     expect(result.state.selection).toEqual(textSelection(textPoint([1], 0)));
   });
 
-  it('returns null for complex multi-block list items instead of flattening them', () => {
+  it('moves trailing blocks into the split item without flattening them', () => {
     const doc: ARTDocument = {
       type: 'doc',
       version: 1,
@@ -135,7 +135,10 @@ describe('@arichtext/lists Enter semantics', () => {
       }],
     };
     const state = createEditorState(doc, textSelection(textPoint([0, 0, 0], 1)));
-    expect(insertListParagraph(state)).toBeNull();
+    const result = applyTransaction(state, insertListParagraph(state)!);
+    const list = result.state.document.content[0] as ARTListNode;
+    expect(list.content).toHaveLength(2);
+    expect(list.content[1]!.content).toMatchObject([{ content: [{ text: 'ne' }] }, { content: [{ text: 'two' }] }]);
   });
 
   it('preserves marks and maps later items when splitting inside a blockquote', () => {

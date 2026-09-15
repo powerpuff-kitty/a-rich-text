@@ -8,6 +8,9 @@ importers:
 
   .:
     devDependencies:
+      '@arichtext/editor':
+        specifier: workspace:*
+        version: link:packages/editor
       '@arichtext/lists-editor':
         specifier: workspace:*
         version: link:packages/lists-editor
@@ -136,6 +139,30 @@ importers:
       '@arichtext/engine':
         specifier: workspace:*
         version: link:../engine
+
+  packages/editor:
+    dependencies:
+      '@arichtext/dom':
+        specifier: workspace:*
+        version: link:../dom
+      '@arichtext/links':
+        specifier: workspace:*
+        version: link:../links
+      '@arichtext/lists':
+        specifier: workspace:*
+        version: link:../lists
+      '@arichtext/lists-editor':
+        specifier: workspace:*
+        version: link:../lists-editor
+      '@arichtext/tables':
+        specifier: workspace:*
+        version: link:../tables
+      '@arichtext/ui':
+        specifier: workspace:*
+        version: link:../ui
+      '@arichtext/web-component':
+        specifier: workspace:*
+        version: link:../web-component
 
   packages/engine:
     dependencies:

@@ -1,4 +1,5 @@
 import { expect, test, type Locator } from '@playwright/test';
+import type { ARichTextElement } from '../../packages/web-component/src/index.js';
 
 async function textValue(editor: Locator): Promise<string> {
   return editor.evaluate((node: HTMLElement) =>
@@ -7,7 +8,7 @@ async function textValue(editor: Locator): Promise<string> {
 }
 
 test.beforeEach(async ({ page }) => {
-  await page.goto('/tests/browser/');
+  await page.goto(process.env.ART_BROWSER_FIXTURE ?? '/dist/browser/');
   await page.locator('#editor').waitFor();
 });
 
@@ -140,4 +141,119 @@ test('table controls edit dimensions and preserve undo', async ({ page }) => {
   await expect(surface.locator('tr').first().locator('td')).toHaveCount(3);
   await page.getByRole('button', { name: 'Undo', exact: true }).click();
   await expect(surface.locator('tr').first().locator('td')).toHaveCount(2);
+});
+
+test('caret link shortcut applies to typing and removal persists across selection events', async ({ page }) => {
+  const editor = page.locator('#editor');
+  const surface = editor.locator('[part="editor"]');
+  await surface.click();
+  await surface.press('ControlOrMeta+k');
+  await page.getByRole('textbox', { name: 'Link URL' }).fill('https://example.com');
+  await page.getByRole('button', { name: 'Apply', exact: true }).click();
+  await surface.pressSequentially('linked');
+  await expect(surface.locator('a')).toHaveText('linked');
+  await surface.press('ControlOrMeta+k');
+  await page.getByRole('button', { name: 'Remove', exact: true }).click();
+  await surface.pressSequentially(' plain');
+  await expect(surface.locator('a')).toHaveText('linked');
+  expect(await textValue(editor)).toBe('linked plain');
+});
+
+test('required forms validate, reset and recover after fieldset disabling', async ({ page }) => {
+  const editor = page.locator('#editor');
+  await editor.evaluate((node: ARichTextElement) => {
+    node.required = true;
+    const fieldset = document.createElement('fieldset');
+    node.before(fieldset);
+    fieldset.append(node);
+  });
+  expect(await editor.evaluate((node: ARichTextElement) => node.checkValidity())).toBe(false);
+  const surface = editor.locator('[part="editor"]');
+  await surface.click();
+  await surface.pressSequentially('valid');
+  expect(await editor.evaluate((node: ARichTextElement) => node.checkValidity())).toBe(true);
+  await page.locator('fieldset').evaluate((node: HTMLFieldSetElement) => { node.disabled = true; });
+  await expect(surface).toHaveAttribute('contenteditable', 'false');
+  expect(await editor.evaluate((node) => node.hasAttribute('disabled'))).toBe(false);
+  await page.locator('fieldset').evaluate((node: HTMLFieldSetElement) => { node.disabled = false; });
+  await expect(surface).toHaveAttribute('contenteditable', 'true');
+  await page.locator('form').first().evaluate((node: HTMLFormElement) => node.reset());
+  expect(await textValue(editor)).toBe('');
+  expect(await editor.evaluate((node: ARichTextElement) => node.checkValidity())).toBe(false);
+});
+
+test('list Tab nests, Shift+Tab lifts and boundary Backspace preserves text', async ({ page }) => {
+  const surface = page.locator('#editor').locator('[part="editor"]');
+  await surface.click();
+  await surface.pressSequentially('one');
+  await page.getByRole('button', { name: 'Bullet list', exact: true }).click();
+  await surface.press('Enter');
+  await surface.pressSequentially('two');
+  await surface.press('Tab');
+  await expect(surface.locator('li ul li')).toHaveText('two');
+  await surface.press('Shift+Tab');
+  await expect(surface.locator(':scope > ul > li')).toHaveCount(2);
+  await surface.press('ArrowLeft');
+  await surface.press('ArrowLeft');
+  await surface.press('ArrowLeft');
+  await surface.press('Backspace');
+  await expect(surface.locator(':scope > p')).toHaveText('two');
+  await surface.press('ControlOrMeta+z');
+  await expect(surface.locator(':scope > ul > li')).toHaveCount(2);
+});
+
+test('table Tab moves between cells and permits keyboard exit', async ({ page }) => {
+  const surface = page.locator('#editor').locator('[part="editor"]');
+  await surface.click();
+  await page.getByRole('button', { name: 'Insert table', exact: true }).click();
+  await surface.pressSequentially('first');
+  await surface.press('Tab');
+  await surface.pressSequentially('second');
+  await expect(surface.locator('td').nth(1)).toHaveText('second');
+  await surface.press('Shift+Tab');
+  await surface.pressSequentially('A');
+  await expect(surface.locator('td').first()).toHaveText('Afirst');
+  await surface.press('Tab');
+  await surface.press('Tab');
+  await surface.press('Tab');
+  await surface.press('Tab');
+  // Safari's native Tab policy may skip buttons; the editor must release focus.
+  await expect(surface).not.toBeFocused();
+});
+
+test('HTML paste is sanitized, undoable and blocked while disabled', async ({ page }) => {
+  const editor = page.locator('#editor');
+  const surface = editor.locator('[part="editor"]');
+  await surface.click();
+  await surface.pressSequentially('replace');
+  await surface.press('ControlOrMeta+a');
+  const paste = () => surface.evaluate((node) => {
+    const data = new DataTransfer();
+    data.setData('text/html', '<p><b>safe</b><script>alert(1)</script><a href="javascript:alert(2)">link</a></p>');
+    const event = new ClipboardEvent('paste', { bubbles: true, cancelable: true, composed: true });
+    // Firefox ignores ClipboardEventInit.clipboardData for synthetic events.
+    // This exercises browser-side delivery/sanitization, not the OS clipboard.
+    Object.defineProperty(event, 'clipboardData', { value: data });
+    node.dispatchEvent(event);
+  });
+  await paste();
+  expect(await editor.evaluate((node: ARichTextElement) => node.getHTML())).toContain('<strong>safe</strong>link');
+  expect(await editor.evaluate((node: ARichTextElement) => node.getHTML())).not.toMatch(/javascript|script/);
+  await surface.press('ControlOrMeta+z');
+  expect(await textValue(editor)).toBe('replace');
+  await editor.evaluate((node: ARichTextElement) => { node.disabled = true; });
+  await paste();
+  expect(await textValue(editor)).toBe('replace');
+});
+
+test('keyboard toolbar activation formats the retained selection', async ({ page }) => {
+  const surface = page.locator('#editor').locator('[part="editor"]');
+  await surface.click();
+  await surface.pressSequentially('keyboard');
+  await surface.press('ControlOrMeta+a');
+  // Focus via script models reaching this native button with Tab without a
+  // pointerdown that would otherwise preserve the contenteditable selection.
+  await page.getByRole('button', { name: 'Bold', exact: true }).focus();
+  await page.keyboard.press('Space');
+  await expect(surface.locator('strong')).toHaveText('keyboard');
 });

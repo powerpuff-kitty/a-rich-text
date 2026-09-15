@@ -126,6 +126,7 @@ function getTemplate(): HTMLTemplateElement {
       }
 
       [part='editor'] {
+        white-space: pre-wrap;
         min-height: 8rem;
         box-sizing: border-box;
         padding: 0.75rem;
@@ -140,6 +141,8 @@ function getTemplate(): HTMLTemplateElement {
 
       [part='editor'] > :first-child { margin-top: 0; }
       [part='editor'] > :last-child { margin-bottom: 0; }
+      [part='editor'] table { border-collapse: collapse; width: 100%; }
+      [part='editor'] td { border: 1px solid var(--art-border-color); padding: 0.4rem; min-width: 2rem; }
 
       [part='editor']:focus-visible {
         outline: 2px solid currentColor;
@@ -171,6 +174,7 @@ export class ARichTextElement extends HTMLElementBase {
     'placeholder',
     'value',
     'format',
+    'required',
     ...ARIA_FORWARD_ATTRIBUTES,
   ];
 
@@ -183,6 +187,7 @@ export class ARichTextElement extends HTMLElementBase {
   #composing = false;
   #reconcileQueued = false;
   #storedMarks: ARTTextMark[] | null = null;
+  #formDisabled = false;
 
   constructor() {
     super();
@@ -288,7 +293,7 @@ export class ARichTextElement extends HTMLElementBase {
   }
 
   get disabled(): boolean {
-    return this.hasAttribute('disabled');
+    return this.hasAttribute('disabled') || this.#formDisabled;
   }
 
   set disabled(value: boolean) {
@@ -302,6 +307,17 @@ export class ARichTextElement extends HTMLElementBase {
   set readOnly(value: boolean) {
     this.toggleAttribute('readonly', value);
   }
+
+  get required(): boolean { return this.hasAttribute('required'); }
+  set required(value: boolean) { this.toggleAttribute('required', value); }
+  get name(): string { return this.getAttribute('name') ?? ''; }
+  set name(value: string) { this.setAttribute('name', value); }
+  get form(): HTMLFormElement | null { return this.#internals?.form ?? null; }
+  get validity(): ValidityState | undefined { return this.#internals?.validity; }
+  get validationMessage(): string { return this.#internals?.validationMessage ?? ''; }
+  get willValidate(): boolean { return this.#internals?.willValidate ?? false; }
+  checkValidity(): boolean { return this.#internals?.checkValidity() ?? true; }
+  reportValidity(): boolean { return this.#internals?.reportValidity() ?? true; }
 
   get canUndo(): boolean {
     return this.#engine.canUndo;
@@ -323,6 +339,7 @@ export class ARichTextElement extends HTMLElementBase {
   }
 
   undo(): boolean {
+    this.#storedMarks = null;
     const result = this.#engine.undo();
     if (!result) return false;
     this.#emitTransactionResult(result);
@@ -330,6 +347,7 @@ export class ARichTextElement extends HTMLElementBase {
   }
 
   redo(): boolean {
+    this.#storedMarks = null;
     const result = this.#engine.redo();
     if (!result) return false;
     this.#emitTransactionResult(result);
@@ -338,6 +356,7 @@ export class ARichTextElement extends HTMLElementBase {
 
   dispatch(transactionValue: EditorTransaction): TransactionResult {
     const result = this.#engine.dispatch(transactionValue);
+    if (result.selectionChanged) this.#storedMarks = null;
     this.#emitTransactionResult(result);
     return result;
   }
@@ -380,6 +399,33 @@ export class ARichTextElement extends HTMLElementBase {
     if (!command) return false;
     const result = this.#engine.dispatch(command);
     this.#emitTransactionResult(result);
+    return true;
+  }
+
+  /** Set a mark on selected text, or on subsequent typing at the caret. */
+  setMark(mark: ARTTextMark): boolean {
+    return this.#changeMark(mark.type, cloneMark(mark));
+  }
+
+  /** Remove a mark from selected text, or from subsequent typing at the caret. */
+  removeMark(type: ARTTextMark['type']): boolean {
+    return this.#changeMark(type, null);
+  }
+
+  #changeMark(type: ARTTextMark['type'], mark: ARTTextMark | null): boolean {
+    if (this.disabled || this.readOnly) return false;
+    const selection = this.getSelection();
+    if (!selection) return false;
+    if (isCollapsedSelection(selection)) {
+      const marks = this.getActiveMarks().filter((candidate) => candidate.type !== type);
+      this.#storedMarks = mark ? [...marks, mark] : marks;
+      this.#emitFormatState();
+    } else {
+      const command = transaction();
+      if (mark) command.addMark(selection.anchor, selection.head, mark);
+      else command.removeMark(selection.anchor, selection.head, type);
+      this.dispatch(command.build());
+    }
     return true;
   }
 
@@ -446,7 +492,14 @@ export class ARichTextElement extends HTMLElementBase {
   }
 
   formDisabledCallback(disabled: boolean): void {
-    this.disabled = disabled;
+    this.#formDisabled = disabled;
+    this.#syncState();
+    this.#syncFormValue();
+    this.#emitFormatState();
+  }
+
+  formStateRestoreCallback(state: string | File | FormData): void {
+    if (typeof state === 'string') this.setJSON(state);
   }
 
   #createEngine(document: ARTDocument, selection: ARTSelection | null = null): EditorEngine {
@@ -477,6 +530,8 @@ export class ARichTextElement extends HTMLElementBase {
       this.#renderFromEngine();
       this.#syncDerivedState();
       this.#syncFormValue();
+    } else if (result.selectionChanged && result.state.selection && this.shadowRoot?.activeElement === this.#editor) {
+      writeDOMSelection(this.#editor, result.state.selection);
     }
   };
 
@@ -546,7 +601,7 @@ export class ARichTextElement extends HTMLElementBase {
   };
 
   #handleKeyDown = (event: KeyboardEvent): void => {
-    if (this.disabled || this.readOnly || this.#composing || event.altKey) return;
+    if (event.defaultPrevented || this.disabled || this.readOnly || this.#composing || event.isComposing || event.altKey) return;
 
     const mod = event.ctrlKey || event.metaKey;
     const key = event.key.toLowerCase();
@@ -625,7 +680,6 @@ export class ARichTextElement extends HTMLElementBase {
 
   #handleDocumentSelectionChange = (): void => {
     if (!this.isConnected || this.#composing) return;
-    this.#storedMarks = null;
     this.#syncSelectionFromDOM();
     this.#emitFormatState();
   };
@@ -635,6 +689,7 @@ export class ARichTextElement extends HTMLElementBase {
     if (!selection) return;
     const result = this.#engine.dispatch(transaction().setSelection(selection));
     if (result.selectionChanged) {
+      this.#storedMarks = null;
       this.dispatchEvent(new CustomEvent<ARichTextSelectionChangeDetail>('selection-change', {
         detail: { selection: result.state.selection ? cloneSelection(result.state.selection) : null },
         bubbles: true,
@@ -646,8 +701,10 @@ export class ARichTextElement extends HTMLElementBase {
   #reconcileNativeDOM(source: ARichTextReconcileSource): void {
     try {
       const selection = readDOMSelection(this.#editor);
+      const copy = this.#editor.cloneNode(true) as HTMLElement;
+      copy.querySelectorAll('[data-art-placeholder]').forEach((node) => node.remove());
       const document = fromHTML(
-        this.#editor.innerHTML,
+        copy.innerHTML,
         this.#extensions ? { extensions: this.#extensions } : {},
       );
       this.#replaceEngine(document, selection);
@@ -669,6 +726,15 @@ export class ARichTextElement extends HTMLElementBase {
       state.document,
       this.#extensions ? { extensions: this.#extensions } : {},
     );
+    // Empty text blocks need a line box for native caret placement, especially
+    // in table cells. This DOM-only break contributes no canonical text.
+    for (const block of this.#editor.querySelectorAll('[data-art-text-block]')) {
+      if (block.textContent === '' && block.childNodes.length === 0) {
+        const placeholder = this.ownerDocument.createElement('br');
+        placeholder.setAttribute('data-art-placeholder', '');
+        block.append(placeholder);
+      }
+    }
     if (state.selection && this.shadowRoot?.activeElement === this.#editor) {
       writeDOMSelection(this.#editor, state.selection);
     }
@@ -726,6 +792,8 @@ export class ARichTextElement extends HTMLElementBase {
     this.#editor.contentEditable = editable ? 'true' : 'false';
     this.#editor.setAttribute('aria-disabled', String(this.disabled));
     this.#editor.setAttribute('aria-readonly', String(this.readOnly));
+    this.#editor.setAttribute('aria-required', String(this.required));
+    this.#editor.tabIndex = this.disabled ? -1 : 0;
 
     for (const attribute of ARIA_FORWARD_ATTRIBUTES) {
       const value = this.getAttribute(attribute);
@@ -759,7 +827,9 @@ export class ARichTextElement extends HTMLElementBase {
   }
 
   #syncFormValue(): void {
-    this.#internals?.setFormValue(this.value);
+    this.#internals?.setFormValue(this.value, this.serializeJSON());
+    const missing = this.required && !this.readOnly && !this.disabled && this.getText().trim().length === 0;
+    this.#internals?.setValidity?.(missing ? { valueMissing: true } : {}, missing ? 'Please enter some text.' : '', this.#editor);
   }
 }
 
