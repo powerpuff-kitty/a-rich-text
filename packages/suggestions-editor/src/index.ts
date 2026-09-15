@@ -195,8 +195,9 @@ export class SuggestionsEditorController {
     }
     if (!reviewer) throw new TypeError('Suggestion reviewer is required');
 
+    await this.#mutationQueue;
     let suggestion = this.#refreshSuggestion(suggestionId);
-    this.#assertPendingSource(suggestion);
+    this.#assertPendingSource(suggestion, false);
 
     const anchor = suggestion.anchor;
     if (anchor.status === 'orphaned') {
@@ -264,6 +265,7 @@ export class SuggestionsEditorController {
   ): Promise<TrackedSuggestion> {
     this.#assertActive();
     if (!reviewer) throw new TypeError('Suggestion reviewer is required');
+    await this.#mutationQueue;
     const suggestion = this.#refreshSuggestion(suggestionId);
     this.#assertPendingSource(suggestion, false);
     const rejected = await this.session.rejectSuggestion(suggestion.id, {
@@ -303,7 +305,6 @@ export class SuggestionsEditorController {
     for (const [suggestionId, entry] of this.#entries) {
       if (entry.suggestion.status !== 'pending' || !entry.tracker) continue;
       if (suggestionId === this.#applyingSuggestionId) continue;
-
       const mapped = entry.tracker.handle(before, result);
       this.#processMappedSuggestion(suggestionId, mapped, after);
     }
@@ -326,6 +327,10 @@ export class SuggestionsEditorController {
 
     for (const [suggestionId, entry] of this.#entries) {
       if (entry.suggestion.status !== 'pending') continue;
+      if (entry.suggestion.anchor.status === 'orphaned') {
+        this.#queueConflict(suggestionId, entry.suggestion.anchor, 'Suggestion anchor is orphaned');
+        continue;
+      }
       if (operations === null) {
         this.#queueConflict(suggestionId, {
           status: 'orphaned',
@@ -337,15 +342,11 @@ export class SuggestionsEditorController {
 
       const mapped = mapAnchoredRangeThroughOperations(
         this.#lastDocument,
-        entry.suggestion.anchor.status === 'orphaned'
-          ? null as never
-          : entry.suggestion.anchor.range,
+        entry.suggestion.anchor.range,
         operations,
       );
       this.#processMappedSuggestion(suggestionId, mapped, after);
-      if (mapped.status !== 'orphaned') {
-        entry.tracker = new AnchoredRangeTracker(after, mapped.range);
-      }
+      if (mapped.status !== 'orphaned') entry.tracker = new AnchoredRangeTracker(after, mapped.range);
     }
     this.#lastDocument = after;
   }
@@ -402,25 +403,36 @@ export class SuggestionsEditorController {
       existing.suggestion = incoming;
       return;
     }
+    if (existing && selfOrigin && existing.suggestion.status !== 'pending' && incoming.status === 'pending') return;
 
-    if (existing && selfOrigin && existing.suggestion.status !== 'pending' && incoming.status === 'pending') {
+    if (incoming.status === 'pending' && incoming.anchor.status === 'orphaned') {
+      this.#entries.set(incoming.id, { suggestion: incoming });
+      this.#queueConflict(incoming.id, incoming.anchor, 'Provider suggestion anchor is orphaned');
       return;
     }
 
     let tracker: AnchoredRangeTracker | undefined;
-    if (incoming.status === 'pending' && incoming.anchor.status !== 'orphaned') {
+    if (incoming.status === 'pending') {
       try {
         tracker = new AnchoredRangeTracker(this.#lastDocument, incoming.anchor.range);
         if (textAtAnchor(this.#lastDocument, incoming.anchor) !== incoming.originalText) {
-          tracker = undefined;
-          incoming.status = 'conflicted';
-          incoming.conflictReason = 'Provider suggestion source does not match current editor document';
+          this.#entries.set(incoming.id, { suggestion: incoming });
+          this.#queueConflict(
+            incoming.id,
+            incoming.anchor,
+            'Provider suggestion source does not match current editor document',
+          );
+          return;
         }
       } catch (error) {
-        tracker = undefined;
-        incoming.status = 'conflicted';
-        incoming.conflictReason = 'Provider suggestion anchor is invalid for the current editor document';
+        this.#entries.set(incoming.id, { suggestion: incoming });
         this.#emitError(error);
+        this.#queueConflict(
+          incoming.id,
+          { status: 'orphaned', range: null, reason: 'Provider suggestion anchor is invalid' },
+          'Provider suggestion anchor is invalid for the current editor document',
+        );
+        return;
       }
     }
     this.#entries.set(incoming.id, { suggestion: incoming, tracker });
@@ -428,8 +440,7 @@ export class SuggestionsEditorController {
 
   #setLocalAnchor(suggestionId: string, anchor: AnchoredRangeMappingResult): void {
     const entry = this.#entries.get(suggestionId);
-    if (!entry || entry.suggestion.status !== 'pending') return;
-    if (anchorEquals(entry.suggestion.anchor, anchor)) return;
+    if (!entry || entry.suggestion.status !== 'pending' || anchorEquals(entry.suggestion.anchor, anchor)) return;
     entry.suggestion = { ...entry.suggestion, anchor: cloneAnchorState(anchor) };
     this.#pendingLocal.add(suggestionId);
     const intended = cloneAnchorState(anchor);
@@ -474,14 +485,10 @@ export class SuggestionsEditorController {
           expectedRevision: entry.suggestion.revision,
         });
         this.#ingestSuggestion(updated, true);
-        if (anchorEquals(this.#requireSuggestion(suggestionId).anchor, anchor)) {
-          this.#pendingLocal.delete(suggestionId);
-        }
+        if (anchorEquals(this.#requireSuggestion(suggestionId).anchor, anchor)) this.#pendingLocal.delete(suggestionId);
         return;
       } catch (error) {
-        if (!(error instanceof SuggestionsError) || error.code !== 'revision-conflict' || attempt === attempts - 1) {
-          throw error;
-        }
+        if (!(error instanceof SuggestionsError) || error.code !== 'revision-conflict' || attempt === attempts - 1) throw error;
         const latest = this.session.getSuggestion(suggestionId);
         if (!latest || latest.status !== 'pending') {
           if (latest) this.#ingestSuggestion(latest, false);
@@ -516,9 +523,7 @@ export class SuggestionsEditorController {
         this.#ingestSuggestion(updated, true);
         return;
       } catch (error) {
-        if (!(error instanceof SuggestionsError) || error.code !== 'revision-conflict' || attempt === attempts - 1) {
-          throw error;
-        }
+        if (!(error instanceof SuggestionsError) || error.code !== 'revision-conflict' || attempt === attempts - 1) throw error;
       }
     }
   }
@@ -528,15 +533,28 @@ export class SuggestionsEditorController {
     reason: string,
   ): Promise<TrackedSuggestion> {
     if (suggestion.status !== 'pending') return suggestion;
-    const updated = await this.session.markConflicted(suggestion.id, {
-      reason,
-      anchor: suggestion.anchor,
-      expectedRevision: suggestion.revision,
-    });
-    this.#pendingLocal.delete(suggestion.id);
-    this.#ingestSuggestion(updated, true);
-    this.#emitConflict(updated);
-    return cloneSuggestion(this.#requireSuggestion(updated.id));
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      try {
+        const updated = await this.session.markConflicted(suggestion.id, {
+          reason,
+          anchor: suggestion.anchor,
+          expectedRevision: suggestion.revision,
+        });
+        this.#pendingLocal.delete(suggestion.id);
+        this.#ingestSuggestion(updated, true);
+        this.#emitConflict(updated);
+        return cloneSuggestion(this.#requireSuggestion(updated.id));
+      } catch (error) {
+        if (!(error instanceof SuggestionsError) || error.code !== 'revision-conflict' || attempt === 1) throw error;
+        const latest = this.session.getSuggestion(suggestion.id);
+        if (!latest || latest.status !== 'pending') {
+          if (latest) this.#ingestSuggestion(latest, false);
+          throw error;
+        }
+        suggestion = latest;
+      }
+    }
+    return suggestion;
   }
 
   async #resolveAccepted(
@@ -546,10 +564,7 @@ export class SuggestionsEditorController {
     let expectedRevision = original.revision;
     for (let attempt = 0; attempt < 2; attempt += 1) {
       try {
-        return await this.session.acceptSuggestion(original.id, {
-          reviewer,
-          expectedRevision,
-        });
+        return await this.session.acceptSuggestion(original.id, { reviewer, expectedRevision });
       } catch (error) {
         if (!(error instanceof SuggestionsError) || error.code !== 'revision-conflict' || attempt === 1) throw error;
         const latest = this.session.getSuggestion(original.id);
@@ -558,9 +573,7 @@ export class SuggestionsEditorController {
           latest.originalText !== original.originalText
           || latest.replacementText !== original.replacementText
           || !anchorEquals(latest.anchor, original.anchor)
-        ) {
-          throw error;
-        }
+        ) throw error;
         expectedRevision = latest.revision;
         this.#ingestSuggestion(latest, false);
       }
@@ -582,9 +595,7 @@ export class SuggestionsEditorController {
     if (!validateSource) return;
     const text = textAtAnchor(this.editor.getJSON(), suggestion.anchor);
     if (text === null || text !== suggestion.originalText) {
-      throw new SuggestionsEditorError('source-mismatch', 'Suggestion source text no longer matches the document', {
-        suggestion,
-      });
+      throw new SuggestionsEditorError('source-mismatch', 'Suggestion source text no longer matches the document', { suggestion });
     }
   }
 
@@ -614,9 +625,7 @@ export class SuggestionsEditorController {
   }
 
   #assertActive(): void {
-    if (this.#destroyed) {
-      throw new SuggestionsEditorError('disconnected', 'Suggestions editor controller is disconnected');
-    }
+    if (this.#destroyed) throw new SuggestionsEditorError('disconnected', 'Suggestions editor controller is disconnected');
   }
 }
 
