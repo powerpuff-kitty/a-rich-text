@@ -5,6 +5,8 @@ import type { ARTPath } from '@arichtext/engine';
 export const ART_TEXT_BLOCK_ATTRIBUTE = 'data-art-text-block';
 export const ART_BLOCK_PATH_ATTRIBUTE = 'data-art-block-path';
 export const ART_BREAK_ATTRIBUTE = 'data-art-break';
+export const ART_EXTENSION_BLOCK_ATTRIBUTE = 'data-art-extension-block';
+export const ART_EXTENSION_MARK_ATTRIBUTE = 'data-art-extension-mark';
 
 const MARK_ORDER: Record<ARTTextMark['type'], number> = {
   bold: 0,
@@ -13,6 +15,7 @@ const MARK_ORDER: Record<ARTTextMark['type'], number> = {
   strike: 3,
   code: 4,
   link: 5,
+  extensionMark: 6,
 };
 
 export function encodeARTPath(path: ARTPath): string {
@@ -114,6 +117,17 @@ function renderBlock(owner: Document, block: ARTBlockNode, path: number[]): Node
       table.append(tbody);
       return table;
     }
+    case 'extensionBlock': {
+      const element = owner.createElement('div');
+      element.setAttribute(ART_EXTENSION_BLOCK_ATTRIBUTE, block.name);
+      element.contentEditable = 'false';
+      if (block.fallbackText !== undefined) {
+        element.textContent = block.fallbackText;
+      } else {
+        block.content?.forEach((child, index) => element.append(renderBlock(owner, child, [...path, index])));
+      }
+      return element;
+    }
   }
 }
 
@@ -125,7 +139,13 @@ function markTextBlock(element: HTMLElement, path: ARTPath): void {
 function renderInline(owner: Document, parent: HTMLElement, content: readonly ARTTextNode[]): void {
   for (const textNode of content) {
     let rendered: Node = renderText(owner, textNode.text);
-    const marks = [...(textNode.marks ?? [])].sort((left, right) => MARK_ORDER[left.type] - MARK_ORDER[right.type]);
+    const marks = [...(textNode.marks ?? [])].sort((left, right) => {
+      const order = MARK_ORDER[left.type] - MARK_ORDER[right.type];
+      if (order !== 0) return order;
+      const leftName = left.type === 'extensionMark' ? left.name : '';
+      const rightName = right.type === 'extensionMark' ? right.name : '';
+      return leftName.localeCompare(rightName);
+    });
 
     for (const mark of marks) {
       const wrapper = markElement(owner, mark);
@@ -170,6 +190,11 @@ function markElement(owner: Document, mark: ARTTextMark): HTMLElement | null {
       const anchor = owner.createElement('a');
       anchor.setAttribute('href', href);
       return anchor;
+    }
+    case 'extensionMark': {
+      const span = owner.createElement('span');
+      span.setAttribute(ART_EXTENSION_MARK_ATTRIBUTE, mark.name);
+      return span;
     }
   }
 }
