@@ -6,7 +6,7 @@ import type {
   ARTParagraphNode,
   ARTTextMark,
 } from '@arichtext/core';
-import { replaceRangeWithFragment } from './fragment.js';
+import { cloneARTFragment, replaceRangeWithFragment } from './fragment.js';
 import { textPoint, textSelection } from './model.js';
 import {
   addMark,
@@ -36,6 +36,7 @@ import {
 import type {
   ARTMarkType,
   ARTPath,
+  ARTPathMapping,
   ARTSelection,
   ARTTextPoint,
   EditorOperation,
@@ -50,12 +51,44 @@ export class TransactionBuilder {
   #meta: Record<string, unknown> = {};
 
   replaceText(from: ARTTextPoint, to: ARTTextPoint, text: string, marks?: ARTTextMark[]): this {
-    this.#operations.push({ type: 'replaceText', from: clonePoint(from), to: clonePoint(to), text, ...(marks ? { marks: cloneMarks(marks) } : {}) });
+    this.#operations.push({
+      type: 'replaceText',
+      from: clonePoint(from),
+      to: clonePoint(to),
+      text,
+      ...(marks ? { marks: cloneMarks(marks) } : {}),
+    });
     return this;
   }
 
   replaceFragment(from: ARTTextPoint, to: ARTTextPoint, content: readonly ARTBlockNode[]): this {
-    this.#operations.push({ type: 'replaceFragment', from: clonePoint(from), to: clonePoint(to), content: structuredClone(content) });
+    this.#operations.push({
+      type: 'replaceFragment',
+      from: clonePoint(from),
+      to: clonePoint(to),
+      content: cloneValue(content),
+    });
+    return this;
+  }
+
+  replaceBlock(
+    path: ARTPath,
+    content: readonly ARTBlockNode[],
+    pathMappings: readonly ARTPathMapping[] = [],
+  ): this {
+    this.#operations.push({
+      type: 'replaceBlock',
+      path: [...path],
+      content: cloneValue(content),
+      ...(pathMappings.length > 0
+        ? {
+            pathMappings: pathMappings.map((mapping) => ({
+              from: [...mapping.from],
+              to: [...mapping.to],
+            })),
+          }
+        : {}),
+    });
     return this;
   }
 
@@ -102,13 +135,17 @@ export class TransactionBuilder {
   build(): EditorTransaction {
     return {
       operations: this.#operations.map(cloneOperation),
-      ...(this.#selection !== undefined ? { selection: this.#selection ? cloneSelection(this.#selection) : null } : {}),
+      ...(this.#selection !== undefined
+        ? { selection: this.#selection ? cloneSelection(this.#selection) : null }
+        : {}),
       ...(Object.keys(this.#meta).length > 0 ? { meta: { ...this.#meta } } : {}),
     };
   }
 }
 
-export function transaction(): TransactionBuilder { return new TransactionBuilder(); }
+export function transaction(): TransactionBuilder {
+  return new TransactionBuilder();
+}
 
 export function applyTransaction(state: EditorState, transactionValue: EditorTransaction): TransactionResult {
   const originalDocument = cloneDocument(state.document);
@@ -130,6 +167,9 @@ export function applyTransaction(state: EditorState, transactionValue: EditorTra
         selection = textSelection(result.caret);
         break;
       }
+      case 'replaceBlock':
+        document = applyReplaceBlock(document, operation);
+        break;
       case 'addMark':
         document = applyMarkOperation(document, operation.from, operation.to, (marks) => addMark(marks, operation.mark));
         break;
@@ -176,7 +216,10 @@ export function applyTransaction(state: EditorState, transactionValue: EditorTra
 
   const nextState: EditorState = { document, selection };
   return {
-    state: { document: cloneDocument(nextState.document), selection: nextState.selection ? cloneSelection(nextState.selection) : null },
+    state: {
+      document: cloneDocument(nextState.document),
+      selection: nextState.selection ? cloneSelection(nextState.selection) : null,
+    },
     documentChanged: !sameDocument(originalDocument, nextState.document),
     selectionChanged: !sameSelection(originalSelection, nextState.selection),
     operations: transactionValue.operations.map(cloneOperation),
@@ -184,10 +227,15 @@ export function applyTransaction(state: EditorState, transactionValue: EditorTra
   };
 }
 
-function applyReplaceText(document: ARTDocument, operation: Extract<EditorOperation, { type: 'replaceText' }>): { document: ARTDocument; caret: ARTTextPoint } {
+function applyReplaceText(
+  document: ARTDocument,
+  operation: Extract<EditorOperation, { type: 'replaceText' }>,
+): { document: ARTDocument; caret: ARTTextPoint } {
   const range = normalizeRange(document, operation.from, operation.to);
   const output = cloneDocument(document);
-  const insertionMarks = operation.marks ? cloneMarks(operation.marks) : marksAtOffset(range.blocks[range.fromIndex]!.block, range.from.offset);
+  const insertionMarks = operation.marks
+    ? cloneMarks(operation.marks)
+    : marksAtOffset(range.blocks[range.fromIndex]!.block, range.from.offset);
   for (let index = range.fromIndex; index <= range.toIndex; index += 1) {
     const entry = range.blocks[index]!;
     const block = getInlineBlock(output, entry.path);
@@ -197,12 +245,74 @@ function applyReplaceText(document: ARTDocument, operation: Extract<EditorOperat
     const insertion = index === range.fromIndex ? operation.text : '';
     block.content = replaceInlineRange(block.content ?? [], from, to, insertion, insertionMarks);
   }
-  return { document: output, caret: textPoint(range.from.blockPath, range.from.offset + operation.text.length) };
+  return {
+    document: output,
+    caret: textPoint(range.from.blockPath, range.from.offset + operation.text.length),
+  };
 }
 
-function applyMarkOperation(document: ARTDocument, fromPoint: ARTTextPoint, toPoint: ARTTextPoint, mutateMarks: (marks: ARTTextMark[]) => ARTTextMark[]): ARTDocument {
+function applyReplaceBlock(
+  document: ARTDocument,
+  operation: Extract<EditorOperation, { type: 'replaceBlock' }>,
+): ARTDocument {
+  if (operation.path.length === 0) throw new RangeError('replaceBlock requires a block path');
+  const output = cloneDocument(document);
+  const fragment = cloneARTFragment(operation.content);
+  const parentPath = operation.path.slice(0, -1);
+  const index = operation.path.at(-1)!;
+  const beforeParent = getNodeAtPath(document, parentPath);
+  const beforeChildren = readonlyContent(beforeParent);
+  if (index < 0 || index >= beforeChildren.length) {
+    throw new RangeError('replaceBlock target is outside its parent');
+  }
+
+  const mappings = operation.pathMappings ?? [];
+  const seenFrom = new Set<string>();
+  for (const mapping of mappings) {
+    if (!isDescendantOrSelf(mapping.from, operation.path)) {
+      throw new RangeError('replaceBlock path mapping source must be inside the replaced subtree');
+    }
+    const key = mapping.from.join('.');
+    if (seenFrom.has(key)) throw new RangeError(`Duplicate replaceBlock path mapping source: ${key}`);
+    seenFrom.add(key);
+
+    const oldBlock = getInlineBlock(document, mapping.from);
+    const newPathIndex = mappedReplacementRootIndex(mapping.to, parentPath, index, fragment.length);
+    if (newPathIndex === null) {
+      throw new RangeError('replaceBlock path mapping target must be inside the replacement span');
+    }
+    // Target validation occurs after the splice below. Text equality is checked
+    // afterward so offsets are safe to preserve.
+    void oldBlock;
+  }
+
+  const parent = getNodeAtPath(output, parentPath);
+  const children = mutableContent(parent);
+  children.splice(index, 1, ...fragment);
+
+  for (const mapping of mappings) {
+    const beforeBlock = getInlineBlock(document, mapping.from);
+    const afterBlock = getInlineBlock(output, mapping.to);
+    if (inlineText(beforeBlock) !== inlineText(afterBlock)) {
+      throw new RangeError(
+        `replaceBlock path mapping must preserve logical text: [${mapping.from.join(',')}] -> [${mapping.to.join(',')}]`,
+      );
+    }
+  }
+
+  return output;
+}
+
+function applyMarkOperation(
+  document: ARTDocument,
+  fromPoint: ARTTextPoint,
+  toPoint: ARTTextPoint,
+  mutateMarks: (marks: ARTTextMark[]) => ARTTextMark[],
+): ARTDocument {
   const range = normalizeRange(document, fromPoint, toPoint);
-  if (range.fromIndex === range.toIndex && range.from.offset === range.to.offset) return cloneDocument(document);
+  if (range.fromIndex === range.toIndex && range.from.offset === range.to.offset) {
+    return cloneDocument(document);
+  }
   const output = cloneDocument(document);
   for (let index = range.fromIndex; index <= range.toIndex; index += 1) {
     const entry = range.blocks[index]!;
@@ -216,70 +326,152 @@ function applyMarkOperation(document: ARTDocument, fromPoint: ARTTextPoint, toPo
   return output;
 }
 
-function applySetBlockType(document: ARTDocument, operation: Extract<EditorOperation, { type: 'setBlockType' }>): ARTDocument {
+function applySetBlockType(
+  document: ARTDocument,
+  operation: Extract<EditorOperation, { type: 'setBlockType' }>,
+): ARTDocument {
   const output = cloneDocument(document);
   const current = getNodeAtPath(output, operation.path);
-  if (!isInlineBlock(current)) throw new RangeError('setBlockType path must target a paragraph or heading');
+  if (!isInlineBlock(current)) {
+    throw new RangeError('setBlockType path must target a paragraph or heading');
+  }
   const content = cloneInline(current.content ?? []);
   const replacement: ARTParagraphNode | ARTHeadingNode = operation.blockType === 'heading'
-    ? { type: 'heading', level: operation.level ?? (current.type === 'heading' ? current.level : 1), content }
+    ? {
+        type: 'heading',
+        level: operation.level ?? (current.type === 'heading' ? current.level : 1),
+        content,
+      }
     : { type: 'paragraph', content };
   replaceNodeAtPath(output, operation.path, replacement);
   return output;
 }
 
-function applySplitBlock(document: ARTDocument, operation: Extract<EditorOperation, { type: 'splitBlock' }>): { document: ARTDocument; caret: ARTTextPoint } {
+function applySplitBlock(
+  document: ARTDocument,
+  operation: Extract<EditorOperation, { type: 'splitBlock' }>,
+): { document: ARTDocument; caret: ARTTextPoint } {
   const output = cloneDocument(document);
   const current = getInlineBlock(output, operation.point.blockPath);
   const length = inlineLength(current);
-  if (!Number.isInteger(operation.point.offset) || operation.point.offset < 0 || operation.point.offset > length) throw new RangeError('splitBlock offset is outside the target block');
-  if (operation.point.blockPath.length === 0) throw new RangeError('splitBlock requires a block path');
+  if (
+    !Number.isInteger(operation.point.offset)
+    || operation.point.offset < 0
+    || operation.point.offset > length
+  ) {
+    throw new RangeError('splitBlock offset is outside the target block');
+  }
+  if (operation.point.blockPath.length === 0) {
+    throw new RangeError('splitBlock requires a block path');
+  }
   const parentPath = operation.point.blockPath.slice(0, -1);
   const index = operation.point.blockPath[operation.point.blockPath.length - 1]!;
   const parent = getNodeAtPath(output, parentPath);
   const children = mutableContent(parent);
-  if (children[index] !== current) throw new RangeError('splitBlock path does not target its expected parent child');
-  const leftContent = replaceInlineRange(current.content ?? [], operation.point.offset, length, '', []);
-  const rightContent = replaceInlineRange(current.content ?? [], 0, operation.point.offset, '', []);
+  if (children[index] !== current) {
+    throw new RangeError('splitBlock path does not target its expected parent child');
+  }
+  const leftContent = replaceInlineRange(
+    current.content ?? [],
+    operation.point.offset,
+    length,
+    '',
+    [],
+  );
+  const rightContent = replaceInlineRange(
+    current.content ?? [],
+    0,
+    operation.point.offset,
+    '',
+    [],
+  );
   const left: ARTParagraphNode | ARTHeadingNode = current.type === 'heading'
     ? { type: 'heading', level: current.level, content: leftContent }
     : { type: 'paragraph', content: leftContent };
   const right: ARTParagraphNode = { type: 'paragraph', content: rightContent };
   children.splice(index, 1, left, right);
-  return { document: output, caret: textPoint([...parentPath, index + 1], 0) };
+  return {
+    document: output,
+    caret: textPoint([...parentPath, index + 1], 0),
+  };
 }
 
-function applyJoinBlocks(document: ARTDocument, operation: Extract<EditorOperation, { type: 'joinBlocks' }>): { document: ARTDocument; caret: ARTTextPoint } {
-  if (operation.leftPath.length === 0 || operation.rightPath.length === 0) throw new RangeError('joinBlocks requires block paths');
+function applyJoinBlocks(
+  document: ARTDocument,
+  operation: Extract<EditorOperation, { type: 'joinBlocks' }>,
+): { document: ARTDocument; caret: ARTTextPoint } {
+  if (operation.leftPath.length === 0 || operation.rightPath.length === 0) {
+    throw new RangeError('joinBlocks requires block paths');
+  }
   const leftParent = operation.leftPath.slice(0, -1);
   const rightParent = operation.rightPath.slice(0, -1);
-  if (!samePath(leftParent, rightParent)) throw new RangeError('joinBlocks only supports siblings with the same parent');
+  if (!samePath(leftParent, rightParent)) {
+    throw new RangeError('joinBlocks only supports siblings with the same parent');
+  }
   const leftIndex = operation.leftPath.at(-1)!;
   const rightIndex = operation.rightPath.at(-1)!;
-  if (rightIndex !== leftIndex + 1) throw new RangeError('joinBlocks requires adjacent left/right siblings');
+  if (rightIndex !== leftIndex + 1) {
+    throw new RangeError('joinBlocks requires adjacent left/right siblings');
+  }
   const output = cloneDocument(document);
   const children = mutableContent(getNodeAtPath(output, leftParent));
   const left = children[leftIndex];
   const right = children[rightIndex];
-  if (!isInlineBlock(left) || !isInlineBlock(right)) throw new RangeError('joinBlocks only supports paragraph/heading siblings');
+  if (!isInlineBlock(left) || !isInlineBlock(right)) {
+    throw new RangeError('joinBlocks only supports paragraph/heading siblings');
+  }
   const caretOffset = inlineLength(left);
   const mergedContent = cloneInline([...(left.content ?? []), ...(right.content ?? [])]);
   const merged: ARTParagraphNode | ARTHeadingNode = left.type === 'heading'
     ? { type: 'heading', level: left.level, content: mergedContent }
     : { type: 'paragraph', content: mergedContent };
   children.splice(leftIndex, 2, merged);
-  return { document: output, caret: textPoint(operation.leftPath, caretOffset) };
+  return {
+    document: output,
+    caret: textPoint(operation.leftPath, caretOffset),
+  };
+}
+
+function readonlyContent(value: unknown): readonly unknown[] {
+  if (!value || typeof value !== 'object') throw new RangeError('ART path parent has no content array');
+  const content = (value as { content?: unknown }).content;
+  if (!Array.isArray(content)) throw new RangeError('ART path parent has no content array');
+  return content;
 }
 
 function mutableContent(value: unknown): unknown[] {
-  if (!value || typeof value !== 'object') throw new RangeError('ART parent has no content array');
-  const content = (value as { content?: unknown }).content;
-  if (!Array.isArray(content)) throw new RangeError('ART parent has no content array');
-  return content;
+  return readonlyContent(value) as unknown[];
+}
+
+function mappedReplacementRootIndex(
+  target: ARTPath,
+  parentPath: ARTPath,
+  firstIndex: number,
+  count: number,
+): number | null {
+  if (target.length <= parentPath.length) return null;
+  if (!samePath(target.slice(0, parentPath.length), parentPath)) return null;
+  const rootIndex = target[parentPath.length]!;
+  return rootIndex >= firstIndex && rootIndex < firstIndex + count ? rootIndex : null;
+}
+
+function isDescendantOrSelf(candidate: ARTPath, ancestor: ARTPath): boolean {
+  return candidate.length >= ancestor.length
+    && ancestor.every((value, index) => candidate[index] === value);
+}
+
+function inlineText(block: ARTParagraphNode | ARTHeadingNode): string {
+  return (block.content ?? []).map((node) => node.text).join('');
 }
 
 function isInlineBlock(value: unknown): value is ARTParagraphNode | ARTHeadingNode {
   if (!value || typeof value !== 'object') return false;
   const candidate = value as { type?: unknown };
   return candidate.type === 'paragraph' || candidate.type === 'heading';
+}
+
+function cloneValue<T>(value: T): T {
+  return typeof structuredClone === 'function'
+    ? structuredClone(value)
+    : JSON.parse(JSON.stringify(value)) as T;
 }
