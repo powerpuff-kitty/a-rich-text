@@ -1,7 +1,9 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Locator } from '@playwright/test';
 
-async function textValue(editor: ReturnType<typeof test['extend']> extends never ? never : any): Promise<string> {
-  return editor.evaluate((node: HTMLElement) => (node as HTMLElement & { getText(): string }).getText());
+async function textValue(editor: Locator): Promise<string> {
+  return editor.evaluate((node: HTMLElement) =>
+    (node as HTMLElement & { getText(): string }).getText(),
+  );
 }
 
 test.beforeEach(async ({ page }) => {
@@ -16,6 +18,7 @@ test('registers the editor and exposes an accessible textbox surface', async ({ 
   await expect(surface).toHaveAttribute('role', 'textbox');
   await expect(surface).toHaveAttribute('aria-multiline', 'true');
   await expect(surface).toHaveAttribute('aria-labelledby', 'body-label');
+  await expect(surface).toHaveAttribute('aria-placeholder', 'Write something…');
   await expect(surface).toHaveAttribute('data-placeholder', 'Write something…');
 });
 
@@ -27,7 +30,7 @@ test('types through browser editing and supports engine undo', async ({ page }) 
   await surface.pressSequentially('hello');
   expect(await textValue(editor)).toBe('hello');
 
-  await surface.press(process.platform === 'darwin' ? 'Meta+z' : 'Control+z');
+  await surface.press('Control+z');
   expect(await textValue(editor)).toBe('');
 });
 
@@ -54,7 +57,7 @@ test('toolbar formatting routes through editor commands', async ({ page }) => {
   });
 
   await surface.click();
-  await surface.press(process.platform === 'darwin' ? 'Meta+a' : 'Control+a');
+  await surface.press('Control+a');
   await page.getByRole('button', { name: 'Bold' }).click();
 
   const html = await editor.evaluate((node: HTMLElement) =>
