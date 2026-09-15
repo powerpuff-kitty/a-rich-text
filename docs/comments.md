@@ -117,7 +117,7 @@ This preserves:
 - stable message ids;
 - thread history semantics.
 
-## Reactions
+## Reactions and idempotent mutations
 
 Reactions are stored as:
 
@@ -130,6 +130,8 @@ Reactions are stored as:
 ```
 
 The core model does not impose an emoji catalogue. Applications can use emoji, symbolic ids or a controlled reaction vocabulary.
+
+Adding the same `(key, userId)` reaction twice is a no-op. Removing a missing reaction, deleting an already-deleted message, reopening an already-open thread, or persisting an identical anchor is also a no-op. No-op mutations keep the existing revision and emit no provider event.
 
 ## Resolve and reopen
 
@@ -248,13 +250,19 @@ For every document-changing engine transaction it:
 
 Selection-only transactions do not change comment anchors.
 
-## Provider acknowledgements do not rewind typing
+## Provider updates do not rewind newer local anchors
 
 Anchor updates are persisted asynchronously.
 
-If a provider acknowledgment for an older mapped anchor arrives after another local editor transaction already moved the comment again, the controller updates the provider revision/message metadata but retains the newer local anchor.
+If a provider acknowledgment **or an unrelated remote thread mutation** (reply, reaction, resolve, etc.) arrives while a newer locally mapped anchor is still waiting to be persisted, the controller:
 
-This prevents rapid typing from making comment highlights jump backward while network/provider writes catch up.
+- accepts the newer provider revision/message state;
+- preserves the newer local anchor;
+- retries anchor persistence on optimistic `revision-conflict` using the latest thread revision;
+- removes the pending marker only after the intended anchor is acknowledged;
+- never rewinds the local anchor to an older provider copy merely because comment metadata changed remotely.
+
+This keeps document-position mapping and comment-message concurrency independent during rapid typing and multi-client review.
 
 ## Native reconciliation
 

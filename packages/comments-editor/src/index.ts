@@ -7,6 +7,7 @@ import {
   type AnchoredRangeMappingResult,
 } from '@arichtext/annotations';
 import {
+  CommentsError,
   cloneThread,
   type CommentAuthor,
   type CommentThread,
@@ -57,6 +58,7 @@ export class CommentsEditorController {
   readonly options: CommentsEditorOptions;
 
   #entries = new Map<string, ThreadEntry>();
+  #pendingAnchors = new Map<string, AnchoredRangeMappingResult>();
   #lastDocument: ARTDocument;
   #anchorQueue: Promise<void> = Promise.resolve();
   #unsubscribeProvider?: () => void;
@@ -173,6 +175,7 @@ export class CommentsEditorController {
     this.#unsubscribeProvider?.();
     this.#unsubscribeProvider = undefined;
     await this.#anchorQueue.catch(() => undefined);
+    this.#pendingAnchors.clear();
     await this.session.close();
   }
 
@@ -251,11 +254,13 @@ export class CommentsEditorController {
   #ingestThread(thread: CommentThread, selfOrigin: boolean): void {
     const incoming = cloneThread(thread);
     const existing = this.#entries.get(incoming.id);
+    const pendingAnchor = this.#pendingAnchors.get(incoming.id);
 
-    if (existing && selfOrigin) {
-      // Provider acknowledgements update revision/message state but must not
-      // rewind a newer locally mapped anchor waiting in the persistence queue.
-      incoming.anchor = cloneThread(existing.thread).anchor;
+    if (existing && (selfOrigin || pendingAnchor !== undefined)) {
+      // Provider acknowledgements and unrelated remote thread mutations update
+      // revision/message state, but must not rewind a newer locally mapped
+      // anchor waiting in the persistence queue.
+      incoming.anchor = cloneAnchorState(existing.thread.anchor);
       existing.thread = incoming;
       return;
     }
@@ -285,6 +290,7 @@ export class CommentsEditorController {
     const entry = this.#entries.get(threadId);
     if (!entry || anchorEquals(entry.thread.anchor, anchor)) return;
     entry.thread = { ...entry.thread, anchor: cloneAnchorState(anchor) };
+    this.#pendingAnchors.set(threadId, cloneAnchorState(anchor));
 
     const safe = cloneThread(entry.thread);
     this.options.onAnchor?.(safe);
@@ -296,19 +302,39 @@ export class CommentsEditorController {
 
     const intended = cloneAnchorState(anchor);
     this.#anchorQueue = this.#anchorQueue
-      .then(async () => {
-        const current = this.#entries.get(threadId);
-        if (!current) return;
-        const updated = await this.session.updateAnchor(threadId, intended, {
-          expectedRevision: current.thread.revision,
-        });
-        this.#ingestThread(updated, true);
-      })
+      .then(() => this.#persistAnchor(threadId, intended))
       .catch((error) => {
         this.#emitError(error);
         const latest = this.session.getThread(threadId);
         if (latest) this.#ingestThread(latest, false);
       });
+  }
+
+  async #persistAnchor(
+    threadId: string,
+    intended: AnchoredRangeMappingResult,
+    attempts = 3,
+  ): Promise<void> {
+    for (let attempt = 0; attempt < attempts; attempt += 1) {
+      const current = this.#entries.get(threadId);
+      if (!current) return;
+      try {
+        const updated = await this.session.updateAnchor(threadId, intended, {
+          expectedRevision: current.thread.revision,
+        });
+        this.#ingestThread(updated, true);
+        const pending = this.#pendingAnchors.get(threadId);
+        if (pending && anchorEquals(pending, intended)) this.#pendingAnchors.delete(threadId);
+        return;
+      } catch (error) {
+        if (!(error instanceof CommentsError) || error.code !== 'revision-conflict' || attempt === attempts - 1) {
+          throw error;
+        }
+        const latest = this.session.getThread(threadId);
+        if (!latest) throw error;
+        this.#ingestThread(latest, false);
+      }
+    }
   }
 
   #requireThread(threadId: string): CommentThread {
