@@ -167,6 +167,8 @@ function mapPoint(
       return cloneAnchoredPoint(point);
     case 'replaceText':
       return mapReplaceText(before, point, operation);
+    case 'replaceBlock':
+      return mapReplaceBlock(point, operation);
     case 'splitBlock':
       return mapSplitBlock(point, operation.point);
     case 'joinBlocks':
@@ -219,6 +221,35 @@ function mapReplaceText(
   }
 
   return { ...cloneAnchoredPoint(point), offset: 0 };
+}
+
+function mapReplaceBlock(
+  point: AnchoredTextPoint,
+  operation: Extract<EditorOperation, { type: 'replaceBlock' }>,
+): AnchoredTextPoint | null {
+  const parent = operation.path.slice(0, -1);
+  const targetIndex = operation.path.at(-1)!;
+  const replacementDelta = operation.content.length - 1;
+
+  if (isDescendantOrSelf(point.blockPath, operation.path)) {
+    const mapping = operation.pathMappings?.find((candidate) => samePath(candidate.from, point.blockPath));
+    if (!mapping) return null;
+    return {
+      ...cloneAnchoredPoint(point),
+      blockPath: [...mapping.to],
+    };
+  }
+
+  return {
+    ...cloneAnchoredPoint(point),
+    blockPath: shiftSiblingPath(
+      point.blockPath,
+      parent,
+      targetIndex,
+      replacementDelta,
+      'after',
+    ),
+  };
 }
 
 function mapOffsetReplacement(
@@ -382,6 +413,11 @@ function shiftSiblingPath(
 
 function pathStartsWith(path: ARTPath, prefix: ARTPath): boolean {
   return prefix.length <= path.length && prefix.every((value, index) => path[index] === value);
+}
+
+function isDescendantOrSelf(path: ARTPath, ancestor: ARTPath): boolean {
+  return path.length >= ancestor.length
+    && ancestor.every((value, index) => path[index] === value);
 }
 
 function findBlockIndex(
