@@ -20,6 +20,8 @@ test('registers the editor and exposes an accessible textbox surface', async ({ 
   await expect(surface).toHaveAttribute('aria-labelledby', 'body-label');
   await expect(surface).toHaveAttribute('aria-placeholder', 'Write something…');
   await expect(surface).toHaveAttribute('data-placeholder', 'Write something…');
+  // This verifies the accessibility tree, not only the raw ARIA attribute.
+  await expect(page.getByRole('textbox', { name: 'Body' })).toHaveCount(1);
 });
 
 test('types through browser editing and supports engine undo', async ({ page }) => {
@@ -30,8 +32,9 @@ test('types through browser editing and supports engine undo', async ({ page }) 
   await surface.pressSequentially('hello');
   expect(await textValue(editor)).toBe('hello');
 
+  // Each intercepted beforeinput is one explicit engine transaction/history step.
   await surface.press('Control+z');
-  expect(await textValue(editor)).toBe('');
+  expect(await textValue(editor)).toBe('hell');
 });
 
 test('participates in native FormData using the selected serialization format', async ({ page }) => {
