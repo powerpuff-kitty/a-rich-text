@@ -48,10 +48,20 @@ describe('@arichtext/html security fixtures', () => {
       .toBe('<img src="data:image/png;base64,AAAA" alt="x">');
   });
 
-  it('escapes text/attribute payloads rather than executing them', () => {
-    const output = sanitizeHTML('<p>&lt;img src=x onerror=alert(1)&gt;</p><img src="/safe.png" alt="\" onerror=alert(1) x=\"">');
+  it('keeps dangerous-looking text literal while removing executable event attributes', () => {
+    const output = sanitizeHTML([
+      '<p>&lt;img src=x onerror=alert(1)&gt;</p>',
+      '<img src="/safe.png" alt="safe" onerror="alert(1)" onclick="alert(2)">',
+    ].join(''));
+
     expect(output).toContain('&lt;img src=x onerror=alert(1)&gt;');
-    expect(output).not.toContain(' onerror=');
+    const parsed = new DOMParser().parseFromString(output, 'text/html');
+    for (const element of Array.from(parsed.body.querySelectorAll('*'))) {
+      for (const attribute of Array.from(element.attributes)) {
+        expect(attribute.name.toLowerCase().startsWith('on')).toBe(false);
+      }
+    }
+    expect(parsed.body.querySelector('img')?.getAttribute('src')).toBe('/safe.png');
   });
 
   it('rejects executable tags and dangerous attributes from extension descriptors', () => {
