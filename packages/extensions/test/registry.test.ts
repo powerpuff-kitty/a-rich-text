@@ -100,4 +100,73 @@ describe('@arichtext/extensions registry', () => {
     expect(normalizeKeyBinding('ctrl-alt-enter')).toBe('Ctrl-Alt-enter');
     expect(() => normalizeKeyBinding('mod-shift')).toThrow();
   });
+
+  it('routes registered DOM/HTML/Markdown hooks through one stable interface', () => {
+    const render = vi.fn((node, { document }) => {
+      const element = document.createElement('article');
+      element.textContent = node.fallbackText ?? '';
+      return element;
+    });
+    const registry = createExtensionRegistry([
+      {
+        name: 'acme:content',
+        blocks: [{
+          name: 'acme:property-card',
+          renderDOM: render,
+          toHTML: () => ({ tagName: 'article', attributes: { 'data-kind': 'property' } }),
+          fromHTML: (element) => element.tagName === 'ARTICLE'
+            ? { type: 'extensionBlock', name: 'acme:property-card', fallbackText: element.textContent ?? '' }
+            : null,
+          toMarkdown: (node) => `> ${node.fallbackText ?? ''}`,
+        }],
+        marks: [{
+          name: 'acme:mention',
+          toHTML: () => ({ tagName: 'span', attributes: { 'data-mention': 'true' } }),
+          fromHTML: (element) => element.hasAttribute('data-mention')
+            ? { type: 'extensionMark', name: 'acme:mention' }
+            : null,
+          toMarkdown: (_value, text) => `@{${text}}`,
+        }],
+      },
+    ]);
+
+    const node = { type: 'extensionBlock', name: 'acme:property-card', fallbackText: 'House' } as const;
+    const markValue = { type: 'extensionMark', name: 'acme:mention' } as const;
+    const owner = document.implementation.createHTMLDocument();
+
+    expect(registry.renderBlock(node, { document: owner })?.textContent).toBe('House');
+    expect(registry.serializeBlockHTML(node)).toEqual({ tagName: 'article', attributes: { 'data-kind': 'property' } });
+    expect(registry.serializeBlockMarkdown(node)).toBe('> House');
+    expect(registry.serializeMarkHTML(markValue)).toEqual({ tagName: 'span', attributes: { 'data-mention': 'true' } });
+    expect(registry.serializeMarkMarkdown(markValue, 'Alice')).toBe('@{Alice}');
+    expect(registry.parseBlockHTML(owner.createElement('article'))).toEqual({
+      type: 'extensionBlock',
+      name: 'acme:property-card',
+      fallbackText: '',
+    });
+    const mention = owner.createElement('span');
+    mention.dataset.mention = 'true';
+    expect(registry.parseMarkHTML(mention)).toEqual({ type: 'extensionMark', name: 'acme:mention' });
+    expect(render).toHaveBeenCalledTimes(1);
+  });
+
+  it('rejects unsafe HTML descriptor tags/attributes before a host sees them', () => {
+    const badTag = createExtensionRegistry([{ name: 'acme:one', blocks: [{
+      name: 'acme:block',
+      toHTML: () => ({ tagName: 'script' }),
+    }] }]);
+    expect(() => badTag.serializeBlockHTML({ type: 'extensionBlock', name: 'acme:block' })).toThrow(/Unsafe extension HTML tag/);
+
+    const badAttribute = createExtensionRegistry([{ name: 'acme:two', marks: [{
+      name: 'acme:mark',
+      toHTML: () => ({ tagName: 'span', attributes: { onclick: 'boom()' } }),
+    }] }]);
+    expect(() => badAttribute.serializeMarkHTML({ type: 'extensionMark', name: 'acme:mark' })).toThrow(/Event-handler attributes/);
+  });
+
+  it('validates JSON-safe command arguments at runtime', async () => {
+    const registry = createExtensionRegistry([{ name: 'acme:commands', commands: [{ name: 'acme:run', run: () => 'ok' }] }]);
+    await expect(registry.runCommand('acme:run', {}, { ok: true })).resolves.toBe('ok');
+    await expect(registry.runCommand('acme:run', {}, { bad: Number.NaN } as never)).rejects.toThrow(/JSON-safe/);
+  });
 });
