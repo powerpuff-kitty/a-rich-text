@@ -191,6 +191,7 @@ function getTemplate(): HTMLTemplateElement {
       <button part="button remove-column-button" type="button" data-action="remove-column" aria-label="Remove table column" title="Remove column">${toolbarIcon('remove-column')}</button>
       <span part="separator" aria-hidden="true"></span>
       <button part="button undo-button" type="button" data-action="undo" aria-label="Undo" title="Undo">${toolbarIcon('undo')}</button>
+      <button part="button focus-mode-button" type="button" data-action="focus-mode" aria-label="Enter focus mode" title="Enter focus mode" aria-pressed="false">${toolbarIcon('focus-mode')}</button>
       <button part="button redo-button" type="button" data-action="redo" aria-label="Redo" title="Redo">${toolbarIcon('redo')}</button>
     </div>
     <form part="link-editor" data-role="link-editor" hidden aria-label="Edit link">
@@ -224,6 +225,7 @@ export class ARichTextToolbarElement extends HTMLElementBase {
   #linkInput: HTMLInputElement;
   #linkError: HTMLSpanElement;
   #editorObserver?: MutationObserver;
+  #releaseFocusToolbar?: () => void;
 
   constructor() {
     super();
@@ -241,6 +243,7 @@ export class ARichTextToolbarElement extends HTMLElementBase {
 
     shadow.addEventListener('pointerdown', this.#handlePointerDown);
     shadow.addEventListener('click', this.#handleClick);
+    for (const type of ['input', 'change']) shadow.addEventListener(type, event => event.stopPropagation());
     this.#blockSelect.addEventListener('change', this.#handleBlockChange);
     this.#linkEditor.addEventListener('submit', this.#handleLinkSubmit);
     this.#linkInput.addEventListener('keydown', this.#handleLinkInputKeyDown);
@@ -252,7 +255,7 @@ export class ARichTextToolbarElement extends HTMLElementBase {
   }
 
   disconnectedCallback(): void {
-    this.#bindEditor(null);
+    queueMicrotask(() => { if (!this.isConnected) this.#bindEditor(null); });
   }
 
   attributeChangedCallback(name: string, oldValue: string | null, newValue: string | null): void {
@@ -287,6 +290,7 @@ export class ARichTextToolbarElement extends HTMLElementBase {
       return;
     }
 
+    this.#releaseFocusToolbar?.(); this.#releaseFocusToolbar = undefined;
     if (this.#editor) {
       for (const eventName of observedEditorEvents) {
         this.#editor.removeEventListener(eventName, this.#handleEditorStateChange);
@@ -299,6 +303,7 @@ export class ARichTextToolbarElement extends HTMLElementBase {
     this.#editor = editor;
     this.#closeLinkEditor();
     if (editor) {
+      this.#releaseFocusToolbar = editor.registerFocusToolbar(this);
       for (const eventName of observedEditorEvents) {
         editor.addEventListener(eventName, this.#handleEditorStateChange);
       }
@@ -323,6 +328,7 @@ export class ARichTextToolbarElement extends HTMLElementBase {
   };
 
   #handleEditorKeyDown = (event: Event): void => {
+    if (event.composedPath().includes(this)) return;
     const keyboard = event as KeyboardEvent;
     if (!this.#editor || this.#editor.disabled || this.#editor.readOnly || this.#editor.view !== 'visual' || !this.#editor.isToolEnabled('link')) return;
     if (!(keyboard.ctrlKey || keyboard.metaKey) || keyboard.altKey || keyboard.shiftKey) return;
@@ -362,6 +368,7 @@ export class ARichTextToolbarElement extends HTMLElementBase {
       this.#finishEditorAction(this.#editor.toggleMark(action));
       return;
     }
+    if (action === 'focus-mode') { this.#editor.toggleFocusMode(); return; }
     if (action === 'link') {
       this.#openLinkEditor();
       return;
@@ -553,6 +560,14 @@ export class ARichTextToolbarElement extends HTMLElementBase {
         available = Boolean(editor?.canRedo);
       }
       button.hidden = !visual || locked || !editor?.isToolEnabled(action ?? '') || !available;
+      if (action === 'focus-mode') {
+        button.hidden = !editor || editor.disabled || !editor.isToolEnabled('focus-mode');
+        button.disabled = !editor || editor.disabled;
+        button.setAttribute('aria-pressed', String(editor?.focusMode ?? false));
+        button.innerHTML = toolbarIcon(editor?.focusMode ? 'focus-mode-exit' : 'focus-mode');
+        const label = editor?.focusMode ? 'Exit focus mode' : 'Enter focus mode';
+        button.setAttribute('aria-label', label); button.title = label;
+      }
     }
 
     this.#blockSelect.disabled = locked;
@@ -594,6 +609,7 @@ const observedEditorEvents = [
   'format-state-change',
   'input',
   'view-change',
+  'focus-mode-change',
 ] as const;
 
 function editorState(editor: ARichTextElement) {

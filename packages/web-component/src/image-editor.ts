@@ -92,7 +92,7 @@ export class ImageEditor {
   #input(name: string): HTMLInputElement { return this.#dialog.querySelector(`[data-image="${name}"]`)!; }
 
   open(path: readonly number[] | null = null): boolean {
-    if (!this.available || this.#dialog.open || this.#host.shadowRoot!.querySelector('dialog[open]')) return false;
+    if (!this.available || this.#dialog.open || this.#host.shadowRoot!.querySelector('dialog[open]:not([part="focus-dialog"])')) return false;
     const document = this.#host.getJSON();
     const block = path ? nodeAt(document, path) : null;
     const selection = this.#host.getSelection();

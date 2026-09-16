@@ -2,7 +2,7 @@ export const EDITOR_TOOLS = [
   'paragraph', 'heading', 'bold', 'italic', 'underline', 'strike', 'code', 'link',
   'image', 'blockquote', 'code-block', 'horizontal-rule', 'clear-formatting',
   'bullet-list', 'ordered-list', 'task-list', 'indent', 'outdent',
-  'insert-table', 'add-row', 'remove-row', 'add-column', 'remove-column', 'undo', 'redo',
+  'insert-table', 'add-row', 'remove-row', 'add-column', 'remove-column', 'undo', 'redo', 'focus-mode',
 ] as const;
 export type ARichTextTool = typeof EDITOR_TOOLS[number];
 export const EDITOR_VIEWS = ['visual', 'html', 'markdown', 'json', 'text'] as const;
