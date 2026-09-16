@@ -152,6 +152,7 @@ function getTemplate(): HTMLTemplateElement {
     </style>
     <div part="toolbar" role="toolbar" aria-label="Text formatting">
       <select part="block-select" aria-label="Text style" data-role="block">
+        <option value="mixed" disabled hidden>Mixed styles</option>
         <option value="paragraph">Paragraph</option>
         <option value="h1">Heading 1</option>
         <option value="h2">Heading 2</option>
@@ -582,14 +583,15 @@ export class ARichTextToolbarElement extends HTMLElementBase {
 
     this.#blockSelect.disabled = locked;
     for (const option of this.#blockSelect.options) {
+      if (option.value === 'mixed') continue;
       const enabled = editor?.isToolEnabled(option.value === 'paragraph' ? 'paragraph' : 'heading') ?? false;
       option.hidden = !enabled;
       option.disabled = !enabled;
     }
-    this.#blockSelect.hidden = !visual || locked || !singleBlock || !inline
+    this.#blockSelect.hidden = !visual || locked || !selectionAvailable || !inline
       || (!editor?.isToolEnabled('paragraph') && !editor?.isToolEnabled('heading'));
-    const block = editor?.getActiveBlock();
-    this.#blockSelect.value = block?.type === 'heading' && block.level && block.level <= 6
+    const block = editor?.getSelectedBlockStyle();
+    this.#blockSelect.value = block === 'mixed' ? 'mixed' : block?.type === 'heading' && block.level && block.level <= 6
       ? `h${block.level}`
       : 'paragraph';
 

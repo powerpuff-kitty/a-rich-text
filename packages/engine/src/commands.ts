@@ -1,6 +1,6 @@
 import type { ARTBlockNode, ARTHeadingNode, ARTImageNode, ARTTextMark } from '@arichtext/core';
 import { nextGraphemeBoundary, previousGraphemeBoundary } from './grapheme.js';
-import { getInlineBlock, getNodeAtPath, inlineLength, listInlineBlocks, samePath } from './tree.js';
+import { getInlineBlock, getNodeAtPath, inlineLength, listInlineBlocks, samePath, selectedStyleBlocks } from './tree.js';
 import { transaction } from './transaction.js';
 import type { ARTPath, EditorState, EditorTransaction } from './types.js';
 
@@ -84,16 +84,21 @@ export function addSelectionMark(state: EditorState, mark: ARTTextMark): EditorT
   return transaction().addMark(selection.anchor, selection.head, mark).setMeta('command', `addMark:${mark.type}`).build();
 }
 
+/** Apply a block style to every selected paragraph/heading in one transaction. */
 export function setCurrentParagraph(state: EditorState): EditorTransaction | null {
-  const selection = state.selection;
-  if (!selection) return null;
-  return transaction().setBlockType(selection.anchor.blockPath, 'paragraph').setMeta('command', 'setParagraph').build();
+  return setSelectedStyle(state, 'paragraph');
 }
 
 export function setCurrentHeading(state: EditorState, level: ARTHeadingNode['level']): EditorTransaction | null {
-  const selection = state.selection;
-  if (!selection) return null;
-  return transaction().setBlockType(selection.anchor.blockPath, 'heading', level).setMeta('command', `setHeading:${level}`).build();
+  return setSelectedStyle(state, 'heading', level);
+}
+
+function setSelectedStyle(state: EditorState, type: 'paragraph' | 'heading', level?: ARTHeadingNode['level']): EditorTransaction | null {
+  const blocks = selectedStyleBlocks(state);
+  if (!blocks.length) return null;
+  const command = transaction();
+  for (const { path } of blocks) command.setBlockType(path, type, level);
+  return command.setMeta('command', type === 'heading' ? `setHeading:${level}` : 'setParagraph').build();
 }
 
 function isCollapsed(state: EditorState): boolean {

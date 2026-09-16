@@ -1,6 +1,7 @@
 import type { ARTHeadingNode, ARTTextMark } from '@arichtext/core';
 import {
   getInlineBlock,
+  selectedStyleBlocks,
   marksAtOffset,
   normalizeRange,
 } from './tree.js';
@@ -79,4 +80,14 @@ function cloneMark(mark: ARTTextMark): ARTTextMark {
     };
   }
   return { type: mark.type };
+}
+
+/** Common paragraph/heading style, or 'mixed' for a heterogeneous selection. */
+export function getSelectedBlockStyle(state: EditorState): ActiveBlock | 'mixed' | null {
+  const blocks = selectedStyleBlocks(state);
+  const first = blocks[0]?.block;
+  if (!first) return null;
+  if (blocks.some(({ block }) => block.type !== first.type
+    || (block.type === 'heading' && first.type === 'heading' && block.level !== first.level))) return 'mixed';
+  return first.type === 'heading' ? { type: 'heading', level: first.level } : { type: 'paragraph' };
 }
