@@ -117,7 +117,11 @@ test('live content changes, composition, reconciliation and reset keep search cu
   await expect(editor.locator('[part="find-highlight"]').first()).toBeVisible();
   await surface.dispatchEvent('input');
   expect(await editor.evaluate(node => (node as ARichTextElement).getHTML())).toBe('<p>cat</p>');
-  await editor.evaluate(node => (node as ARichTextElement).setText('dog'));
+  await editor.evaluate(node => (node as ARichTextElement).setText('prefix cat'));
+  await panel.getByRole('button', { name: 'Close find', exact: true }).click();
+  await page.keyboard.type('dog');
+  expect(await editor.evaluate(node => (node as ARichTextElement).getText())).toBe('prefix dog');
+  await editor.evaluate(node => (node as ARichTextElement).openFindReplace());
   await expect(panel.getByRole('status')).toHaveText('No matches.');
   await expect(editor.locator('[part="find-highlight"]')).toHaveCount(0);
   await panel.getByRole('textbox', { name: 'Replace with', exact: true }).fill('pending');

@@ -73,6 +73,7 @@ export class FindReplace {
 
   close(refocus = true, clear = false): void {
     const wasOpen = this.active;
+    if (wasOpen && refocus && this.available && !this.#composing) this.#select();
     this.#panel.hidden = true; this.#observer?.disconnect(); this.#observer = undefined; this.#clearHighlight();
     if (clear) { this.#composing = false; this.#input('query').value = ''; this.#input('replacement').value = ''; this.#matches = []; this.#index = 0; }
     if (wasOpen) {
