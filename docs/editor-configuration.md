@@ -22,10 +22,13 @@ Import `@arichtext/editor` and call `enableStandardEditing(editor)` to enable th
 optional list/task and table keyboard behaviors and automatic linking. Format switching itself belongs
 to the base Web Component and needs no optional adapter.
 
+See [appearance presets](customization.md#appearance-presets) for styling defaults and overrides.
+
 ## Attributes and properties
 
 | Attribute | Purpose | Default |
 | --- | --- | --- |
+| `preset` | Appearance: `default`, `minimal` or `document`; linked toolbar follows live | `default` |
 | `format` | Serialization used by `value` and native form submission | `html` |
 | `views` | Allowed user-selectable views, separated by spaces or commas | `visual` only |
 | `view` | Requested active view; unavailable values fall back to the visual editor | `visual` |

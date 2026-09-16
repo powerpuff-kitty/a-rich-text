@@ -17,6 +17,40 @@ The standard editor combines the optional toolbar with the native-form Web Compo
 
 ![Standard editor — The standard editor combines the optional toolbar with the native-form Web Component](screenshots/standard-editor.png)
 
+## Appearance presets
+
+Presets use the same document and available tools. These examples omit source
+view buttons by setting `views=""`; presets themselves do not change formats.
+See [configuration and overrides](customization.md#appearance-presets).
+
+### Default
+
+[Open Default locally](http://localhost:8080/components/preset-default.html).
+
+![Default preset with a bordered editor and standard toolbar](screenshots/preset-default.png)
+
+### Minimal
+
+[Open Minimal locally](http://localhost:8080/components/preset-minimal.html).
+
+![Minimal preset with quiet borders and compact toolbar spacing](screenshots/preset-minimal.png)
+
+### Document
+
+[Open Document locally](http://localhost:8080/components/preset-document.html).
+
+![Document preset with a centered reading width and spacious text](screenshots/preset-document.png)
+
+## Vertical table spans
+
+[Open this example locally](http://localhost:8080/components/vertical-spans.html).
+
+Valid vertical spans survive HTML/JSON round-tripping. Tab visits physical cells,
+including across fully covered rows. Vertical merge/split and row/column editing
+remain unavailable; removing the entire table and Undo are supported.
+
+![Imported vertical table spans](screenshots/vertical-spans.png)
+
 ## Base Web Component
 
 [Open this example locally](http://localhost:8080/components/base-editor.html).

@@ -11,7 +11,9 @@ The primary integration surface is `<a-rich-text>`. The open client runtime is d
 ![Standard rich-text editor with formatting toolbar, source views and task list](docs/screenshots/standard-editor.png)
 
 [View every component and editing surface](docs/component-gallery.md), including
-source formats, dialogs, focus mode, mobile and custom Vue/Tailwind controls.
+Default, Minimal and Document presets, source formats, dialogs, focus mode, mobile
+and custom Vue/Tailwind controls. Choose an appearance with `preset="document"`;
+see [preset configuration](docs/customization.md#appearance-presets).
 
 ## Try it
 
