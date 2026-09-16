@@ -14,6 +14,7 @@ It is not a fully conforming CommonMark/GFM parser. See the repository
 
 ## Scoped CommonMark checks
 
-The reference target is CommonMark 0.31.2, with 20 code-span examples verified
-and two documented unsupported interactions. The full dialect is not implemented.
+The reference target is CommonMark 0.31.2. Vendored examples cover code spans,
+ATX/setext headings and indented/fenced code, with explicit remaining mismatches.
+The full dialect is not implemented.
 See [compatibility scope and fixtures](https://github.com/powerpuff-kitty/a-rich-text/blob/main/docs/markdown-compatibility.md).
