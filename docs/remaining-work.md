@@ -7,13 +7,14 @@ there is no public npm release yet.
 
 ## Core editor and integration
 
-- [Authoring #4](https://github.com/powerpuff-kitty/a-rich-text/issues/4): vertical merged-cell authoring, row/column editing of merged grids, and broader
+- [Authoring #4](https://github.com/powerpuff-kitty/a-rich-text/issues/4): vertical merged-cell authoring, column editing of merged grids, and broader
   selection editing beyond paragraph/heading formatting. Block-style commands now
   apply across selections in one Undo step. The toolbar and API/model support H1–H6. Standard editing detects URL/email tokens on typed spaces;
   Enter/paste/import do not trigger detection. Image, quote, rule, code-block and
   clear-formatting controls, focus mode and find/replace are implemented. Whole-table
   removal is undoable, including for imported merged tables. Horizontal cell merge/split
-  and Tab navigation through column spans are implemented.
+  and Tab navigation through column spans are implemented. Row insertion/removal
+  also supports horizontal spans.
 - [Media #8](https://github.com/powerpuff-kitty/a-rich-text/issues/8): physical-browser image/orientation checks around
   the optional media adapters. The image dialog now supports local previews,
   host-provided uploads, progress, retry and cancellation.

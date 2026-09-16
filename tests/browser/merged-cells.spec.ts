@@ -15,7 +15,7 @@ test('horizontal merge/split retain content, export spans and support Undo and T
   await expect(editor.locator('td[colspan="2"]')).toHaveText('LeftRight');
   expect(await editor.evaluate(node => (node as ARichTextElement).getHTML())).toContain('colspan="2"');
   await expect(split).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Add table row', exact: true })).toBeHidden();
+  await expect(page.getByRole('button', { name: 'Add table column', exact: true })).toBeHidden();
   await page.keyboard.press('Tab');
   expect(await editor.evaluate(node => (node as ARichTextElement).getSelection()?.anchor.blockPath)).toEqual([0, 0, 1, 0]);
   await expect(merge).toBeHidden();

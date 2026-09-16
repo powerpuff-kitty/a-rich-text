@@ -117,7 +117,7 @@ export function addTableRow(
 ): EditorTransaction | null {
   const active = tableLocation(state);
   if (!active) return null;
-  const columns = simpleColumnCount(active.node);
+  const columns = horizontalColumnCount(active.node);
   if (active.node.content.length >= MAX_TABLE_ROWS) {
     throw new TableCommandError('invalid-dimensions', `Tables are limited to ${MAX_TABLE_ROWS} rows`);
   }
@@ -141,7 +141,7 @@ export function addTableRow(
 export function removeCurrentTableRow(state: EditorState): EditorTransaction | null {
   const active = tableLocation(state);
   if (!active || active.node.content.length <= 1) return null;
-  const columns = simpleColumnCount(active.node);
+  horizontalColumnCount(active.node);
   const next = cloneValue(active.node);
   next.content.splice(active.rowIndex, 1);
   const mappings = mapPreservedCells(active.node, active.path, (row, column) => {
@@ -149,7 +149,7 @@ export function removeCurrentTableRow(state: EditorState): EditorTransaction | n
     return { row: row > active.rowIndex ? row - 1 : row, column };
   });
   const targetRow = Math.min(active.rowIndex, next.content.length - 1);
-  const targetColumn = Math.min(Math.max(0, active.columnIndex), columns - 1);
+  const targetColumn = Math.min(Math.max(0, active.columnIndex), next.content[targetRow]!.content.length - 1);
   const targetPath = [...active.path, targetRow, targetColumn, 0];
 
   return transaction()
@@ -219,6 +219,17 @@ export function removeCurrentTable(state: EditorState): EditorTransaction | null
     .setSelection(collapsedSelection(active.path))
     .setMeta('command', 'removeTable')
     .build();
+}
+
+export interface TableRowActions { canAddRow: boolean; canRemoveRow: boolean }
+
+/** Row operations support horizontal spans, but reject vertical spans. */
+export function getTableRowActions(state: EditorState): TableRowActions {
+  const active = tableLocation(state);
+  if (!active) return { canAddRow: false, canRemoveRow: false };
+  try { horizontalColumnCount(active.node); }
+  catch { return { canAddRow: false, canRemoveRow: false }; }
+  return { canAddRow: active.node.content.length < MAX_TABLE_ROWS, canRemoveRow: active.node.content.length > 1 };
 }
 
 export interface TableCellActions { canMergeRight: boolean; canSplit: boolean }

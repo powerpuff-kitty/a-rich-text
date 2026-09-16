@@ -8,6 +8,7 @@ import {
   addTableRow,
   getActiveTable,
   getTableCellActions,
+  getTableRowActions,
   mergeTableCellRight,
   splitTableCell,
   insertTable,
@@ -531,6 +532,7 @@ export class ARichTextToolbarElement extends HTMLElementBase {
     const activeList = state ? safeActiveList(state) : null;
     const activeTable = state ? safeActiveTable(state) : null;
     const cellActions = state ? getTableCellActions(state) : null;
+    const rowActions = state ? getTableRowActions(state) : null;
     const selection = state?.selection;
     const singleBlock = Boolean(selection && String(selection.anchor.blockPath) === String(selection.head.blockPath));
     const visual = editor?.view === 'visual';
@@ -567,16 +569,12 @@ export class ARichTextToolbarElement extends HTMLElementBase {
       } else if (action === 'insert-table') {
         available = singleBlock && inline && !insideTable;
         button.disabled = locked || !available;
-      } else if (
-        action === 'add-row'
-        || action === 'remove-row'
-        || action === 'add-column'
-        || action === 'remove-column'
-      ) {
+      } else if (action === 'add-row' || action === 'remove-row') {
+        available = Boolean(action === 'add-row' ? rowActions?.canAddRow : rowActions?.canRemoveRow);
+        button.disabled = locked || !available;
+      } else if (action === 'add-column' || action === 'remove-column') {
         button.disabled = locked || activeTable === null
-          || (action === 'remove-row' && activeTable.rows <= 1)
           || (action === 'remove-column' && activeTable.columns <= 1)
-          || (action === 'add-row' && activeTable.rows >= 50)
           || (action === 'add-column' && activeTable.columns >= 50);
         available = singleBlock && !button.disabled;
       } else if (action === 'undo') {
