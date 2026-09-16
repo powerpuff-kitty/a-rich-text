@@ -31,6 +31,11 @@ separate Vue editing engine is unnecessary; the wrapper is optional.
 
 ## Production release gates
 
+The [latest full local run](verification/2026-09-16-full-local.md) passed 361 unit
+tests, all 260 browser cases without retries/skips, and 26 package installation
+checks. This closes the accumulated automated-regression check at its recorded
+revision; the manual and release prerequisites below remain.
+
 - [Quality #11](https://github.com/powerpuff-kitty/a-rich-text/issues/11) and
   [local gates #46](https://github.com/powerpuff-kitty/a-rich-text/issues/46): real
   iPhone/Android, IME/mobile keyboard, screen-reader, RTL/reduced-motion,

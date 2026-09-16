@@ -2,6 +2,11 @@
 
 A Rich Text treats reliability evidence as part of the product.
 
+Latest [full local verification](verification/2026-09-16-full-local.md): 361 unit
+tests, 260 browser cases across five profiles with default timeouts and no
+retries/skips, and 26 package installation checks passed on the recorded revision.
+Manual and physical-device gates below remain open.
+
 The project should not label a browser, device, accessibility workflow or performance target as supported merely because it appears in documentation. Claims must be backed by an executable test or an explicit manual verification record.
 
 ## Verification commands
