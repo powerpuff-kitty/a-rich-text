@@ -83,6 +83,7 @@ JavaScript lint rules. The editor's converters and validation remain separate.
 ## Scoped CommonMark checks
 
 The reference target is CommonMark 0.31.2. Vendored examples cover code spans,
-ATX/setext headings and indented/fenced code, with explicit remaining mismatches.
+ATX/setext headings, indented/fenced code, escapes and line breaks, with explicit
+remaining mismatches.
 The full dialect is not implemented.
 See [compatibility scope and fixtures](markdown-compatibility.md).

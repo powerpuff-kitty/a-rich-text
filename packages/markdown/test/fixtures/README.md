@@ -16,9 +16,13 @@ the “Setext headings” section from the same source and date.
 `commonmark-0.31.2-fenced-code.json` contains all 29 unmodified examples from
 the “Fenced code blocks” section from the same source and date.
 
+`commonmark-0.31.2-backslash-escapes.json` contains all 13 unmodified “Backslash
+escapes” examples; `commonmark-0.31.2-line-breaks.json` contains all 15 “Hard line
+breaks” and two “Soft line breaks” examples, from the same source and date.
+
 CommonMark Spec by John MacFarlane is licensed under Creative Commons
 Attribution-ShareAlike 4.0 International:
 https://creativecommons.org/licenses/by-sa/4.0/ . These upstream fixtures retain
 that license; the repository MIT license does not replace it. No example text
 or expected HTML was altered. The test runner documents its soft-break and equivalent HTML quote-escaping
-normalization and explicitly unsupported interactions (code spans 344/346; indented code 109; setext headings 93/94/99).
+normalization and explicitly unsupported interactions (code spans 344/346; indented code 109; setext headings 93/94/99; escapes 14/20–23; hard breaks 642/643).

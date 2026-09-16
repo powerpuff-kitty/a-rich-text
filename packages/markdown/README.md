@@ -15,6 +15,7 @@ It is not a fully conforming CommonMark/GFM parser. See the repository
 ## Scoped CommonMark checks
 
 The reference target is CommonMark 0.31.2. Vendored examples cover code spans,
-ATX/setext headings and indented/fenced code, with explicit remaining mismatches.
+ATX/setext headings, indented/fenced code, escapes and line breaks, with explicit
+remaining mismatches.
 The full dialect is not implemented.
 See [compatibility scope and fixtures](https://github.com/powerpuff-kitty/a-rich-text/blob/main/docs/markdown-compatibility.md).

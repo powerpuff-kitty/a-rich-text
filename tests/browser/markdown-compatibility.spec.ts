@@ -97,3 +97,22 @@ test('indented fenced code normalizes language metadata without changing literal
   await page.locator('#editor').evaluate(node => { (node as ARichTextElement).view = 'markdown'; });
   await expect(source).toHaveValue('```js\n  const x = 1;\n<b>literal</b>\n```');
 });
+
+test('Markdown hard breaks and literal backslashes survive visual/source switching', async ({ page }) => {
+  await page.goto('/dist/browser/');
+  await page.locator('#editor').evaluate(node => {
+    const editor = node as ARichTextElement;
+    editor.setText('Original'); editor.view = 'markdown';
+  });
+  const source = page.locator('#editor [part="source"]');
+  await source.fill('C:\\Users\\name\\\nnext line');
+  await expect.poll(() => page.locator('#editor').evaluate(node => (node as ARichTextElement).sourceDirty)).toBe(false);
+  expect(await page.locator('#editor').evaluate(node => (node as ARichTextElement).getJSON())).toMatchObject({ content: [{ type: 'paragraph', content: [{ text: 'C:\\Users\\name\nnext line' }] }] });
+  await page.locator('#editor').evaluate(node => { (node as ARichTextElement).view = 'visual'; });
+  await expect(page.locator('#editor [contenteditable] p br')).toHaveCount(1);
+  await page.locator('#editor').evaluate(node => { (node as ARichTextElement).view = 'markdown'; });
+  await expect(source).toHaveValue('C:\\\\Users\\\\name  \nnext line');
+  await source.fill('C:\\\\Users\\\\name  \nupdated line');
+  await expect.poll(() => page.locator('#editor').evaluate(node => (node as ARichTextElement).sourceDirty)).toBe(false);
+  expect(await page.locator('#editor').evaluate(node => (node as ARichTextElement).getJSON())).toMatchObject({ content: [{ type: 'paragraph', content: [{ text: 'C:\\Users\\name\nupdated line' }] }] });
+});

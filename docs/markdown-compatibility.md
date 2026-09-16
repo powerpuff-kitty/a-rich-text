@@ -82,15 +82,38 @@ container content without inventing an extra line at end of input.
 Only the first space/tab-delimited info-string word becomes the ART code language.
 Additional info metadata (for example `startline=3`) is not retained: ART has no
 field for it. This replaces the previous behavior of treating the entire info
-string as the language. Entity/escape decoding in info strings is not yet covered.
+string as the language. Backslash escapes of ASCII punctuation in language words are decoded; entity
+decoding in info strings is not yet covered.
 Export normally uses backticks, or tildes when the language contains a backtick;
 the fence is longer than any matching marker run in the content.
 See [fenced-code tests](../packages/markdown/test/fenced-code.test.ts).
+
+## Verified scope: backslash escapes and line breaks
+
+All 13 upstream backslash-escape examples (12–24), 15 hard-break examples
+(633–647) and two soft-break examples (648–649) are vendored unchanged.
+Eight escape, thirteen hard-break and both soft-break examples match after
+normalizing equivalent HTML quotes, `<br>` spelling, soft breaks and ART's final
+code line convention. The seven remaining interactions are explicit mismatches
+in [the tests](../packages/markdown/test/escapes-breaks.test.ts).
+
+Backslashes escape ASCII punctuation, not ordinary letters, digits or Unicode
+characters. A trailing unescaped backslash or two or more spaces produce a hard
+break only between paragraph lines. Escaped backslashes stay literal; code spans
+and code blocks retain their existing literal behavior. Soft breaks fold to spaces.
+Export writes internal non-code text newlines as two spaces plus a newline so
+paragraph hard breaks survive reimport, including inside supported inline marks.
+Terminal block breaks, arbitrary whitespace and multiline ATX heading fidelity
+are not established by these fixtures.
 
 ### Known exclusions
 
 | Upstream example | Remaining behavior |
 | --- | --- |
+| 14 | Full emphasis delimiter rules are not implemented |
+| 20 | Autolinks are not implemented |
+| 21, 642, 643 | Raw HTML is literal text rather than interpreted HTML |
+| 22, 23 | Link titles/reference definitions are not supported |
 | 109 | Tight-list HTML rendering retains ART paragraph wrappers |
 | 93 | Lazy blockquote continuation is not implemented |
 | 94, 99 | Tight-list HTML rendering retains ART paragraph wrappers |
