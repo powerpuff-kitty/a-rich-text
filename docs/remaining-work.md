@@ -7,7 +7,7 @@ there is no public npm release yet.
 
 ## Core editor and integration
 
-- [Authoring #4](https://github.com/powerpuff-kitty/a-rich-text/issues/4): row/column editing and horizontal merging in vertical grids, and broader
+- [Authoring #4](https://github.com/powerpuff-kitty/a-rich-text/issues/4): row/column editing in vertical grids and broader
   selection editing beyond paragraph/heading formatting. Block-style commands now
   apply across selections in one Undo step. The toolbar and API/model support H1–H6. Standard editing detects URL/email tokens on typed spaces;
   Enter/paste/import do not trigger detection. Image, quote, rule, code-block and
@@ -18,7 +18,8 @@ there is no public npm release yet.
   also support horizontal spans. Split cell now supports horizontal, vertical
   and combined spans, with Undo and preserved review-anchor mappings. Merge below
   supports vertically adjacent cells with matching column boundaries, including
-  existing rowspans.
+  existing rowspans. Merge right supports matching row boundaries and correctly
+  rejects gaps occupied by carried spans.
 - [Media #8](https://github.com/powerpuff-kitty/a-rich-text/issues/8): physical-browser image/orientation checks around
   the optional media adapters. The image dialog now supports local previews,
   host-provided uploads, progress, retry and cancellation.

@@ -30,7 +30,7 @@ test('horizontal merge/split retain content, export spans and support Undo and T
   expect(await editor.evaluate(node => (node as ARichTextElement).getJSON())).toEqual(before);
 });
 
-test('cell controls respect tools, locks and unsupported vertical spans', async ({ page }) => {
+test('cell controls respect tools, locks and mismatched vertical spans', async ({ page }) => {
   await page.goto('/dist/browser/');
   const editor = page.locator('#editor');
   const merge = page.getByRole('button', { name: 'Merge with right cell', exact: true });

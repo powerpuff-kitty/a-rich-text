@@ -50,7 +50,8 @@ including across fully covered rows. Split cell expands vertical or combined
 spans into unit cells and retains content in the top-left cell. Undo restores the
 original span. Merge with cell below combines adjacent cells with matching
 column boundaries, including existing spans. Row/column editing in vertical
-grids remains unavailable.
+grids remains unavailable. Select Build to merge right into Deliver even though
+Design spans rows elsewhere in the table. Matching rowspans can also merge right.
 
 ![Imported vertical table spans](screenshots/vertical-spans.png)
 

@@ -261,6 +261,51 @@ describe('horizontal cell authoring', () => {
     expect(getTableCellActions(engine.state).canMergeRight).toBe(false);
   });
 
+  it('merges adjacent rowspans right while mapping content and shifted anchors', () => {
+    const grid = table([['left', 'right', 'next'], [], ['a', 'b', 'c']]);
+    for (const cell of grid.content[0]!.content) cell.rowspan = 2;
+    const doc = document({ type: 'blockquote', content: [grid] });
+    const selection = textSelection(textPoint([0, 0, 0, 0, 0], 2));
+    const engine = new EditorEngine(createEditorState(doc, selection));
+    const command = mergeTableCellRight(engine.state)!;
+    for (const [from, to] of [[[0, 0, 0, 1, 0], [0, 0, 0, 0, 1]], [[0, 0, 0, 2, 0], [0, 0, 0, 1, 0]]]) {
+      const anchor = createAnchoredRange(doc, textSelection(textPoint(from!, 0), textPoint(from!, 1)));
+      const mapped = mapAnchoredRangeThroughTransaction(doc, anchor, command);
+      expect(mapped.status).toBe('mapped');
+      if (mapped.status !== 'orphaned') expect(mapped.range.start.blockPath).toEqual(to);
+    }
+    engine.dispatch(command);
+    const expected = structuredClone(grid);
+    expected.content[0]!.content[0]!.colspan = 2;
+    expected.content[0]!.content[0]!.content.push(paragraph('right'));
+    expected.content[0]!.content.splice(1, 1);
+    expect(engine.state.document).toEqual(document({ type: 'blockquote', content: [expected] }));
+    expect(engine.state.selection).toEqual(selection);
+    engine.dispatch(mergeTableCellRight(engine.state)!);
+    expect(getTableCellActions(engine.state).canMergeRight).toBe(false);
+    engine.undo(); engine.undo(); expect(engine.state.document).toEqual(doc);
+    engine.redo(); expect(engine.state.document).toEqual(document({ type: 'blockquote', content: [expected] }));
+  });
+
+  it('does not merge across a column occupied by a carried rowspan', () => {
+    const grid = table([['a', 'barrier', 'b'], ['left', 'right']]);
+    grid.content[0]!.content[1]!.rowspan = 2;
+    const state = createEditorState(document(grid), textSelection(textPoint([0, 1, 0, 0], 0)));
+    expect(getTableCellActions(state).canMergeRight).toBe(false);
+    expect(mergeTableCellRight(state)).toBeNull();
+  });
+
+  it('allows horizontal merging alongside an unrelated vertical span', () => {
+    const grid = table([['vertical', 'left', 'right'], ['a', 'b']]);
+    grid.content[0]!.content[0]!.rowspan = 2;
+    const state = createEditorState(document(grid), textSelection(textPoint([0, 0, 1, 0], 0)));
+    const expected = structuredClone(grid);
+    expected.content[0]!.content[1]!.colspan = 2;
+    expected.content[0]!.content[1]!.content.push(paragraph('right'));
+    expected.content[0]!.content.pop();
+    expect(applyTransaction(state, mergeTableCellRight(state)!).state.document).toEqual(document(expected));
+  });
+
   it('merges matching spans below, maps moved and shifted anchors, and undoes', () => {
     const grid = table([['top', 'side'], ['bottom', 'next'], ['last', 'end']]);
     for (const row of grid.content) row.content[0]!.colspan = 2;

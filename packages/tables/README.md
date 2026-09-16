@@ -19,8 +19,9 @@ top-left cell and adds empty unit cells throughout its horizontal/vertical span.
 are undoable. `getTableCellActions(state)` reports contextual availability.
 Splitting and Tab navigation support valid horizontal, vertical and combined
 spans. `mergeTableCellBelow(state)` merges the cell immediately below when its column
-boundaries match, adding rowspans and appending lower content. Merging right and
-column editing support horizontal grids only. Row insertion/removal supports
+boundaries match, adding rowspans and appending lower content. Merging right supports adjacent cells with matching row boundaries, including
+rowspans. It cannot cross a carried span between physical neighbors. Column
+editing supports horizontal grids only. Row insertion/removal supports
 horizontal spans; `getTableRowActions(state)` reports availability. HTML/JSON preserve spans;
 Markdown/plain text do not.
 

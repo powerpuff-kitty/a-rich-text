@@ -77,3 +77,28 @@ test('merges matching cells below, preserves exports and supports split and Undo
   await page.getByRole('button', { name: 'Split cell', exact: true }).click();
   await expect(editor.locator('td')).toHaveCount(4);
 });
+
+test('merges right across matching rowspans and hides the action across carried cells', async ({ page }) => {
+  await page.goto('/dist/browser/');
+  const editor = page.locator('#editor');
+  await editor.evaluate(node => (node as ARichTextElement).setHTML('<table><tr><td rowspan="2"><p>Left</p></td><td rowspan="2"><p>Right</p></td></tr><tr></tr></table>'));
+  const original = await editor.evaluate(node => (node as ARichTextElement).getJSON());
+  await editor.locator('td p').first().click();
+  const merge = page.getByRole('button', { name: 'Merge with right cell', exact: true });
+  await expect(merge).toBeVisible();
+  await merge.click();
+  await expect(editor.locator('td[rowspan="2"][colspan="2"] p')).toHaveText(['Left', 'Right']);
+  await expect(merge).toBeHidden();
+  await editor.evaluate(node => (node as ARichTextElement).undo());
+  expect(await editor.evaluate(node => (node as ARichTextElement).getJSON())).toEqual(original);
+  await editor.evaluate(node => (node as ARichTextElement).redo());
+  const merged = await editor.evaluate(node => (node as ARichTextElement).getJSON());
+  await editor.evaluate(node => { const e = node as ARichTextElement; e.setHTML(e.getHTML()); });
+  expect(await editor.evaluate(node => (node as ARichTextElement).getJSON())).toEqual(merged);
+  await editor.locator('td p').first().click();
+  await page.getByRole('button', { name: 'Split cell', exact: true }).click();
+  await expect(editor.locator('td')).toHaveCount(4);
+  await editor.evaluate(node => (node as ARichTextElement).setHTML('<table><tr><td><p>A</p></td><td rowspan="2"><p>Barrier</p></td><td><p>B</p></td></tr><tr><td><p>Left</p></td><td><p>Right</p></td></tr></table>'));
+  await editor.locator('tr').nth(1).locator('td p').first().click();
+  await expect(merge).toBeHidden();
+});
