@@ -11,3 +11,9 @@ Exported API declarations are included in `dist/`. Version 0.0.0 is a developmen
 Image authoring uses `openImageEditor()` and the optional `imageUploader` property.
 See [image integration](https://github.com/powerpuff-kitty/a-rich-text/blob/main/docs/image-authoring.md)
 for previews, upload cancellation, formats and custom styling.
+
+## Screenshot
+
+![Base Web Component](../../docs/screenshots/base-editor.png)
+
+[Complete component gallery](../../docs/component-gallery.md).

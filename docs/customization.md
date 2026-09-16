@@ -1,5 +1,7 @@
 # Styling, custom buttons, Tailwind and Vue
 
+[Browse screenshots of these components](component-gallery.md).
+
 The Web Component is the editor. A framework wrapper is optional: use one for
 application conventions such as `v-model`, slots and lifecycle cleanup, rather
 than implementing another editing engine.

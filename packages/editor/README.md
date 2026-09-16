@@ -29,3 +29,9 @@ for previews, upload cancellation, formats and custom styling.
 Standard editing automatically links completed URL/email tokens when a space is
 typed. Set `autolink="false"` or disable the `link` tool to opt out. Existing links,
 inline code, composition, imports and paste are not automatically rewritten.
+
+## Screenshot
+
+![Standard editor](../../docs/screenshots/standard-editor.png)
+
+[Complete component gallery](../../docs/component-gallery.md).

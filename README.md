@@ -6,6 +6,13 @@ The primary integration surface is `<a-rich-text>`. The open client runtime is d
 
 > Status: locally installable development snapshot. Start with the [integration guide](docs/getting-started.md). Production release gates still require physical-device, screen-reader and real-IME evidence.
 
+## Screenshots
+
+![Standard rich-text editor with formatting toolbar, source views and task list](docs/screenshots/standard-editor.png)
+
+[View every component and editing surface](docs/component-gallery.md), including
+source formats, dialogs, focus mode, mobile and custom Vue/Tailwind controls.
+
 ## Try it
 
 ```sh
@@ -35,6 +42,8 @@ Integration examples: `/custom-toolbar.html` (plain HTML/CSS) and `/vue.html`
 (Vue + Tailwind) in the same local preview.
 
 Core architecture docs:
+
+- [`docs/component-gallery.md`](docs/component-gallery.md) — screenshots and local capture instructions
 
 - [`docs/customization.md`](docs/customization.md) — CSS parts, Tailwind, custom buttons and optional Vue wrapper
 - [`docs/remaining-work.md`](docs/remaining-work.md) — core, release and optional follow-ups

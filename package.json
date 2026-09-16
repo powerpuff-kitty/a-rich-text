@@ -16,6 +16,7 @@
     "verify:local": "pnpm verify && node scripts/build-distribution.mjs && pnpm test:browser && pnpm verify:distribution",
     "build:distribution": "pnpm build && node scripts/build-distribution.mjs",
     "verify:distribution": "node scripts/verify-distribution.mjs",
+    "docs:screenshots": "pnpm build:distribution && node scripts/capture-docs.mjs",
     "generate:icons": "node scripts/generate-toolbar-icons.mjs",
     "typecheck:examples": "node scripts/typecheck-vue-example.mjs"
   },
