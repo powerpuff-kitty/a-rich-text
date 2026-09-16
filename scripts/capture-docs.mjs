@@ -59,7 +59,7 @@ try {
     await page.locator('#editor').evaluate((node, view) => { node.view = view; }, view);
     const source = page.getByRole('textbox', { name: 'Document source' });
     await source.fill((await source.inputValue()) + '\n');
-    await source.press('ControlOrMeta+Home');
+    await source.evaluate(node => { node.setSelectionRange(0, 0); node.scrollTop = 0; node.scrollLeft = 0; });
     await capture(`source-${view}`);
   }
 
