@@ -38,6 +38,7 @@ Core architecture docs:
 
 - [`docs/customization.md`](docs/customization.md) — CSS parts, Tailwind, custom buttons and optional Vue wrapper
 - [`docs/remaining-work.md`](docs/remaining-work.md) — core, release and optional follow-ups
+- [`docs/image-authoring.md`](docs/image-authoring.md) — image editing, previews and host-provided uploads
 - [`docs/editor-configuration.md`](docs/editor-configuration.md) — available tools, source views and format fidelity
 - [`docs/architecture.md`](docs/architecture.md)
 - [`docs/engine.md`](docs/engine.md)

@@ -7,6 +7,9 @@ import {
   textSelection,
 } from '../src/index.js';
 import {
+  setImageBlock,
+  removeImageBlock,
+  isSafeImageSource,
   setCodeBlock,
   removeCodeBlock,
   clearSelectionFormatting,
@@ -123,4 +126,31 @@ it('inserts, updates and removes a code block with valid text selection', () => 
   expect(removed.selection?.anchor).toEqual(textPoint([1], 0));
   expect(setCodeBlock(removed, [1], 'invalid target')).toBeNull();
   expect(removeCodeBlock(removed, [1])).toBeNull();
+});
+
+
+it('inserts and replaces images without losing a valid trailing text caret', () => {
+  const state = createEditorState(document, textSelection(textPoint([0], 5)));
+  const inserted = applyTransaction(state, setImageBlock(state, null, { src: '/photo.png', alt: 'A tree', width: 20, height: 30 })!).state;
+  expect(inserted.document.content[1]).toMatchObject({ type: 'image', alt: 'A tree', width: 20, height: 30 });
+  expect(inserted.selection?.anchor.blockPath).toEqual([2]);
+  const edited = applyTransaction(inserted, setImageBlock(inserted, [1], { src: '/new.png', alt: '' })!).state;
+  expect(edited.document.content[1]).toEqual({ type: 'image', src: '/new.png', alt: '' });
+  const removed = applyTransaction(edited, removeImageBlock(edited, [1])!).state;
+  expect(removed.selection?.anchor).toEqual(textPoint([1], 0));
+  expect(removed.document.content[1]?.type).toBe('paragraph');
+  expect(removeImageBlock(removed, [1])).toBeNull();
+});
+
+it('edits nested image blocks while rejecting unsafe sources and invalid dimensions', () => {
+  const state = createEditorState({ type: 'doc', version: 1, content: [{ type: 'blockquote', content: [{ type: 'image', src: '/old.png' }] }] });
+  const changed = applyTransaction(state, setImageBlock(state, [0, 0], { src: ' https://example.com/photo.png ', alt: 'Tree' })!);
+  expect(changed.state.document.content[0]).toMatchObject({ content: [{ src: 'https://example.com/photo.png', alt: 'Tree' }] });
+  for (const src of ['javascript:alert(1)', 'java\tscript:alert(1)', 'data:image/svg+xml,<svg/>', 'file:///tmp/photo.png', '']) {
+    expect(isSafeImageSource(src)).toBe(false);
+    expect(() => setImageBlock(state, [0, 0], { src })).toThrow();
+  }
+  for (const width of [0, -1, 1.5, Infinity, NaN]) {
+    expect(() => setImageBlock(state, [0, 0], { src: '/photo.png', width })).toThrow();
+  }
 });

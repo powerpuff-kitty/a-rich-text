@@ -126,6 +126,7 @@ function renderBlock(
     }
     case 'image': {
       const image = partElement(owner, 'img', 'image');
+      image.setAttribute('data-art-image-path', encodeARTPath(path));
       const src = safeUrl(block.src, true);
       if (src) image.src = src;
       if (block.alt !== undefined) image.alt = block.alt;

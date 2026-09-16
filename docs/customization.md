@@ -69,6 +69,8 @@ shadow tree: the editor recreates content DOM during transactions.
 | Table | `table`, `table-body`, `table-row`, `table-cell` |
 | Other blocks | `code-block`, `code-content`, `horizontal-rule`, `image`, `extension-block` |
 | Source views | `view-switcher`, `view-button`, `active-view-button`, `source-panel`, `source`, `source-actions`, `source-apply-button`, `source-discard-button`, `source-note`, `source-error` |
+| Image dialog | `image-dialog`, `image-form`, `image-source`, `image-alt`, `image-decorative`, `image-title`, `image-width`, `image-height`, `image-preview`, `image-error` |
+| Image actions and uploads | `image-container`, `image-edit-button`, `image-file`, `image-progress`, `image-upload-button`, `image-upload-cancel-button`, `image-preview-button`, `image-apply-button`, `image-remove-button`, `image-cancel-button` |
 | Code dialog | `code-dialog`, `code-form`, `code-language`, `code-input`, `code-error`, `code-edit-button`, `code-apply-button`, `code-remove-button`, `code-cancel-button` |
 
 The toolbar exposes `toolbar`, `button`, `separator`, `block-select`, per-mark

@@ -181,7 +181,7 @@ function getTemplate(): HTMLTemplateElement {
         >${toolbarIcon(action)}</button>
       `).join('')}
       <span part="separator" aria-hidden="true"></span>
-      ${[['code-block', 'Insert code block'], ['blockquote', 'Toggle blockquote'], ['horizontal-rule', 'Insert horizontal rule'], ['clear-formatting', 'Clear inline formatting']].map(([action, label]) => `<button part="button" type="button" data-action="${action}" aria-label="${label}" title="${label}">${toolbarIcon(action!)}</button>`).join('')}
+      ${[['image', 'Insert image'], ['code-block', 'Insert code block'], ['blockquote', 'Toggle blockquote'], ['horizontal-rule', 'Insert horizontal rule'], ['clear-formatting', 'Clear inline formatting']].map(([action, label]) => `<button part="button" type="button" data-action="${action}" aria-label="${label}" title="${label}">${toolbarIcon(action!)}</button>`).join('')}
       <button part="button indent-button" type="button" data-action="indent" aria-label="Indent list item" title="Indent list item (Tab)">${toolbarIcon('indent')}</button>
       <button part="button outdent-button" type="button" data-action="outdent" aria-label="Outdent list item" title="Outdent list item (Shift+Tab)">${toolbarIcon('outdent')}</button>
       <button part="button insert-table-button" type="button" data-action="insert-table" aria-label="Insert table" title="Insert 2 × 2 table">${toolbarIcon('insert-table')}</button>
@@ -371,6 +371,10 @@ export class ARichTextToolbarElement extends HTMLElementBase {
       this.#dispatchCommand(toggleList(editorState(this.#editor), spec.style));
       return;
     }
+    if (action === 'image') {
+      this.#editor.openImageEditor();
+      return;
+    }
     if (action === 'code-block') {
       this.#editor.openCodeEditor();
       return;
@@ -518,7 +522,7 @@ export class ARichTextToolbarElement extends HTMLElementBase {
         button.disabled = locked;
         button.setAttribute('aria-pressed', String(activeList?.style === spec.style));
         available = singleBlock && inline;
-      } else if (action === 'code-block' || action === 'blockquote' || action === 'horizontal-rule') {
+      } else if (action === 'image' || action === 'code-block' || action === 'blockquote' || action === 'horizontal-rule') {
         available = singleBlock && inline;
         button.disabled = locked || !available;
       } else if (action === 'clear-formatting') {

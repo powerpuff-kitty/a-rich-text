@@ -1,4 +1,4 @@
-import type { ARTBlockNode, ARTHeadingNode, ARTTextMark } from '@arichtext/core';
+import type { ARTBlockNode, ARTHeadingNode, ARTImageNode, ARTTextMark } from '@arichtext/core';
 import { nextGraphemeBoundary, previousGraphemeBoundary } from './grapheme.js';
 import { getInlineBlock, getNodeAtPath, inlineLength, listInlineBlocks, samePath } from './tree.js';
 import { transaction } from './transaction.js';
@@ -177,4 +177,31 @@ export function removeCodeBlock(state: EditorState, path: ARTPath): EditorTransa
   const point = { blockPath: [...path], offset: 0 };
   return transaction().replaceBlock(path, [{ type: 'paragraph' }])
     .setSelection({ anchor: point, head: point }).setMeta('command', 'removeCodeBlock').build();
+}
+
+/** Source policy matching the default HTML image converter; data URLs require explicit host conversion policy. */
+export function isSafeImageSource(value: string): boolean {
+  if (!value.trim()) return false;
+  try { return ['http:', 'https:', 'blob:'].includes(new URL(value.trim(), 'https://arichtext.invalid').protocol); }
+  catch { return false; }
+}
+
+export function setImageBlock(state: EditorState, path: ARTPath | null, image: Omit<ARTImageNode, 'type'>): EditorTransaction | null {
+  if (!isSafeImageSource(image.src)) throw new TypeError('Use an HTTP(S), relative or blob image URL.');
+  for (const size of [image.width, image.height]) {
+    if (size !== undefined && (!Number.isSafeInteger(size) || size <= 0)) throw new TypeError('Image dimensions must be positive whole numbers.');
+  }
+  const block: ARTImageNode = { ...image, src: image.src.trim(), type: 'image' };
+  if (path === null) return insertFragment(state, [block]);
+  const existing = getNodeAtPath(state.document, path) as ARTBlockNode | undefined;
+  if (existing?.type !== 'image') return null;
+  return transaction().replaceBlock(path, [block]).setMeta('command', 'setImageBlock').build();
+}
+
+export function removeImageBlock(state: EditorState, path: ARTPath): EditorTransaction | null {
+  const existing = getNodeAtPath(state.document, path) as ARTBlockNode | undefined;
+  if (existing?.type !== 'image') return null;
+  const point = { blockPath: [...path], offset: 0 };
+  return transaction().replaceBlock(path, [{ type: 'paragraph' }])
+    .setSelection({ anchor: point, head: point }).setMeta('command', 'removeImageBlock').build();
 }

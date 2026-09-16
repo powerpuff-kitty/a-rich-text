@@ -1,3 +1,5 @@
+import { ImageEditor, type ARichTextImageUploader } from './image-editor.js';
+export type { ARichTextImageUploader, ARichTextImageUploadContext } from './image-editor.js';
 import { CodeBlockEditor } from './code-editor.js';
 import { clipboardToDocument } from '@arichtext/clipboard';
 import {
@@ -179,17 +181,23 @@ function getTemplate(): HTMLTemplateElement {
         pointer-events: none;
       }
       [part='editor'] pre { overflow-x: auto; padding: 0.6rem; border: 1px solid var(--art-border-color); border-radius: var(--art-radius); }
-      [part='code-edit-button'] { user-select: none; display: block; margin-block-start: 0.5rem; }
-      [part='code-dialog'] { box-sizing: border-box; width: min(42rem, calc(100vw - 2rem)); max-height: calc(100dvh - 2rem); overflow: auto;
+      :is([part='code-edit-button'], [part='image-edit-button']) { user-select: none; display: block; margin-block-start: 0.5rem; }
+      :is([part='code-dialog'], [part='image-dialog']) { box-sizing: border-box; width: min(42rem, calc(100vw - 2rem)); max-height: calc(100dvh - 2rem); overflow: auto;
         color: var(--art-color); background: var(--art-background); border: 1px solid var(--art-border-color); border-radius: var(--art-radius); }
-      [part='code-dialog']::backdrop { background: rgb(0 0 0 / 35%); }
-      [part='code-dialog'] h2 { font-size: 1.1rem; margin-block: 0 1rem; }
-      [part='code-dialog'] label { display: block; margin-block: 0.6rem; }
-      [part='code-dialog'] input, [part='code-dialog'] textarea { display: block; box-sizing: border-box; width: 100%; padding: 0.5rem;
+      :is([part='code-dialog'], [part='image-dialog'])::backdrop { background: rgb(0 0 0 / 35%); }
+      :is([part='code-dialog'], [part='image-dialog']) h2 { font-size: 1.1rem; margin-block: 0 1rem; }
+      :is([part='code-dialog'], [part='image-dialog']) label { display: block; margin-block: 0.6rem; }
+      :is([part='code-dialog'], [part='image-dialog']) input, :is([part='code-dialog'], [part='image-dialog']) textarea { display: block; box-sizing: border-box; width: 100%; padding: 0.5rem;
         font: 1rem/1.5 ui-monospace, monospace; color: inherit; background: var(--art-background); border: 1px solid var(--art-border-color); }
-      [part='code-dialog'] textarea { resize: vertical; }
-      [part='code-dialog'] button, [part='code-edit-button'] { font: inherit; padding: 0.35rem 0.6rem; cursor: pointer; }
-      .code-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+      :is([part='code-dialog'], [part='image-dialog']) textarea { resize: vertical; }
+      :is([part='code-dialog'], [part='image-dialog']) button, :is([part='code-edit-button'], [part='image-edit-button']) { font: inherit; padding: 0.35rem 0.6rem; cursor: pointer; }
+      [part='image'] { max-width: 100%; height: auto; }
+      [part='image-container'] { margin-block: 0.6rem; }
+      [part='image-preview'] { display: block; max-width: 100%; max-height: 12rem; object-fit: contain; margin-block: 0.5rem; }
+      .image-dimensions { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 0.75rem; }
+      [part='image-dialog'] .image-choice { display: flex; align-items: center; gap: 0.5rem; }
+      [part='image-dialog'] input[type='checkbox'] { display: inline-block; width: auto; }
+      .image-actions, .code-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; }
       [hidden] { display: none !important; }
       [part='view-switcher'] { display: flex; flex-wrap: wrap; gap: 0.25rem; margin-block: 0.4rem; }
       [part='view-switcher'] button, [part='source-actions'] button {
@@ -249,6 +257,7 @@ export class ARichTextElement extends HTMLElementBase {
   #sourceError = '';
   #sourceDocument = '';
   #codeEditor: CodeBlockEditor;
+  #imageEditor: ImageEditor;
 
   constructor() {
     super();
@@ -263,6 +272,7 @@ export class ARichTextElement extends HTMLElementBase {
     this.#internals = typeof this.attachInternals === 'function' ? this.attachInternals() : null;
     this.#engine = this.#createEngine(createTextDocument(''));
     this.#codeEditor = new CodeBlockEditor(this);
+    this.#imageEditor = new ImageEditor(this);
     this.#renderFromEngine();
     this.#source.addEventListener('input', (event) => {
       event.stopPropagation();
@@ -307,6 +317,7 @@ export class ARichTextElement extends HTMLElementBase {
 
   disconnectedCallback(): void {
     this.#codeEditor.close(false);
+    this.#imageEditor.close(false);
     this.#selectionDocument?.removeEventListener('selectionchange', this.#handleDocumentSelectionChange);
     this.#selectionDocument = undefined;
   }
@@ -618,6 +629,14 @@ export class ARichTextElement extends HTMLElementBase {
     return true;
   }
 
+  /** Optional host-owned upload callback. No upload service is installed by default. */
+  get imageUploader(): ARichTextImageUploader | undefined { return this.#imageEditor.uploader; }
+  set imageUploader(value: ARichTextImageUploader | undefined) { this.#imageEditor.uploader = value; }
+
+  openImageEditor(path: readonly number[] | null = null): boolean {
+    return this.#imageEditor.open(path);
+  }
+
   /** Open a code draft at the selection, or edit a code block at its ART path. */
   openCodeEditor(path: readonly number[] | null = null): boolean {
     return this.#codeEditor.open(path);
@@ -712,6 +731,7 @@ export class ARichTextElement extends HTMLElementBase {
 
   formResetCallback(): void {
     this.#codeEditor.close(false);
+    this.#imageEditor.close(false);
     this.#sourceDirty = false;
     this.#sourceError = '';
     this.value = this.getAttribute('value') ?? '';
@@ -946,6 +966,7 @@ export class ARichTextElement extends HTMLElementBase {
       const selection = readDOMSelection(this.#editor);
       const copy = this.#editor.cloneNode(true) as HTMLElement;
       copy.querySelectorAll('[data-art-placeholder], [data-art-editor-ui]').forEach((node) => node.remove());
+      copy.querySelectorAll('[data-art-image-wrapper]').forEach(node => node.replaceWith(...node.childNodes));
       const document = fromHTML(
         copy.innerHTML,
         this.#extensions ? { extensions: this.#extensions } : {},
@@ -979,6 +1000,7 @@ export class ARichTextElement extends HTMLElementBase {
       }
     }
     this.#codeEditor.sync();
+    this.#imageEditor.sync();
     if (state.selection && this.shadowRoot?.activeElement === this.#editor) {
       writeDOMSelection(this.#editor, state.selection);
     }
@@ -1033,6 +1055,7 @@ export class ARichTextElement extends HTMLElementBase {
 
   #syncState(): void {
     this.#codeEditor.sync();
+    this.#imageEditor.sync();
     const editable = !this.disabled && !this.readOnly;
     this.#editor.contentEditable = editable ? 'true' : 'false';
     this.#editor.setAttribute('aria-disabled', String(this.disabled));
