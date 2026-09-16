@@ -8,6 +8,7 @@ import {
   addTableRow,
   getActiveTable,
   insertTable,
+  removeCurrentTable,
   removeCurrentTableColumn,
   removeCurrentTableRow,
 } from '@arichtext/tables';
@@ -189,6 +190,7 @@ function getTemplate(): HTMLTemplateElement {
       <button part="button indent-button" type="button" data-action="indent" aria-label="Indent list item" title="Indent list item (Tab)">${toolbarIcon('indent')}</button>
       <button part="button outdent-button" type="button" data-action="outdent" aria-label="Outdent list item" title="Outdent list item (Shift+Tab)">${toolbarIcon('outdent')}</button>
       <button part="button insert-table-button" type="button" data-action="insert-table" aria-label="Insert table" title="Insert 2 × 2 table">${toolbarIcon('insert-table')}</button>
+      <button part="button remove-table-button" type="button" data-action="remove-table" aria-label="Remove table" title="Remove entire table">${toolbarIcon('remove-table')}</button>
       <button part="button add-row-button" type="button" data-action="add-row" aria-label="Add table row" title="Add row">${toolbarIcon('add-row')}</button>
       <button part="button remove-row-button" type="button" data-action="remove-row" aria-label="Remove table row" title="Remove row">${toolbarIcon('remove-row')}</button>
       <button part="button add-column-button" type="button" data-action="add-column" aria-label="Add table column" title="Add column">${toolbarIcon('add-column')}</button>
@@ -417,6 +419,10 @@ export class ARichTextToolbarElement extends HTMLElementBase {
       this.#dispatchCommand(addTableColumn(editorState(this.#editor)));
       return;
     }
+    if (action === 'remove-table') {
+      this.#dispatchCommand(removeCurrentTable(editorState(this.#editor)));
+      return;
+    }
     if (action === 'remove-column') {
       this.#dispatchCommand(removeCurrentTableColumn(editorState(this.#editor)));
       return;
@@ -543,6 +549,8 @@ export class ARichTextToolbarElement extends HTMLElementBase {
       } else if (action === 'indent' || action === 'outdent') {
         available = singleBlock && activeList !== null && (action === 'outdent' || activeList.itemIndex > 0);
         button.disabled = locked || !available;
+      } else if (action === 'remove-table') {
+        available = singleBlock && insideTable;
       } else if (action === 'insert-table') {
         available = singleBlock && inline && !insideTable;
         button.disabled = locked || !available;
