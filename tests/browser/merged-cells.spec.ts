@@ -41,7 +41,7 @@ test('cell controls respect tools, locks and unsupported vertical spans', async 
   await expect(merge).toBeHidden();
   await editor.evaluate(node => { node.removeAttribute('tools'); node.setAttribute('readonly', ''); });
   await expect(merge).toBeHidden();
-  await editor.evaluate(node => { node.removeAttribute('readonly'); (node as ARichTextElement).setHTML('<table><tr><td rowspan="2"><p>A</p></td><td><p>B</p></td></tr><tr><td><p>C</p></td><td><p>D</p></td></tr></table>'); });
+  await editor.evaluate(node => { node.removeAttribute('readonly'); (node as ARichTextElement).setHTML('<table><tr><td rowspan="2"><p>A</p></td><td><p>B</p></td></tr><tr><td><p>C</p></td></tr></table>'); });
   await editor.locator('td p').first().click();
   await expect(merge).toBeHidden();
   await expect(page.getByRole('button', { name: 'Split cell', exact: true })).toBeHidden();

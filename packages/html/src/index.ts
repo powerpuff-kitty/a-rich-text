@@ -338,7 +338,7 @@ function parseTable(element: HTMLTableElement, options: ResolvedOptions): ARTTab
       })(),
     })),
   }));
-  if (rows.length === 0 || rows.some((row) => row.content.length === 0)) return null;
+  if (rows.length === 0) return null;
   return { type: 'table', content: rows };
 }
 

@@ -1,3 +1,6 @@
+import { getTableLayout } from './table-layout.js';
+export { getTableLayout, type ARTTableLayout, type ARTTableCellPosition } from './table-layout.js';
+
 export const ART_DOCUMENT_VERSION = 1 as const;
 
 export type ARTJSONPrimitive = string | number | boolean | null;
@@ -271,30 +274,10 @@ function isImageNode(value: Record<string, unknown>): boolean {
 
 function isTableNode(value: Record<string, unknown>, depth: number): boolean {
   if (!Array.isArray(value.content) || value.content.length === 0) return false;
-  let expectedCellCount: number | undefined;
-
-  return value.content.every((row) => {
-    if (!isRecord(row) || row.type !== 'tableRow' || !Array.isArray(row.content) || row.content.length === 0) {
-      return false;
-    }
-
-    const effectiveCellCount = row.content.reduce((count, cell) => {
-      if (!isRecord(cell) || cell.type !== 'tableCell') return Number.NaN;
-      const colspan = cell.colspan === undefined ? 1 : cell.colspan;
-      return Number.isInteger(colspan) && (colspan as number) > 0 ? count + (colspan as number) : Number.NaN;
-    }, 0);
-
-    if (!Number.isFinite(effectiveCellCount)) return false;
-    if (expectedCellCount === undefined) expectedCellCount = effectiveCellCount;
-    if (expectedCellCount !== effectiveCellCount) return false;
-
-    return row.content.every((cell) => {
-      if (!isRecord(cell) || cell.type !== 'tableCell' || !Array.isArray(cell.content)) return false;
-      if (cell.colspan !== undefined && (!Number.isInteger(cell.colspan) || (cell.colspan as number) < 1)) return false;
-      if (cell.rowspan !== undefined && (!Number.isInteger(cell.rowspan) || (cell.rowspan as number) < 1)) return false;
-      return cell.content.every((node) => isBlockNode(node, depth + 1));
-    });
-  });
+  if (!value.content.every(row => isRecord(row) && row.type === 'tableRow' && Array.isArray(row.content)
+    && row.content.every(cell => isRecord(cell) && cell.type === 'tableCell' && Array.isArray(cell.content)
+      && cell.content.every(node => isBlockNode(node, depth + 1))))) return false;
+  return getTableLayout(value as unknown as ARTTableNode) !== null;
 }
 
 function isInlineContent(value: unknown): value is ARTTextNode[] | undefined {

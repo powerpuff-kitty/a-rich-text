@@ -68,3 +68,21 @@ The component also exposes developer-configured HTML, Markdown, JSON and text
 source views. See [tools and document views](editor-configuration.md). Merely
 switching views never reparses or changes the canonical document; applying an
 edited source explicitly imports it under the fidelity policy above.
+
+## Table grid validation
+
+ART tables must cover a rectangular grid exactly once. Positive safe-integer
+`colspan` and `rowspan` values are supported; omitted spans mean 1. A rowspan must
+end within the table. A physical row may contain no cells when earlier rowspans
+cover its entire width. HTML conversion retains these empty rows so valid
+vertical spans round-trip through HTML and JSON. HTML `rowspan="0"` (extend to the
+end of a row group) is not supported; use an explicit positive span.
+
+Core `getTableLayout(table)` returns logical column positions for physical cells,
+or `null` for gaps, overlaps or inconsistent widths. It does not expand large
+spans into a dense matrix. Editing/navigation retain their 50-row/column limits.
+
+This corrects the development snapshot's former per-row width check. Some
+malformed tables accepted previously are now rejected by ART validation and
+editor setters. Repair those documents before loading them; there is no automatic
+repair or schema version bump. See [ADR 0002](adr/0002-table-grid-validation.md).
