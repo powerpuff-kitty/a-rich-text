@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Custom format profiles — A Rich Text</title>
+<style>body { max-width:900px; margin:40px auto; padding:0 20px; font:16px/1.5 system-ui,sans-serif; } button { font:inherit; margin-top:20px; } output { display:block; white-space:pre-wrap; margin-top:16px; }</style>
+<h1>Custom format profiles</h1>
+<p>Choose ART JSON or Article JSON in the toolbar. The form always submits Article JSON. This example supports one unformatted paragraph and rejects richer documents.</p>
+<form><art-shell><art-toolbar for="article"></art-toolbar><art-editor id="article" name="article" format="json" profile="demo:article-v1" views="html json" profiles="art:html-v1 art:json-v1 demo:article-v1" source-profile="demo:article-v1" source-update="auto" aria-label="Article" value='{"body":"A portable article"}'></art-editor></art-shell><button>Submit Article JSON</button></form>
+<output aria-live="polite"></output>
+<script type="module">
+import { enableStandardEditing } from './a-rich-text.js';
+const editor = document.querySelector('#article');
+editor.registerFormatProfile({ id: 'demo:article-v1', family: 'json', label: 'Article JSON',
+  import(source) {
+    const data = JSON.parse(source);
+    if (typeof data.body !== 'string') throw new TypeError('Expected an article body string');
+    return { value: { type: 'doc', version: 1, content: [{ type: 'paragraph', content: [{ type: 'text', text: data.body }] }] } };
+  },
+  export(doc) {
+    const block = doc.content[0];
+    if (doc.content.length !== 1 || block.type !== 'paragraph' || block.content?.some(text => text.marks?.length)) throw new TypeError('Article JSON supports one unformatted paragraph');
+    return { value: JSON.stringify({ body: (block.content ?? []).map(text => text.text).join('') }) };
+  }
+});
+enableStandardEditing(editor);
+document.querySelector('form').addEventListener('submit', event => { event.preventDefault(); document.querySelector('output').textContent = new FormData(event.target).get('article'); });
+</script></html>

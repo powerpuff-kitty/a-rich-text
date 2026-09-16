@@ -1,3 +1,5 @@
+import { FormatProfileRegistry, artJSONProfile, type FormatProfile, type ConversionDiagnostic, type ConversionResult, type FormatProfileInfo } from '@arichtext/core/profiles';
+export { FormatProfileRegistry, artJSONProfile, type FormatProfile, type ConversionDiagnostic, type ConversionResult, type FormatProfileInfo } from '@arichtext/core/profiles';
 import { ARichTextSelectElement } from './select.js';
 export { ARichTextSelectElement, defineARichTextSelect } from './select.js';
 import { FindReplace } from './find-replace.js';
@@ -266,6 +268,7 @@ function getTemplate(): HTMLTemplateElement {
         <button part="source-apply-button" type="button" data-source-action="apply">Apply changes</button>
         <button part="source-discard-button" type="button" data-source-action="discard">Discard changes</button>
       </div></div>
+    <p part="profile-error" role="status" hidden></p>
     <div part="editor" role="textbox" aria-multiline="true"></div>
     <section part="source-panel" hidden>
       <textarea part="source" aria-label="Document source" aria-describedby="source-error" spellcheck="false"></textarea>
@@ -288,7 +291,7 @@ export class ARichTextElement extends HTMLElementBase {
     'value',
     'format',
     'required',
-    'tools', 'views', 'view', 'source-update',
+    'tools', 'views', 'view', 'source-update', 'profile', 'profiles', 'source-profile', 'profile-loss',
     ...ARIA_FORWARD_ATTRIBUTES,
   ];
 
@@ -313,6 +316,14 @@ export class ARichTextElement extends HTMLElementBase {
   #sourceComposing = false;
   #sourceFormatter?: ARichTextSourceFormatter;
   #sourceRevision = 0;
+  #profiles = new FormatProfileRegistry();
+  #profileError = '';
+  #sourceDiagnostics: readonly ConversionDiagnostic[] = [];
+  #sourceLossPending = false;
+  #sourceExportDiagnostics: readonly ConversionDiagnostic[] = [];
+  #profileChanging = false;
+  #pendingProfileValue: string | null = null;
+  #pendingSourceProfile = false;
   #codeEditor: CodeBlockEditor;
   #imageEditor: ImageEditor;
   #focusMode: FocusMode;
@@ -331,6 +342,10 @@ export class ARichTextElement extends HTMLElementBase {
     this.#source = shadow.querySelector<HTMLTextAreaElement>('[part="source"]')!;
     this.#internals = typeof this.attachInternals === 'function' ? this.attachInternals() : null;
     this.#engine = this.#createEngine(createTextDocument(''));
+    this.#profiles.register(artJSONProfile);
+    this.#profiles.register({ id: 'art:html-v1', family: 'html', label: 'HTML', import: source => ({ value: fromHTML(source, this.#extensions ? { extensions: this.#extensions } : {}) }), export: document => ({ value: toHTML(document, this.#extensions ? { extensions: this.#extensions } : {}) }) });
+    this.#profiles.register({ id: 'art:markdown-v1', family: 'markdown', label: 'Markdown', import: source => ({ value: fromMarkdown(source) }), export: document => ({ value: toMarkdown(document) }) });
+    this.#profiles.register({ id: 'art:text-v1', family: 'text', label: 'Text', import: source => ({ value: createTextDocument(source) }), export: document => ({ value: toPlainText(document) }) });
     this.#codeEditor = new CodeBlockEditor(this);
     this.#imageEditor = new ImageEditor(this);
     this.#findReplace = new FindReplace(this);
@@ -339,6 +354,7 @@ export class ARichTextElement extends HTMLElementBase {
     this.#source.addEventListener('input', (event) => {
       event.stopPropagation();
       this.#sourceRevision++;
+      this.#sourceLossPending = false; this.#sourceDiagnostics = [];
       this.#sourceDirty = this.#source.value !== this.#sourceAccepted || this.#sourceDocument !== this.serializeJSON();
       this.#sourceError = '';
       this.#syncViews();
@@ -350,13 +366,13 @@ export class ARichTextElement extends HTMLElementBase {
     this.#source.addEventListener('blur', () => { if (this.sourceUpdate === 'auto' && !this.#sourceComposing) this.#applySource(true); });
     this.#source.addEventListener('change', (event) => event.stopPropagation());
     shadow.querySelector('[part="view-switcher"] a-rich-text-select')!.addEventListener('change', event => {
-      event.stopPropagation(); this.view = (event.target as ARichTextSelectElement).value as ARichTextView;
+      event.stopPropagation(); this.selectView((event.target as ARichTextSelectElement).value);
     });
     shadow.querySelector('[part="source-actions"]')!.addEventListener('pointerdown', event => event.preventDefault());
     shadow.querySelector('[part="source-actions"]')!.addEventListener('click', (event) => {
       const action = (event.target as Element).closest<HTMLElement>('[data-source-action]')?.dataset.sourceAction;
       if (action === 'format') void this.formatSource();
-      if (action === 'apply') this.applySource();
+      if (action === 'apply') this.applySource(this.#sourceLossPending);
       if (action === 'discard') this.discardSource();
     });
 
@@ -373,10 +389,12 @@ export class ARichTextElement extends HTMLElementBase {
 
   connectedCallback(): void {
     if (this.hasAttribute('value') && this.getText().length === 0) {
-      this.value = this.getAttribute('value') ?? '';
+      if (this.getAttribute('profile')) this.#pendingProfileValue = this.getAttribute('value') ?? '';
+      else this.value = this.getAttribute('value') ?? '';
     }
     this.#selectionDocument = this.ownerDocument;
     this.#selectionDocument.addEventListener('selectionchange', this.#handleDocumentSelectionChange);
+    this.#refreshProfiles(false);
     this.#syncState();
     this.#syncDerivedState();
     this.#syncFormValue();
@@ -396,7 +414,18 @@ export class ARichTextElement extends HTMLElementBase {
   }
 
   attributeChangedCallback(name: string, oldValue: string | null, newValue: string | null): void {
-    if (oldValue === newValue) return;
+    if (oldValue === newValue || this.#profileChanging) return;
+    if (['profile', 'profiles', 'source-profile', 'profile-loss'].includes(name)) {
+      if (this.#sourceDirty && (name === 'source-profile' || name === 'profiles')) {
+        this.#profileChanging = true;
+        if (oldValue === null) this.removeAttribute(name); else this.setAttribute(name, oldValue);
+        this.#profileChanging = false;
+        this.#sourceError = 'Apply or discard source changes before changing profiles.';
+        this.#syncViews(); this.#syncFormValue(); return;
+      }
+      if (name === 'source-profile') this.#pendingSourceProfile = newValue !== null;
+      this.#refreshProfiles(name === 'source-profile'); return;
+    }
     if ((name === 'view' || name === 'views') && this.sourceUpdate === 'auto' && !this.#sourceComposing) this.#applySource(true);
     if (name === 'view' || name === 'views') {
       const requested = this.getAttribute('view')?.toLowerCase() === 'md' ? 'markdown' : this.getAttribute('view');
@@ -408,7 +437,12 @@ export class ARichTextElement extends HTMLElementBase {
         }
         this.setAttribute('view', this.#activeView);
       } else if (next !== this.#activeView) {
+        const sourceProfile = this.#profiles.list().find(profile => profile.id === this.getAttribute('source-profile'));
+        if (next !== 'visual' && sourceProfile && sourceProfile.family !== next) {
+          this.#profileChanging = true; this.removeAttribute('source-profile'); this.#profileChanging = false; this.#pendingSourceProfile = false;
+        }
         this.#sourceRevision++;
+        this.#sourceDiagnostics = []; this.#sourceLossPending = false;
         this.#activeView = next;
         this.#source.value = this.#serializeView();
         this.#sourceAccepted = this.#source.value;
@@ -418,9 +452,16 @@ export class ARichTextElement extends HTMLElementBase {
       }
     }
     if (name === 'value' && oldValue !== newValue && this.isConnected && !this.#editor.matches(':focus')) {
-      this.value = newValue ?? '';
+      if (this.getAttribute('profile')) {
+        if (!this.#profiles.list().some(profile => profile.id === this.profile)) {
+          this.#pendingProfileValue = newValue ?? ''; this.#refreshProfiles(false); return;
+        }
+        try { if (newValue === null) this.setText(''); else this.value = newValue; this.#refreshProfiles(false); }
+        catch (error) { this.#profileError = error instanceof Error ? error.message : 'Cannot import profile value'; this.#syncViews(); this.#syncFormValue(); }
+      } else this.value = newValue ?? '';
       return;
     }
+    if (['format', 'views', 'view'].includes(name)) this.#refreshProfiles(false);
     this.#syncState();
     this.#syncDerivedState();
     this.#syncFormValue();
@@ -445,7 +486,12 @@ export class ARichTextElement extends HTMLElementBase {
   }
   set views(value: readonly ARichTextView[] | string) { this.setAttribute('views', typeof value === 'string' ? value : value.join(' ')); }
   get view(): ARichTextView { return this.#activeView; }
-  set view(value: ARichTextView) { this.setAttribute('view', value); }
+  set view(value: ARichTextView) {
+    if (!this.#sourceDirty && value !== 'visual' && this.getAttribute('source-profile') && this.#profiles.list().find(p => p.id === this.getAttribute('source-profile'))?.family !== value) {
+      this.#profileChanging = true; this.removeAttribute('source-profile'); this.#profileChanging = false;
+    }
+    this.setAttribute('view', value);
+  }
   get sourceDirty(): boolean { return this.#sourceDirty; }
 
   /** Optional formatter; kept outside the base bundle. Plain text is never formatted. */
@@ -455,7 +501,7 @@ export class ARichTextElement extends HTMLElementBase {
   async formatSource(): Promise<boolean> {
     const formatter = this.#sourceFormatter;
     const view = this.view;
-    if (!formatter || view === 'visual' || view === 'text' || this.disabled || this.readOnly || this.#sourceComposing) return false;
+    if (!formatter || view === 'visual' || view === 'text' || this.disabled || this.readOnly || this.#profileError || !this.#sourceCanImport() || this.#sourceComposing) return false;
     this.#cancelSourceUpdate();
     const source = this.#source.value;
     const revision = this.#sourceRevision;
@@ -486,27 +532,37 @@ export class ARichTextElement extends HTMLElementBase {
   #cancelSourceUpdate(): void { clearTimeout(this.#sourceTimer); this.#sourceTimer = undefined; }
   #scheduleSourceUpdate(): void {
     this.#cancelSourceUpdate();
-    if (this.isConnected && this.sourceUpdate === 'auto' && this.#sourceDirty && !this.#sourceError && !this.#sourceComposing && !this.disabled && !this.readOnly) {
+    if (this.isConnected && this.sourceUpdate === 'auto' && this.#sourceDirty && !this.#sourceError && !this.#profileError && !this.#sourceLossPending && !this.#sourceComposing && !this.disabled && !this.readOnly) {
       this.#sourceTimer = setTimeout(() => this.#applySource(true), 350);
     }
   }
 
-  applySource(): boolean { return this.#applySource(this.sourceUpdate === 'auto'); }
+  applySource(acceptLosses = false): boolean { return this.#applySource(this.sourceUpdate === 'auto', acceptLosses); }
 
-  #applySource(preserveSource: boolean): boolean {
+  #applySource(preserveSource: boolean, acceptLosses = false): boolean {
     this.#cancelSourceUpdate();
-    if (this.disabled || this.readOnly || this.#sourceComposing || this.#activeView === 'visual') return false;
+    if (this.disabled || this.readOnly || this.#profileError || !this.#sourceCanImport() || this.#sourceComposing || this.#activeView === 'visual') return false;
     if (!this.#sourceDirty) return true;
     try {
       if (this.#sourceDocument && this.#sourceDocument !== this.serializeJSON()) throw new Error('The document changed while you were editing source. Discard this draft and try again.');
       const value = this.#source.value;
-      const document = this.#activeView === 'json' ? parseDocument(value)
-        : this.#activeView === 'html' ? fromHTML(value, this.#extensions ? { extensions: this.#extensions } : {})
-          : this.#activeView === 'markdown' ? fromMarkdown(value) : createTextDocument(value);
+      let document: ARTDocument;
+      if (this.getAttribute('source-profile')) {
+        const converted = this.#profiles.import(this.sourceProfile, value, this.#activeView as ARichTextFormat);
+        this.#sourceDiagnostics = [...this.#sourceExportDiagnostics, ...converted.diagnostics];
+        if (!converted.ok) throw new Error(converted.diagnostics.map(note => note.message).join(' '));
+        this.#sourceLossPending = this.#sourceDiagnostics.some(note => note.severity === 'loss');
+        if (this.#sourceLossPending && !acceptLosses) { this.#syncViews(); this.#syncFormValue(); return false; }
+        document = converted.value;
+      } else {
+        document = this.#activeView === 'json' ? parseDocument(value)
+          : this.#activeView === 'html' ? fromHTML(value, this.#extensions ? { extensions: this.#extensions } : {})
+            : this.#activeView === 'markdown' ? fromMarkdown(value) : createTextDocument(value);
+      }
       const changed = serializeDocument(document) !== this.serializeJSON();
       this.#sourceError = '';
       if (changed) this.setJSON(document);
-      this.#sourceDirty = false;
+      this.#sourceDirty = false; this.#sourceLossPending = false;
       if (!preserveSource) this.#source.value = this.#serializeView();
       this.#sourceAccepted = this.#source.value;
       this.#sourceDocument = this.serializeJSON();
@@ -525,7 +581,7 @@ export class ARichTextElement extends HTMLElementBase {
   discardSource(): void {
     this.#sourceRevision++;
     this.#cancelSourceUpdate();
-    this.#sourceDirty = false;
+    this.#sourceDirty = false; this.#sourceLossPending = false; this.#sourceDiagnostics = [];
     this.#sourceError = '';
     this.#source.value = this.#serializeView();
     this.#sourceAccepted = this.#source.value;
@@ -535,6 +591,13 @@ export class ARichTextElement extends HTMLElementBase {
   }
 
   #serializeView(): string {
+    if (this.#activeView !== 'visual' && this.getAttribute('source-profile')) {
+      const result = this.#profiles.export(this.sourceProfile, this.getJSON(), this.#activeView as ARichTextFormat);
+      this.#sourceDiagnostics = result.diagnostics; this.#sourceExportDiagnostics = result.diagnostics;
+      if (!result.ok) { this.#sourceError = result.diagnostics.map(note => note.message).join(' '); return ''; }
+      return result.value;
+    }
+    this.#sourceExportDiagnostics = []; this.#sourceDiagnostics = [];
     if (this.#activeView === 'json') return JSON.stringify(this.getJSON(), null, 2);
     if (this.#activeView === 'html') return this.getHTML();
     if (this.#activeView === 'markdown') return this.getMarkdown();
@@ -543,6 +606,8 @@ export class ARichTextElement extends HTMLElementBase {
   }
 
   #syncViews(): void {
+    const profileError = this.shadowRoot!.querySelector<HTMLElement>('[part="profile-error"]')!;
+    profileError.textContent = this.#profileError; profileError.hidden = !this.#profileError;
     const switcher = this.shadowRoot!.querySelector<HTMLElement>('[part="view-switcher"]')!;
     const select = switcher.querySelector<ARichTextSelectElement>('a-rich-text-select')!;
     this.configureViewSelect(select);
@@ -550,12 +615,12 @@ export class ARichTextElement extends HTMLElementBase {
     this.#editor.hidden = this.#activeView !== 'visual';
     this.shadowRoot!.querySelector<HTMLElement>('[part="source-panel"]')!.hidden = this.#activeView === 'visual';
     this.#source.disabled = this.disabled;
-    this.#source.readOnly = this.readOnly;
+    this.#source.readOnly = this.readOnly || !!this.#profileError || !this.#sourceCanImport();
     this.#source.setAttribute('aria-label', `${this.#activeView.toUpperCase()} document source`);
     this.#source.setAttribute('aria-invalid', String(Boolean(this.#sourceError)));
     const actions = this.shadowRoot!.querySelector<HTMLElement>('[part="source-actions"]')!;
     this.configureSourceActions(actions);
-    this.shadowRoot!.querySelector<HTMLElement>('[part="source-error"]')!.textContent = this.#sourceError;
+    this.shadowRoot!.querySelector<HTMLElement>('[part="source-error"]')!.textContent = this.#profileError || this.#sourceError || this.#sourceDiagnostics.map(note => note.message).join(' ');
     this.dispatchEvent(new CustomEvent('view-state-change'));
     this.#scheduleSourceUpdate();
   }
@@ -565,33 +630,109 @@ export class ARichTextElement extends HTMLElementBase {
     const canFormat = Boolean(this.#sourceFormatter) && this.view !== 'text' && this.view !== 'visual';
     actions.hidden = this.view === 'visual' || (this.sourceUpdate !== 'auto' && !this.#sourceDirty && !canFormat);
     const formatButton = actions.querySelector<HTMLButtonElement>('[data-source-action="format"]')!;
-    formatButton.hidden = !canFormat; formatButton.disabled = this.disabled || this.readOnly;
+    formatButton.hidden = !canFormat; formatButton.disabled = this.disabled || this.readOnly || !!this.#profileError || !this.#sourceCanImport();
     actions.querySelector<HTMLButtonElement>('[data-source-action="discard"]')!.hidden = this.sourceUpdate !== 'auto' && !this.#sourceDirty;
-    actions.querySelector<HTMLButtonElement>('[data-source-action="apply"]')!.hidden = this.sourceUpdate === 'auto' || !this.#sourceDirty;
-    actions.querySelector<HTMLButtonElement>('[data-source-action="apply"]')!.disabled = this.disabled || this.readOnly;
+    actions.querySelector<HTMLButtonElement>('[data-source-action="apply"]')!.hidden = (this.sourceUpdate === 'auto' && !this.#sourceLossPending) || !this.#sourceDirty;
+    actions.querySelector<HTMLButtonElement>('[data-source-action="apply"]')!.disabled = this.disabled || this.readOnly || !!this.#profileError || !this.#sourceCanImport();
     actions.querySelector<HTMLButtonElement>('[data-source-action="discard"]')!.disabled = this.disabled || !this.#sourceDirty;
   }
 
   /** Shared view-control state for bundled and custom toolbars. */
   configureViewSelect(select: ARichTextSelectElement): void {
-    const signature = this.views.join(' ');
+    const configured = this.hasAttribute('profiles') || Boolean(this.getAttribute('source-profile'));
+    const allowed = this.hasAttribute('profiles') ? tokens(this.getAttribute('profiles') ?? '') : [...this.views.filter(v => v !== 'visual').map(v => `art:${v}-v1`), this.sourceProfile];
+    const options = configured ? this.#profiles.list().filter(p => p.canExport && allowed.includes(p.id) && this.views.includes(p.family))
+      .map(p => ({ value: p.id, label: `${p.family.toUpperCase()} — ${p.label}`, family: p.family }))
+      : this.views.filter(view => view !== 'visual').map(view => ({ value: view, label: { html: 'HTML', markdown: 'Markdown', json: 'ART JSON', text: 'Text' }[view] }));
+    const entries = [{ value: 'visual', label: 'Editor' }, ...options];
+    const signature = JSON.stringify(entries);
     if (select.dataset.views !== signature) {
-      select.replaceChildren(...this.views.map(view => {
-        const option = this.ownerDocument.createElement('option'); option.value = view;
-        option.textContent = { visual: 'Editor', html: 'HTML', markdown: 'Markdown', json: 'ART JSON', text: 'Text' }[view];
-        return option;
-      }));
+      select.replaceChildren();
+      const groups = new Map<string, HTMLOptGroupElement>();
+      for (const entry of entries) {
+        const option = this.ownerDocument.createElement('option'); option.value = entry.value; option.textContent = entry.label;
+        if (configured && 'family' in entry) {
+          const family = String(entry.family);
+          let group = groups.get(family);
+          if (!group) { group = this.ownerDocument.createElement('optgroup'); group.label = family.toUpperCase(); groups.set(family, group); select.append(group); }
+          group.append(option);
+        } else select.append(option);
+      }
       select.dataset.views = signature;
     }
-    select.value = this.#activeView; select.disabled = this.disabled;
+    const selected = this.view === 'visual' ? 'visual' : configured ? this.sourceProfile : this.view;
+    select.value = selected; select.disabled = this.disabled || !!this.#profileError;
     for (const option of select.options) {
-      const disabled = this.#sourceDirty && option.value !== this.#activeView;
+      const disabled = this.#sourceDirty && option.value !== selected;
       if (option.disabled !== disabled) option.disabled = disabled;
     }
   }
+
   registerViewToolbar(): () => void {
     this.#viewToolbars++; this.#syncViews(); let released = false;
     return () => { if (!released) { released = true; this.#viewToolbars--; this.#syncViews(); } };
+  }
+
+  get profile(): string { return this.getAttribute('profile') ?? `art:${this.format}-v1`; }
+  set profile(value: string) { this.setAttribute('profile', value); }
+  get sourceProfile(): string { return this.getAttribute('source-profile') ?? (this.view === 'visual' ? '' : `art:${this.view}-v1`); }
+  set sourceProfile(value: string) { this.setAttribute('source-profile', value); }
+  get profiles(): readonly string[] { return tokens(this.getAttribute('profiles') ?? ''); }
+  set profiles(value: readonly string[] | string) { this.setAttribute('profiles', typeof value === 'string' ? value : value.join(' ')); }
+  get sourceDiagnostics(): readonly ConversionDiagnostic[] { return this.#sourceDiagnostics.map(note => ({ ...note })); }
+  get formatProfiles(): readonly FormatProfileInfo[] { return this.#profiles.list(); }
+  registerFormatProfile(profile: FormatProfile): () => void {
+    const id = profile.id;
+    const activate = !!this.#profileError;
+    const dispose = this.#profiles.register(profile); this.#refreshProfiles(activate);
+    let released = false;
+    return () => {
+      if (released) return;
+      if (this.profile === id || this.sourceProfile === id || tokens(this.getAttribute('profiles') ?? '').includes(id)) throw new Error('Remove profile references before unregistering it');
+      dispose(); released = true; this.#refreshProfiles(false);
+    };
+  }
+  importProfile(id: string, source: string): ConversionResult<ARTDocument> { return this.#profiles.import(id, source); }
+  exportProfile(id: string): ConversionResult<string> { return this.#profiles.export(id, this.getJSON()); }
+  selectView(value: string): void {
+    if (this.#sourceDirty) return;
+    if (value === 'visual') { this.view = 'visual'; return; }
+    if (value.includes(':')) { this.sourceProfile = value; return; }
+    this.#profileChanging = true; this.removeAttribute('source-profile'); this.#profileChanging = false;
+    this.view = value as ARichTextView; this.#refreshProfiles(false);
+  }
+  #sourceCanImport(): boolean { return !this.getAttribute('source-profile') || Boolean(this.#profiles.list().find(p => p.id === this.sourceProfile)?.canImport); }
+  #refreshProfiles(activateSource = true): void {
+    const previousError = this.#profileError;
+    this.#profileError = '';
+    const profiles = this.#profiles.list();
+    const output = profiles.find(p => p.id === this.profile);
+    if (!output || output.family !== this.format || !output.canExport) this.#profileError = 'Unknown, mismatched or non-exportable output profile';
+    const allowed = this.hasAttribute('profiles') ? tokens(this.getAttribute('profiles') ?? '') : null;
+    if (allowed?.some(id => !profiles.some(p => p.id === id && p.canExport))) this.#profileError = 'Source profile allowlist contains an unknown or non-exportable profile';
+    const id = this.getAttribute('source-profile');
+    const source = profiles.find(p => p.id === id);
+    if (!id && allowed && this.view !== 'visual' && !allowed.includes(this.sourceProfile)) this.#profileError = 'Current source profile is not in the allowlist';
+    if (id !== null && (!source || !source.canExport || !this.views.includes(source.family) || (allowed && !allowed.includes(id)))) this.#profileError = 'Unknown, unavailable or disallowed source profile';
+    if (this.hasAttribute('profile-loss') && !['reject', 'allow'].includes(this.getAttribute('profile-loss')!)) this.#profileError = 'profile-loss must be reject or allow';
+    if (!this.#profileError && (activateSource || this.#pendingSourceProfile) && source && !this.#sourceDirty) {
+      this.#pendingSourceProfile = false;
+      this.#sourceError = ''; this.#sourceLossPending = false;
+      const previousView = this.#activeView;
+      this.#activeView = source.family;
+      if (previousView !== source.family) this.dispatchEvent(new CustomEvent('view-change', { bubbles: true, composed: true, detail: { view: source.family, profile: source.id } }));
+      this.#profileChanging = true; this.setAttribute('view', source.family); this.#profileChanging = false;
+      this.#source.value = this.#serializeView(); this.#sourceAccepted = this.#source.value; this.#sourceDocument = this.serializeJSON(); this.#sourceRevision++;
+    }
+    if (!this.#profileError && !id && !this.#sourceDirty && this.view !== 'visual') {
+      this.#source.value = this.#serializeView(); this.#sourceAccepted = this.#source.value; this.#sourceDocument = this.serializeJSON(); this.#sourceRevision++;
+    }
+    if (!this.#profileError && this.#pendingProfileValue !== null) {
+      const pending = this.#pendingProfileValue; this.#pendingProfileValue = null;
+      try { this.value = pending; } catch (error) { this.#profileError = error instanceof Error ? error.message : 'Cannot import initial value'; }
+    }
+    if (this.#profileError && previousError !== this.#profileError) this.dispatchEvent(new CustomEvent('profile-error', { bubbles: true, composed: true, detail: { message: this.#profileError } }));
+    this.#syncViews(); this.#syncFormValue();
   }
 
   get extensions(): ARichTextExtensionRuntime | undefined {
@@ -616,6 +757,11 @@ export class ARichTextElement extends HTMLElementBase {
 
   /** Serialized form value using the selected `format`. */
   get value(): string {
+    if (this.getAttribute('profile')) {
+      const result = this.#profiles.export(this.profile, this.getJSON(), this.format);
+      if (!result.ok || (this.getAttribute('profile-loss') !== 'allow' && result.diagnostics.some(note => note.severity === 'loss'))) throw new TypeError(result.diagnostics.map(note => note.message).join(' '));
+      return result.value;
+    }
     switch (this.format) {
       case 'json':
         return this.serializeJSON();
@@ -630,6 +776,11 @@ export class ARichTextElement extends HTMLElementBase {
   }
 
   set value(value: string) {
+    if (this.getAttribute('profile')) {
+      const result = this.#profiles.import(this.profile, value, this.format);
+      if (!result.ok || (this.getAttribute('profile-loss') !== 'allow' && result.diagnostics.some(note => note.severity === 'loss'))) throw new TypeError(result.diagnostics.map(note => note.message).join(' '));
+      this.setJSON(result.value); return;
+    }
     switch (this.format) {
       case 'json':
         this.setJSON(value);
@@ -909,9 +1060,10 @@ export class ARichTextElement extends HTMLElementBase {
     this.#focusMode.close(false);
     this.#codeEditor.close(false);
     this.#imageEditor.close(false);
-    this.#sourceDirty = false;
+    this.#sourceDirty = false; this.#sourceLossPending = false; this.#sourceDiagnostics = [];
     this.#sourceError = '';
-    this.value = this.getAttribute('value') ?? '';
+    if (this.getAttribute('profile') && !this.hasAttribute('value')) this.setText('');
+    else this.value = this.getAttribute('value') ?? '';
   }
 
   formDisabledCallback(disabled: boolean): void {
@@ -1278,7 +1430,10 @@ export class ARichTextElement extends HTMLElementBase {
   }
 
   #syncFormValue(): void {
-    this.#internals?.setFormValue(this.value, this.serializeJSON());
+    let error = this.#profileError;
+    try { this.#internals?.setFormValue(error ? null : this.value, this.serializeJSON()); }
+    catch (cause) { error = cause instanceof Error ? cause.message : 'Cannot serialize the selected profile'; this.#internals?.setFormValue(null); }
+    if (error) { this.#internals?.setValidity?.({ customError: true }, error, this.#activeView === 'visual' ? this.#editor : this.#source); return; }
     const missing = this.required && !this.readOnly && !this.disabled && this.getText().trim().length === 0;
     const draft = this.#sourceDirty && !this.disabled && !this.readOnly;
     this.#internals?.setValidity?.(draft ? { customError: true } : missing ? { valueMissing: true } : {},

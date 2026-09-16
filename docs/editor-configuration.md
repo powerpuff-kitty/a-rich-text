@@ -398,3 +398,9 @@ The button remains keyboard-focusable and the dialog returns focus on Cancel.
 Readonly/disabled state and the `code-block` tool allowlist still hide it.
 `::part(code-edit-button)` remains the styling hook. Code scrolls inside its own
 area so the edit button stays in place.
+
+## Custom format profiles
+
+Use `profile`, `source-profile` and `profiles` with developer-registered converters.
+See [format profiles](format-profiles.md) for defaults, allowlists, diagnostic review,
+export-only views and native form behavior. External-editor converters are not bundled.

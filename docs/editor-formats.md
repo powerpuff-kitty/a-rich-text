@@ -41,9 +41,10 @@ but that does not guarantee preservation of custom embeds, comments, styles or l
   concerns; the JavaScript API accepts strings.
 
 See the [format contract and standards](conversion.md) and the
-[optional profile registry proposal](proposals/format-profiles.md). The proposed
-`profile`/`profiles` attributes are not implemented. Existing `views` and `format`
-remain the supported controls for source views and submitted values.
+[format-profile registry](format-profiles.md). The `profile`, `source-profile`
+and `profiles` attributes select registered converters. Existing `views` and
+`format` still control source families and submitted values. External-editor
+converters are not bundled.
 
 ## Detection
 

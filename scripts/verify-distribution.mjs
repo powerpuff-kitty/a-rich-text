@@ -41,6 +41,10 @@ try {
   await writeFile(path.join(consumer, 'smoke.mjs'), imports + `\nconst {formatSource} = await import('@arichtext/editor/format');\nconst result = await formatSource('{"ok":true}', 'json');\nif (!JSON.parse(result).ok) throw new Error('Installed formatter failed');\n`);
   execFileSync(process.execPath, ['smoke.mjs'], { cwd: consumer, stdio: 'pipe' });
   await writeFile(path.join(consumer, 'consumer.ts'), `
+import { FormatProfileRegistry, artJSONProfile } from '@arichtext/core/profiles';
+const registry = new FormatProfileRegistry();
+registry.register(artJSONProfile);
+registry.list();
 import { formatSource } from '@arichtext/editor/format';
 import { ARichTextElement, enableStandardEditing, detectInputFormat } from '@arichtext/editor';
 const editor = document.createElement('a-rich-text') as ARichTextElement;
