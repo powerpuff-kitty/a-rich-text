@@ -18,10 +18,12 @@ test('background example initialization preserves gallery scroll and focus', asy
   await page.goto('/dist/browser/components/');
   // Force every lazy frame to finish, including dialogs far below the viewport.
   await page.locator('iframe').evaluateAll(frames => frames.forEach(frame => frame.setAttribute('loading', 'eager')));
-  await expect.poll(() => page.locator('iframe').evaluateAll(frames => frames.filter(frame => {
-    const doc = (frame as HTMLIFrameElement).contentDocument;
+  // Starting 23 isolated editors is setup, not a five-second UI assertion.
+  // Use the normal test deadline, then assert the scroll/focus behavior below.
+  await page.waitForFunction(() => Array.from(document.querySelectorAll('iframe')).filter(frame => {
+    const doc = frame.contentDocument;
     return doc?.body?.dataset.example && doc.body.dataset.ready === 'true';
-  }).length)).toBe(23);
+  }).length === 23);
   await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
   expect(await page.evaluate(() => scrollY)).toBe(0);
   expect(await page.evaluate(() => document.activeElement?.tagName)).not.toBe('IFRAME');
