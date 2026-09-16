@@ -49,8 +49,8 @@ Valid vertical spans survive HTML/JSON round-tripping. Tab visits physical cells
 including across fully covered rows. Split cell expands vertical or combined
 spans into unit cells and retains content in the top-left cell. Undo restores the
 original span. Merge with cell below combines adjacent cells with matching
-column boundaries, including existing spans. Row/column editing in vertical
-grids remains unavailable. Select Build to merge right into Deliver even though
+column boundaries, including existing spans. Row insertion/removal supports vertical grids and preserves surviving spanning
+cells; column editing in vertical grids remains unavailable. Select Build to merge right into Deliver even though
 Design spans rows elsewhere in the table. Matching rowspans can also merge right.
 
 ![Imported vertical table spans](screenshots/vertical-spans.png)
