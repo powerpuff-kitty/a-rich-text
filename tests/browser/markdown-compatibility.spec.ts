@@ -60,3 +60,21 @@ test('indented Markdown code preserves literal markup and whitespace through sou
   await page.locator('#editor').evaluate(node => { (node as ARichTextElement).view = 'markdown'; });
   await expect(source).toHaveValue('```\n# literal\n  next  \n\n*last*\n```');
 });
+
+test('setext headings update automatically and export as canonical ATX headings', async ({ page }) => {
+  await page.goto('/dist/browser/');
+  await page.locator('#editor').evaluate(node => {
+    const editor = node as ARichTextElement;
+    editor.setText('Original'); editor.view = 'markdown';
+  });
+  const source = page.locator('#editor [part="source"]');
+  await source.fill('Main *title*\n===\n\nSecond\nline\n---');
+  await expect.poll(() => page.locator('#editor').evaluate(node => (node as ARichTextElement).sourceDirty)).toBe(false);
+  await page.locator('#editor').evaluate(node => { (node as ARichTextElement).view = 'visual'; });
+  await expect(page.locator('#editor [contenteditable] h1')).toHaveText('Main title');
+  await expect(page.locator('#editor [contenteditable] h1 em')).toHaveText('title');
+  await expect(page.locator('#editor [contenteditable] h2')).toHaveText('Second line');
+  await expect(page.locator('#editor [contenteditable] hr')).toHaveCount(0);
+  await page.locator('#editor').evaluate(node => { (node as ARichTextElement).view = 'markdown'; });
+  await expect(source).toHaveValue('# Main *title*\n\n## Second line');
+});

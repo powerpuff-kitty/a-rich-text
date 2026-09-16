@@ -121,15 +121,24 @@ function parseBlocks(lines: readonly string[]): ARTBlockNode[] {
     if (image) { blocks.push(image); index += 1; continue; }
 
     const paragraph: string[] = [line];
+    let setextLevel: 1 | 2 | undefined;
     index += 1;
     while (index < lines.length) {
       const current = lines[index] ?? '';
+      // Underlines take precedence over thematic breaks only after paragraph text.
+      const underline = current.match(/^ {0,3}(=+|-+)[ \t]*$/);
+      if (underline) {
+        setextLevel = underline[1]!.startsWith('=') ? 1 : 2;
+        index += 1;
+        break;
+      }
       if (current.trim() === '' || isBlockStart(lines, index)) break;
       paragraph.push(current);
       index += 1;
     }
     const protectedCode = protectCodeSpans(paragraph.join('\n'));
-    blocks.push({ type: 'paragraph', content: parseInline(joinParagraphLines(protectedCode.text.split('\n')), [], protectedCode) });
+    const content = parseInline(joinParagraphLines(protectedCode.text.split('\n')), [], protectedCode);
+    blocks.push(setextLevel ? { type: 'heading', level: setextLevel, content } : { type: 'paragraph', content });
   }
 
   return blocks;
