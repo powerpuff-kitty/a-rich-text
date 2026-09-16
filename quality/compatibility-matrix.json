@@ -7,8 +7,8 @@
       "status": "verified-local",
       "verifiedAt": "2026-09-16",
       "browserVersion": "153.0.8010.12",
-      "evidence": "docs/verification/2026-09-16-presets.md",
-      "verifiedRevision": "b73be0b91c6379f59cfc672dfebea2e73f9161e9"
+      "evidence": "docs/verification/2026-09-16-table-authoring.md",
+      "verifiedRevision": "ca648161a861c3d2a8aec331762d97de657c933f"
     },
     {
       "target": "Firefox desktop",
@@ -16,8 +16,8 @@
       "status": "verified-local",
       "verifiedAt": "2026-09-16",
       "browserVersion": "155.0",
-      "evidence": "docs/verification/2026-09-16-presets.md",
-      "verifiedRevision": "b73be0b91c6379f59cfc672dfebea2e73f9161e9"
+      "evidence": "docs/verification/2026-09-16-table-authoring.md",
+      "verifiedRevision": "ca648161a861c3d2a8aec331762d97de657c933f"
     },
     {
       "target": "WebKit desktop",
@@ -25,8 +25,8 @@
       "status": "verified-local",
       "verifiedAt": "2026-09-16",
       "browserVersion": "26.6",
-      "evidence": "docs/verification/2026-09-16-presets.md",
-      "verifiedRevision": "b73be0b91c6379f59cfc672dfebea2e73f9161e9"
+      "evidence": "docs/verification/2026-09-16-table-authoring.md",
+      "verifiedRevision": "ca648161a861c3d2a8aec331762d97de657c933f"
     },
     {
       "target": "Android-class Chromium emulation (Pixel 7)",
@@ -34,8 +34,8 @@
       "status": "verified-local",
       "verifiedAt": "2026-09-16",
       "browserVersion": "153.0.8010.12",
-      "evidence": "docs/verification/2026-09-16-presets.md",
-      "verifiedRevision": "b73be0b91c6379f59cfc672dfebea2e73f9161e9"
+      "evidence": "docs/verification/2026-09-16-table-authoring.md",
+      "verifiedRevision": "ca648161a861c3d2a8aec331762d97de657c933f"
     },
     {
       "target": "iOS-class WebKit emulation (iPhone 15)",
@@ -43,8 +43,8 @@
       "status": "verified-local",
       "verifiedAt": "2026-09-16",
       "browserVersion": "26.6",
-      "evidence": "docs/verification/2026-09-16-presets.md",
-      "verifiedRevision": "b73be0b91c6379f59cfc672dfebea2e73f9161e9"
+      "evidence": "docs/verification/2026-09-16-table-authoring.md",
+      "verifiedRevision": "ca648161a861c3d2a8aec331762d97de657c933f"
     }
   ],
   "manual": [
