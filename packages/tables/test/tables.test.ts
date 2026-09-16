@@ -14,6 +14,7 @@ import {
   addTableRow,
   getActiveTable,
   insertTable,
+  removeCurrentTable,
   removeCurrentTableColumn,
   removeCurrentTableRow,
 } from '../src/index.js';
@@ -195,5 +196,39 @@ describe('@arichtext/tables', () => {
     engine.dispatch(insertTable(engine.state, { rows: 1, columns: 1 })!);
     expect(engine.state.document.content[1]?.type).toBe('table');
     expect(engine.undo()?.state).toEqual(initial);
+  });
+});
+
+describe('removeCurrentTable', () => {
+  it('removes a one-cell table, preserves surrounding text, and restores it with Undo', () => {
+    const doc = document(paragraph('before'), table([['keep me']]), paragraph('after'));
+    const engine = new EditorEngine(createEditorState(doc, textSelection(textPoint([1, 0, 0, 0], 3))));
+    const command = removeCurrentTable(engine.state)!;
+    const anchor = createAnchoredRange(doc, textSelection(textPoint([1, 0, 0, 0], 0), textPoint([1, 0, 0, 0], 4)));
+    expect(mapAnchoredRangeThroughTransaction(doc, anchor, command).status).toBe('orphaned');
+    engine.dispatch(command);
+    expect(engine.state.document).toEqual(document(paragraph('before'), paragraph(''), paragraph('after')));
+    expect(engine.state.selection).toEqual(textSelection(textPoint([1], 0)));
+    engine.undo();
+    expect(engine.state.document).toEqual(doc);
+    engine.redo();
+    expect(engine.state.document.content[1]).toEqual(paragraph(''));
+  });
+
+  it('supports nested tables with imported spans without grid validation', () => {
+    const merged = table([['wide'], ['left', 'right']]);
+    merged.content[0]!.content[0]!.colspan = 2;
+    const doc = document({ type: 'blockquote', content: [merged, paragraph('quote')] });
+    const state = createEditorState(doc, textSelection(textPoint([0, 0, 0, 0, 0], 0)));
+    const result = applyTransaction(state, removeCurrentTable(state)!).state;
+    expect(result.document).toEqual(document({ type: 'blockquote', content: [paragraph(''), paragraph('quote')] }));
+    expect(result.selection).toEqual(textSelection(textPoint([0, 0], 0)));
+  });
+
+  it('does not remove tables from outside or across a multi-block selection', () => {
+    const doc = document(paragraph('outside'), table([['left', 'right']]));
+    expect(removeCurrentTable(createEditorState(doc))).toBeNull();
+    expect(removeCurrentTable(createEditorState(doc, textSelection(textPoint([0], 0))))).toBeNull();
+    expect(removeCurrentTable(createEditorState(doc, textSelection(textPoint([1, 0, 0, 0], 0), textPoint([1, 0, 1, 0], 1))))).toBeNull();
   });
 });

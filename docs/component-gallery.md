@@ -37,9 +37,10 @@ Font Awesome controls adapt to the selection and enabled tools. Table row/column
 
 [Open this example locally](http://localhost:8080/components/table-controls.html).
 
-Selecting a table cell exposes row and column operations.
+Selecting a table cell exposes row/column operations and Remove table. Removal
+leaves a paragraph ready for typing and can be undone.
 
-![Table controls — Selecting a table cell exposes row and column operations.](screenshots/table-controls.png)
+![Table controls with row, column and whole-table removal actions](screenshots/table-controls.png)
 
 ## Link editor
 

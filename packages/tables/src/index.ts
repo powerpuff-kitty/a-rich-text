@@ -207,6 +207,19 @@ export function removeCurrentTableColumn(state: EditorState): EditorTransaction 
     .build();
 }
 
+/** Remove the containing table and leave an editable paragraph at its position.
+ * Supports imported merged cells; no row/column grid transformation is needed.
+ */
+export function removeCurrentTable(state: EditorState): EditorTransaction | null {
+  const active = tableLocation(state);
+  if (!active) return null;
+  return transaction()
+    .replaceBlock(active.path, [{ type: 'paragraph', content: [] }])
+    .setSelection(collapsedSelection(active.path))
+    .setMeta('command', 'removeTable')
+    .build();
+}
+
 function createEmptyTable(rows: number, columns: number): ARTTableNode {
   return {
     type: 'table',
