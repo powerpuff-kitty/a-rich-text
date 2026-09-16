@@ -7,6 +7,8 @@ import {
   textSelection,
 } from '../src/index.js';
 import {
+  setCodeBlock,
+  removeCodeBlock,
   clearSelectionFormatting,
   insertHorizontalRule,
   toggleBlockquote,
@@ -105,4 +107,20 @@ describe('authoring commands', () => {
       { type: 'text', text: 'o', marks: [{ type: 'bold' }, { type: 'link', href: 'https://example.com' }] },
     ] });
   });
+});
+
+
+it('inserts, updates and removes a code block with valid text selection', () => {
+  const initial = createEditorState(document, textSelection(textPoint([0], 5)));
+  const inserted = applyTransaction(initial, setCodeBlock(initial, null, 'const x = 1;', 'javascript')!).state;
+  expect(inserted.document.content[1]).toEqual({ type: 'codeBlock', language: 'javascript', text: 'const x = 1;' });
+  expect(inserted.selection?.anchor.blockPath).toEqual([2]);
+  const updated = applyTransaction(inserted, setCodeBlock(inserted, [1], 'let x = 2;')!).state;
+  expect(updated.document.content[1]).toEqual({ type: 'codeBlock', text: 'let x = 2;' });
+  expect(updated.selection).toEqual(inserted.selection);
+  const removed = applyTransaction(updated, removeCodeBlock(updated, [1])!).state;
+  expect(removed.document.content[1]?.type).toBe('paragraph');
+  expect(removed.selection?.anchor).toEqual(textPoint([1], 0));
+  expect(setCodeBlock(removed, [1], 'invalid target')).toBeNull();
+  expect(removeCodeBlock(removed, [1])).toBeNull();
 });

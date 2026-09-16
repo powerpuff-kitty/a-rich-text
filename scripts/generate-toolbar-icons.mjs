@@ -4,7 +4,7 @@ const manifest = JSON.parse(await readFile('node_modules/@fortawesome/free-solid
 const names = {
   bold: 'faBold', italic: 'faItalic', underline: 'faUnderline', strike: 'faStrikethrough', code: 'faCode',
   link: 'faLink', 'bullet-list': 'faListUl', 'ordered-list': 'faListOl', 'task-list': 'faListCheck',
-  blockquote: 'faQuoteLeft', 'horizontal-rule': 'faMinus', 'clear-formatting': 'faEraser',
+  'code-block': 'faTerminal', blockquote: 'faQuoteLeft', 'horizontal-rule': 'faMinus', 'clear-formatting': 'faEraser',
   indent: 'faIndent', outdent: 'faOutdent', 'insert-table': 'faTable',
   row: 'faTableList', column: 'faTableColumns', plus: 'faPlus', minus: 'faMinus', undo: 'faRotateLeft', redo: 'faRotateRight',
 };
