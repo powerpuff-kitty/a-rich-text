@@ -65,3 +65,10 @@ test('navigation follows the visible section without taking focus', async ({ pag
   await expect(navigation.locator('[aria-current]')).toHaveCount(1);
   expect(await page.evaluate(() => document.activeElement?.tagName)).not.toBe('IFRAME');
 });
+
+test('direct links retain their section after the target frame loads', async ({ page }) => {
+  await page.goto('/dist/browser/components/#code-editor');
+  await expect(page.frameLocator('#code-editor iframe').locator('body')).toHaveAttribute('data-ready', 'true');
+  await expect(page.getByRole('navigation').getByRole('link', { name: 'Code editor', exact: true })).toHaveAttribute('aria-current', 'location');
+  await expect.poll(() => page.locator('#code-editor').evaluate(node => Math.abs(node.getBoundingClientRect().top - 24))).toBeLessThan(3);
+});
