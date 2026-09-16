@@ -48,6 +48,21 @@ function parseBlocks(lines: readonly string[]): ARTBlockNode[] {
     const line = lines[index] ?? '';
     if (line.trim() === '') { index += 1; continue; }
 
+    if (stripCodeIndent(line) !== null) {
+      const code: string[] = [];
+      while (index < lines.length) {
+        const current = lines[index] ?? '';
+        const stripped = stripCodeIndent(current);
+        if (stripped === null && !/^[ \t]*$/.test(current)) break;
+        code.push(stripped ?? '');
+        index += 1;
+      }
+      // Blank lines between chunks belong to code; trailing blank lines do not.
+      while (code.length && /^[ \t]*$/.test(code.at(-1)!)) code.pop();
+      blocks.push({ type: 'codeBlock', text: code.join('\n') });
+      continue;
+    }
+
     const fence = line.match(/^\s{0,3}(`{3,}|~{3,})(.*)$/);
     if (fence && !(fence[1]!.startsWith('`') && fence[2]!.includes('`'))) {
       const marker = fence[1]!;
@@ -122,6 +137,9 @@ function parseBlocks(lines: readonly string[]): ARTBlockNode[] {
 
 function isBlockStart(lines: readonly string[], index: number): boolean {
   const line = lines[index] ?? '';
+  // Indented code cannot interrupt an existing paragraph, even when its
+  // literal contents resemble another block marker.
+  if (stripCodeIndent(line) !== null) return false;
   const fence = line.match(/^\s{0,3}(`{3,}|~{3,})(.*)$/);
   return Boolean(fence && !(fence[1]!.startsWith('`') && fence[2]!.includes('`')))
     || matchHeading(line) !== null
@@ -130,6 +148,19 @@ function isBlockStart(lines: readonly string[], index: number): boolean {
     || matchListItem(line) !== null
     || parseImage(line) !== null
     || isTableStart(lines, index);
+}
+
+// Tabs advance to four-column stops; content after column four is literal.
+function stripCodeIndent(line: string): string | null {
+  let column = 0;
+  let index = 0;
+  while (column < 4 && index < line.length) {
+    if (line[index] === ' ') column += 1;
+    else if (line[index] === '\t') column += 4 - column % 4;
+    else return null;
+    index += 1;
+  }
+  return column === 4 ? line.slice(index) : null;
 }
 
 // ATX markers require an ASCII space/tab or end of line. Only a trailing

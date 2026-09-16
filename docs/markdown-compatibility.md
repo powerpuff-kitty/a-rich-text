@@ -27,10 +27,10 @@ info string are not interpreted as fenced code blocks.
 
 ## Verified scope: ATX headings
 
-All 18 upstream ATX heading examples (62–79) are vendored unchanged. Seventeen
-match after normalizing block-separating HTML newlines, the equivalent `<hr>`
-spelling, and the paragraph soft break in example 70. Example 69 remains an
-explicit known mismatch because indented code blocks are not implemented.
+All 18 upstream ATX heading examples (62–79) are vendored unchanged and match
+after normalizing block-separating HTML newlines, the equivalent `<hr>` spelling,
+the paragraph soft break in example 70, and the code-block final line terminator
+in example 69 (the same ART convention as fenced-code import).
 
 The parser recognizes empty headings and H1–H6, requires ASCII space/tab or
 end-of-line after opening hashes, and permits up to three leading spaces.
@@ -39,16 +39,32 @@ preserved. Export escapes literal hashes to prevent their interpretation as
 heading markers. Round-trip and source/visual editor regressions cover this.
 See [heading tests](../packages/markdown/test/headings.test.ts).
 
+## Verified scope: indented code blocks
+
+All 12 upstream indented-code examples (107–118) are vendored unchanged. Ten
+match; examples 109 and 115 remain explicit mismatches for tight-list paragraph
+rendering and setext headings. The runner normalizes block-separating HTML
+newlines, paragraph soft breaks and the final code line terminator. ART stores
+code text without that terminal separator, consistently with fenced-code import;
+internal blank lines, extra indentation, tabs and trailing spaces are preserved.
+
+Four columns of ASCII spaces/tabs start code at a block boundary. Tabs advance
+to four-column stops. Indented code cannot interrupt a paragraph. Leading and
+trailing blank lines are excluded; blank lines between code chunks remain.
+Export uses fenced code and preserves the canonical code text on reimport.
+See [indented-code tests](../packages/markdown/test/indented-code.test.ts).
+
 ### Known exclusions
 
 | Upstream example | Remaining behavior |
 | --- | --- |
-| 69 | Indented code blocks are not implemented |
+| 109 | Tight-list HTML rendering retains ART paragraph wrappers |
+| 115 | Setext (underline-style) headings are not implemented |
 | 344 | Raw HTML tag precedence over backticks is not implemented; HTML remains literal text |
 | 346 | CommonMark autolink precedence and URL encoding are not implemented |
 
 Other unverified/incomplete areas include the complete emphasis delimiter
-algorithm, reference links, setext headings, indented code, raw HTML, autolinks,
+algorithm, reference links, setext headings, raw HTML, autolinks,
 list/container edge cases and full GFM extensions. Existing tasks, pipe tables,
 strike and underline are ART subset features, not evidence of full GFM conformance.
 
