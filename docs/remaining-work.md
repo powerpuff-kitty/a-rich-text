@@ -7,14 +7,13 @@ there is no public npm release yet.
 
 ## Core editor and integration
 
-- [Authoring #4](https://github.com/powerpuff-kitty/a-rich-text/issues/4): image
-  controls, focus/fullscreen mode, find/replace, merged-cell authoring and broader
+- [Authoring #4](https://github.com/powerpuff-kitty/a-rich-text/issues/4): focus/fullscreen mode, find/replace, merged-cell authoring and broader
   selection editing. The toolbar currently offers H1–H3; the API/model support
-  H1–H6. Automatic URL detection is also outstanding. Quote, rule, code-block and
+  H1–H6. Automatic URL detection is also outstanding. Image, quote, rule, code-block and
   clear-formatting controls are implemented.
-- [Media #8](https://github.com/powerpuff-kitty/a-rich-text/issues/8): complete
-  preview/upload/retry UI and physical-browser image/orientation checks around
-  the existing optional media adapters.
+- [Media #8](https://github.com/powerpuff-kitty/a-rich-text/issues/8): physical-browser image/orientation checks around
+  the optional media adapters. The image dialog now supports local previews,
+  host-provided uploads, progress, retry and cancellation.
 - [Component #3](https://github.com/powerpuff-kitty/a-rich-text/issues/3) and
   [extensions #6](https://github.com/powerpuff-kitty/a-rich-text/issues/6): named
   component preset attributes, custom inline atomic nodes and public API stability guarantees.
@@ -55,4 +54,4 @@ These do not need to block an ordinary embedded rich-text field:
 
 Website and cloud work lives in separate repositories on the same project; it
 is not a dependency of the browser component. The next practical editor work is
-image authoring/upload UX, then focus mode and the remaining production checks.
+focus mode and the remaining production checks.

@@ -50,6 +50,7 @@ task checkbox editing honor their corresponding tool switches.
 | `bold`, `italic`, `underline`, `strike`, `code` | Apply marks to selected text or subsequent caret typing |
 | `link` | Link entry/removal and Ctrl/Command+K |
 | `bullet-list`, `ordered-list`, `task-list` | Toggle or convert the current list at a single-block selection |
+| `image` | Insert at a single text-block selection; existing images expose Edit image; upload controls require `imageUploader` |
 | `code-block` | Insert a code block at a single text-block selection; existing code blocks expose an Edit code block button |
 | `blockquote` | Wrap the selected paragraph/heading; toggle again to unwrap its immediate quote container, preserving all child blocks |
 | `horizontal-rule` | Insert a rule at a single text-block selection; continue typing in the following paragraph |
@@ -145,9 +146,9 @@ is configurable because not every application should expose lossy editing paths.
 
 ## Tools still missing from the bundled toolbar
 
-The model/converters support images, but a dedicated standard image authoring
-control is still missing. Media/upload,
-comments, suggestions and AI have optional packages but no bundled toolbar UI.
+Image insertion, editing and optional uploads are available through the
+[image dialog](image-authoring.md). Comments, suggestions and AI have optional
+packages but no bundled toolbar UI.
 Find/replace, fullscreen/focus mode, and table merge/split are
 also absent. Text alignment, font/color/highlight choices would require extending
 the current schema or defining extensions; hiding/showing toolbar tools does not
