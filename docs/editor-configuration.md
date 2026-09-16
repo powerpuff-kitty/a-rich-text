@@ -64,6 +64,7 @@ task checkbox editing honor their corresponding tool switches.
 | `indent`, `outdent` | Only inside a list; indentation needs a preceding sibling |
 | `insert-table` | Single text-block selection outside a table |
 | `merge-cell-right` | Merge the active cell with its right neighbor in tables with horizontal spans only; retain all content |
+| `merge-cell-below` | Merge with the cell immediately below when both have the same logical column extent |
 | `split-cell` | Expand a horizontal, vertical or combined span into unit cells; keep content in the top-left cell |
 | `remove-table` | Remove the containing table at a single text-block selection, including imported merged tables; leaves an editable paragraph and supports Undo |
 | `add-row`, `remove-row` | Inside supported tables, including horizontal spans; unavailable dimensions are hidden |
@@ -236,7 +237,7 @@ is configurable because not every application should expose lossy editing paths.
 Image insertion, editing and optional uploads are available through the
 [image dialog](image-authoring.md). Comments, suggestions and AI have optional
 packages but no bundled toolbar UI.
-Vertical cell merging is still absent. Text alignment, font/color/highlight choices would require extending
+Row/column editing in vertical grids is still absent. Text alignment, font/color/highlight choices would require extending
 the current schema or defining extensions; hiding/showing toolbar tools does not
 add those capabilities. These are follow-up features, not advertised controls.
 
@@ -276,13 +277,20 @@ how to redistribute content; Undo restores the exact previous arrangement.
 Both commands are a single history step. Tab/Shift+Tab navigate physical cells
 in row order, including horizontal and vertical spans.
 
-`merge-cell-right` and `split-cell` tool tokens control their contextual buttons.
-The standard controller exposes `mergeCellRight()` and `splitCell()`; custom
-adapters can call `mergeTableCellRight(state)`, `splitTableCell(state)` and
+**Merge with cell below** appends the cell immediately below the active span
+when both cells have the same logical left/right boundaries. Existing rowspans
+are added together, so repeated merges are supported. Different widths or a
+bottom edge expose no merge-below action. Content stays in document order;
+review anchors from the lower cell move into the upper cell. Undo restores both.
+
+`merge-cell-right`, `merge-cell-below` and `split-cell` control their contextual buttons.
+The standard controller exposes `mergeCellRight()`, `mergeCellBelow()` and `splitCell()`; custom
+adapters can call `mergeTableCellRight(state)`, `mergeTableCellBelow(state)`, `splitTableCell(state)` and
 `getTableCellActions(state)` from `@arichtext/tables`.
 
 Grids larger than 50×50 and selections across text blocks expose neither action.
-Vertical grids support splitting, but not merging or row/column editing. Row and column insertion/removal support horizontal spans.
+Vertical grids support splitting and merging below matching cells. Merging right
+and row/column editing remain restricted to horizontal grids. Row and column insertion/removal support horizontal spans.
 Row insertion/removal supports horizontal spans: new rows contain one empty cell
 per logical column, while existing spans/content remain unchanged. Removing a
 row moves the caret to an existing cell in the nearest surviving row. Each row

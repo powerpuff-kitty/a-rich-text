@@ -10,6 +10,7 @@ import {
   getTableCellActions,
   getTableRowActions,
   mergeTableCellRight,
+  mergeTableCellBelow,
   splitTableCell,
   insertTable,
   removeCurrentTable,
@@ -206,6 +207,7 @@ function getTemplate(): HTMLTemplateElement {
       <button part="button outdent-button" type="button" data-action="outdent" aria-label="Outdent list item" title="Outdent list item (Shift+Tab)">${toolbarIcon('outdent')}</button>
       <button part="button insert-table-button" type="button" data-action="insert-table" aria-label="Insert table" title="Insert 2 × 2 table">${toolbarIcon('insert-table')}</button>
       <button part="button merge-cell-right-button" type="button" data-action="merge-cell-right" aria-label="Merge with right cell" title="Merge with right cell">${toolbarIcon('merge-cell-right')}</button>
+      <button part="button merge-cell-below-button" type="button" data-action="merge-cell-below" aria-label="Merge with cell below" title="Merge with cell below">${toolbarIcon('merge-cell-below')}</button>
       <button part="button split-cell-button" type="button" data-action="split-cell" aria-label="Split cell" title="Split cell">${toolbarIcon('split-cell')}</button>
       <button part="button remove-table-button" type="button" data-action="remove-table" aria-label="Remove table" title="Remove entire table">${toolbarIcon('remove-table')}</button>
       <button part="button add-row-button" type="button" data-action="add-row" aria-label="Add table row" title="Add row">${toolbarIcon('add-row')}</button>
@@ -436,8 +438,8 @@ export class ARichTextToolbarElement extends HTMLElementBase {
       this.#dispatchCommand(addTableColumn(editorState(this.#editor)));
       return;
     }
-    if (action === 'merge-cell-right' || action === 'split-cell') {
-      this.#dispatchCommand((action === 'merge-cell-right' ? mergeTableCellRight : splitTableCell)(editorState(this.#editor)));
+    if (action === 'merge-cell-right' || action === 'merge-cell-below' || action === 'split-cell') {
+      this.#dispatchCommand((action === 'merge-cell-right' ? mergeTableCellRight : action === 'merge-cell-below' ? mergeTableCellBelow : splitTableCell)(editorState(this.#editor)));
       return;
     }
     if (action === 'remove-table') {
@@ -573,8 +575,8 @@ export class ARichTextToolbarElement extends HTMLElementBase {
       } else if (action === 'indent' || action === 'outdent') {
         available = singleBlock && activeList !== null && (action === 'outdent' || activeList.itemIndex > 0);
         button.disabled = locked || !available;
-      } else if (action === 'merge-cell-right' || action === 'split-cell') {
-        available = Boolean(action === 'merge-cell-right' ? cellActions?.canMergeRight : cellActions?.canSplit);
+      } else if (action === 'merge-cell-right' || action === 'merge-cell-below' || action === 'split-cell') {
+        available = Boolean(action === 'merge-cell-right' ? cellActions?.canMergeRight : action === 'merge-cell-below' ? cellActions?.canMergeBelow : cellActions?.canSplit);
         button.disabled = locked || !available;
       } else if (action === 'remove-table') {
         available = singleBlock && insideTable;

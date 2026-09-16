@@ -2,7 +2,7 @@ import { readDOMSelection } from '@arichtext/dom';
 import { enableListEditing } from '@arichtext/lists-editor';
 import { createLinkMark, insertAutoLinkBoundary } from '@arichtext/links';
 import { toggleList, setTaskItemChecked, type ListStyle } from '@arichtext/lists';
-import { mergeTableCellRight, splitTableCell, removeCurrentTable, insertTable, moveTableCell, type InsertTableOptions } from '@arichtext/tables';
+import { mergeTableCellBelow, mergeTableCellRight, splitTableCell, removeCurrentTable, insertTable, moveTableCell, type InsertTableOptions } from '@arichtext/tables';
 import type { ARichTextElement } from '@arichtext/web-component';
 export * from '@arichtext/web-component';
 export * from '@arichtext/ui';
@@ -15,6 +15,7 @@ export interface StandardEditingController {
   insertTable(options?: InsertTableOptions): boolean;
   removeTable(): boolean;
   mergeCellRight(): boolean;
+  mergeCellBelow(): boolean;
   splitCell(): boolean;
   destroy(): void;
 }
@@ -72,6 +73,7 @@ export function enableStandardEditing(editor: ARichTextElement): StandardEditing
     removeLink() { return editable() && editor.removeMark('link'); },
     toggleList(style: ListStyle) { return editable() && apply(toggleList(state(), style)); },
     setTaskChecked(checked: boolean) { return editable() && apply(setTaskItemChecked(state(), checked)); },
+    mergeCellBelow() { return editable() && apply(mergeTableCellBelow(state())); },
     mergeCellRight() { return editable() && apply(mergeTableCellRight(state())); },
     splitCell() { return editable() && apply(splitTableCell(state())); },
     removeTable() { return editable() && apply(removeCurrentTable(state())); },

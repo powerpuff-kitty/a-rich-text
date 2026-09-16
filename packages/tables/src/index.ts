@@ -273,20 +273,23 @@ export function getTableRowActions(state: EditorState): TableRowActions {
   return { canAddRow: active.node.content.length < MAX_TABLE_ROWS, canRemoveRow: active.node.content.length > 1 };
 }
 
-export interface TableCellActions { canMergeRight: boolean; canSplit: boolean }
+export interface TableCellActions { canMergeRight: boolean; canMergeBelow: boolean; canSplit: boolean }
 
 /** Splitting supports every valid bounded grid; merging right remains horizontal. */
 export function getTableCellActions(state: EditorState): TableCellActions {
   const active = tableLocation(state);
-  if (!active) return { canMergeRight: false, canSplit: false };
+  if (!active) return { canMergeRight: false, canMergeBelow: false, canSplit: false };
   const layout = getTableLayout(active.node);
-  if (!layout || layout.rows > MAX_TABLE_ROWS || layout.columns > MAX_TABLE_COLUMNS) return { canMergeRight: false, canSplit: false };
+  if (!layout || layout.rows > MAX_TABLE_ROWS || layout.columns > MAX_TABLE_COLUMNS) return { canMergeRight: false, canMergeBelow: false, canSplit: false };
   const cells = active.node.content[active.rowIndex]!.content;
   const cell = cells[active.columnIndex]!;
   let canMergeRight = false;
   try { horizontalColumnCount(active.node); canMergeRight = active.columnIndex + 1 < cells.length; }
   catch { /* Vertical grids can still be split. */ }
-  return { canMergeRight, canSplit: (cell.colspan ?? 1) > 1 || (cell.rowspan ?? 1) > 1 };
+  const current = layout.cells.find(cell => cell.row === active.rowIndex && cell.cell === active.columnIndex)!;
+  const canMergeBelow = layout.cells.some(cell => cell.row === current.row + current.rowspan
+    && cell.column === current.column && cell.colspan === current.colspan);
+  return { canMergeRight, canMergeBelow, canSplit: (cell.colspan ?? 1) > 1 || (cell.rowspan ?? 1) > 1 };
 }
 
 /** Join the active cell and its right neighbor, retaining every content block. */
@@ -310,6 +313,33 @@ export function mergeTableCellRight(state: EditorState): EditorTransaction | nul
   }));
   return transaction().replaceBlock(active.path, [next], mappings)
     .setSelection(state.selection).setMeta('command', 'mergeTableCellRight').build();
+}
+
+/** Merge with the cell immediately below when both share the same column extent. */
+export function mergeTableCellBelow(state: EditorState): EditorTransaction | null {
+  if (!getTableCellActions(state).canMergeBelow) return null;
+  const active = tableLocation(state)!;
+  const layout = getTableLayout(active.node)!;
+  const top = layout.cells.find(cell => cell.row === active.rowIndex && cell.cell === active.columnIndex)!;
+  const bottom = layout.cells.find(cell => cell.row === top.row + top.rowspan
+    && cell.column === top.column && cell.colspan === top.colspan)!;
+  const next = cloneValue(active.node);
+  const target = next.content[top.row]!.content[top.cell]!;
+  const source = next.content[bottom.row]!.content[bottom.cell]!;
+  const childOffset = target.content.length;
+  target.rowspan = top.rowspan + bottom.rowspan;
+  target.content.push(...source.content);
+  next.content[bottom.row]!.content.splice(bottom.cell, 1);
+  const mappings: ARTPathMapping[] = [];
+  active.node.content.forEach((row, r) => row.content.forEach((cell, c) => {
+    const moved = r === bottom.row && c === bottom.cell;
+    const targetRow = moved ? top.row : r;
+    const targetCell = moved ? top.cell : r === bottom.row && c > bottom.cell ? c - 1 : c;
+    cell.content.forEach((node, child) => collectPreservedMappings(node,
+      [...active.path, r, c, child], [...active.path, targetRow, targetCell, child + (moved ? childOffset : 0)], mappings));
+  }));
+  return transaction().replaceBlock(active.path, [next], mappings)
+    .setSelection(state.selection).setMeta('command', 'mergeTableCellBelow').build();
 }
 
 /** Expand a span into unit cells, retaining content in its top-left cell. */

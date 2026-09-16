@@ -49,3 +49,31 @@ test('splits vertical and combined spans with Undo, navigation and tool/lock con
   await editor.evaluate(node => (node as ARichTextElement).undo());
   expect(await editor.evaluate(node => (node as ARichTextElement).getJSON())).toEqual(before);
 });
+
+test('merges matching cells below, preserves exports and supports split and Undo', async ({ page }) => {
+  await page.goto('/dist/browser/');
+  const editor = page.locator('#editor');
+  await editor.evaluate(node => (node as ARichTextElement).setHTML('<table><tr><td colspan="2"><p>Top</p></td></tr><tr><td colspan="2"><p>Bottom</p></td></tr></table>'));
+  const original = await editor.evaluate(node => (node as ARichTextElement).getJSON());
+  await editor.locator('td p').first().click();
+  const merge = page.getByRole('button', { name: 'Merge with cell below', exact: true });
+  await expect(merge).toBeVisible();
+  await editor.evaluate(node => node.setAttribute('tools', 'split-cell'));
+  await expect(merge).toBeHidden();
+  await editor.evaluate(node => { node.removeAttribute('tools'); node.setAttribute('readonly', ''); });
+  await expect(merge).toBeHidden();
+  await editor.evaluate(node => node.removeAttribute('readonly'));
+  await merge.click();
+  await expect(editor.locator('td[rowspan="2"][colspan="2"] p')).toHaveText(['Top', 'Bottom']);
+  await expect(merge).toBeHidden();
+  const merged = await editor.evaluate(node => (node as ARichTextElement).getJSON());
+  await editor.evaluate(node => (node as ARichTextElement).undo());
+  expect(await editor.evaluate(node => (node as ARichTextElement).getJSON())).toEqual(original);
+  await editor.evaluate(node => (node as ARichTextElement).redo());
+  expect(await editor.evaluate(node => (node as ARichTextElement).getJSON())).toEqual(merged);
+  await editor.evaluate(node => { const e = node as ARichTextElement; e.setHTML(e.getHTML()); });
+  expect(await editor.evaluate(node => (node as ARichTextElement).getJSON())).toEqual(merged);
+  await editor.locator('td p').first().click();
+  await page.getByRole('button', { name: 'Split cell', exact: true }).click();
+  await expect(editor.locator('td')).toHaveCount(4);
+});

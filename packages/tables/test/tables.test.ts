@@ -16,6 +16,7 @@ import {
   getTableCellActions,
   getTableRowActions,
   mergeTableCellRight,
+  mergeTableCellBelow,
   splitTableCell,
   insertTable,
   removeCurrentTable,
@@ -252,12 +253,58 @@ describe('horizontal cell authoring', () => {
     expect(merged.content[0]!.content[0]).toEqual({ type: 'tableCell', colspan: 2, content: [paragraph('a'), paragraph('b')] });
     expect(merged.content[0]!.content[1]).toEqual(cell('c'));
     expect(merged.content[1]).toEqual((doc.content[0] as ARTTableNode).content[1]);
-    expect(getTableCellActions(engine.state)).toEqual({ canMergeRight: true, canSplit: true });
+    expect(getTableCellActions(engine.state)).toEqual({ canMergeRight: true, canMergeBelow: false, canSplit: true });
     engine.undo(); expect(engine.state.document).toEqual(doc);
     engine.redo();
     engine.dispatch(mergeTableCellRight(engine.state)!);
     expect((engine.state.document.content[0] as ARTTableNode).content[0]!.content[0]!.colspan).toBe(3);
     expect(getTableCellActions(engine.state).canMergeRight).toBe(false);
+  });
+
+  it('merges matching spans below, maps moved and shifted anchors, and undoes', () => {
+    const grid = table([['top', 'side'], ['bottom', 'next'], ['last', 'end']]);
+    for (const row of grid.content) row.content[0]!.colspan = 2;
+    const doc = document({ type: 'blockquote', content: [grid] });
+    const engine = new EditorEngine(createEditorState(doc, textSelection(textPoint([0, 0, 0, 0, 0], 1))));
+    const command = mergeTableCellBelow(engine.state)!;
+    for (const [from, to] of [[[0, 0, 1, 0, 0], [0, 0, 0, 0, 1]], [[0, 0, 1, 1, 0], [0, 0, 1, 0, 0]]]) {
+      const anchor = createAnchoredRange(doc, textSelection(textPoint(from!, 0), textPoint(from!, 1)));
+      const mapped = mapAnchoredRangeThroughTransaction(doc, anchor, command);
+      expect(mapped.status).toBe('mapped');
+      if (mapped.status !== 'orphaned') expect(mapped.range.start.blockPath).toEqual(to);
+    }
+    engine.dispatch(command);
+    const expected = structuredClone(grid);
+    expected.content[0]!.content[0]!.rowspan = 2;
+    expected.content[0]!.content[0]!.content.push(paragraph('bottom'));
+    expected.content[1]!.content.shift();
+    expect(engine.state.document).toEqual(document({ type: 'blockquote', content: [expected] }));
+    expect(engine.state.selection?.anchor).toEqual(textPoint([0, 0, 0, 0, 0], 1));
+    engine.dispatch(mergeTableCellBelow(engine.state)!);
+    expect(getTableCellActions(engine.state).canMergeBelow).toBe(false);
+    engine.undo(); engine.undo(); expect(engine.state.document).toEqual(doc);
+  });
+
+  it('merges existing rowspans and preserves fully covered rows', () => {
+    const grid = table([['top'], [], ['bottom'], []]);
+    grid.content[0]!.content[0]!.rowspan = 2;
+    grid.content[2]!.content[0]!.rowspan = 2;
+    const state = createEditorState(document(grid), textSelection(textPoint([0, 0, 0, 0], 0)));
+    const expected = structuredClone(grid);
+    expected.content[0]!.content[0]!.rowspan = 4;
+    expected.content[0]!.content[0]!.content.push(paragraph('bottom'));
+    expected.content[2]!.content = [];
+    expect(applyTransaction(state, mergeTableCellBelow(state)!).state.document).toEqual(document(expected));
+  });
+
+  it('rejects mismatched lower widths, bottom edges and cross-cell selections', () => {
+    const grid = table([['wide'], ['a', 'b']]);
+    grid.content[0]!.content[0]!.colspan = 2;
+    for (const selection of [textSelection(textPoint([0, 0, 0, 0], 0)), textSelection(textPoint([0, 1, 0, 0], 0)), textSelection(textPoint([0, 1, 0, 0], 0), textPoint([0, 1, 1, 0], 1))]) {
+      const state = createEditorState(document(grid), selection);
+      expect(mergeTableCellBelow(state)).toBeNull();
+      expect(getTableCellActions(state).canMergeBelow).toBe(false);
+    }
   });
 
   it('splits a span while retaining all content on the left and mapping following cells', () => {
@@ -325,7 +372,7 @@ describe('horizontal cell authoring', () => {
     grid.content[0]!.content[0]!.colspan = 50;
     expect(mergeTableCellRight(createEditorState(document(grid), state.selection))).toBeNull();
     expect(splitTableCell(createEditorState(document(grid), state.selection))).toBeNull();
-    expect(getTableCellActions(createEditorState(document(paragraph('text')), textSelection(textPoint([0], 0))))).toEqual({ canMergeRight: false, canSplit: false });
+    expect(getTableCellActions(createEditorState(document(paragraph('text')), textSelection(textPoint([0], 0))))).toEqual({ canMergeRight: false, canMergeBelow: false, canSplit: false });
     expect(mergeTableCellRight(createEditorState(document(table([['a', 'b']])), textSelection(textPoint([0, 0, 0, 0], 0), textPoint([0, 0, 1, 0], 1))))).toBeNull();
   });
 });
