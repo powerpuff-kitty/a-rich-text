@@ -66,11 +66,11 @@ specification for describing and validating JSON structures. It can describe ART
 Delta or another application's structure; it does not make those structures
 interchangeable and does not define a rich-text format itself.
 
-Today ART has TypeScript types and runtime validation in
-[core](../packages/core/src/index.ts). A distributable JSON Schema document is not
-yet included. Publishing one, with parity checks against the runtime validator,
-is follow-up work under #2. Semantic checks such as rectangular table coverage
-still need code even with a JSON Schema artifact.
+ART includes a [Draft 2020-12 schema artifact](../packages/core/schema/art-v1.schema.json),
+exported as `@arichtext/core/schema/art-v1.schema.json`. It covers structural
+validation; continue using `isARTDocument()` or `parseDocument()` for runtime
+semantics. See [schema usage and limits](json-schema.md). Migration support
+remains open under #2.
 
 ## Packages
 

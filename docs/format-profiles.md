@@ -128,8 +128,8 @@ an optional expected family and reject mismatches. No DOM or framework is needed
 
 This registry does not include Quill Delta, Editor.js, ProseMirror, Lexical or Slate
 adapters. Format detection remains a suggestion and never selects a converter.
-See [the editor format catalogue](editor-formats.md). JSON Schema publication and
-schema migration remain separate work in #2. Applying source still resets visual
+See [the editor format catalogue](editor-formats.md). The [ART JSON Schema](json-schema.md) ships separately from the converter registry;
+schema migration remains open in #2. Applying source still resets visual
 Undo history. The package remains a development snapshot at version 0.0.0.
 
 Try [the runnable custom-profile example](http://127.0.0.1:8080/format-profiles.html)

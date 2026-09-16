@@ -26,12 +26,17 @@
     "./profiles": {
       "types": "./dist/profiles.d.ts",
       "import": "./dist/profiles.js"
+    },
+    "./schema/art-v1.schema.json": {
+      "import": "./schema/art-v1.schema.json",
+      "default": "./schema/art-v1.schema.json"
     }
   },
   "files": [
     "dist",
     "README.md",
-    "LICENSE"
+    "LICENSE",
+    "schema"
   ],
   "scripts": {
     "build": "tsc -p tsconfig.json",

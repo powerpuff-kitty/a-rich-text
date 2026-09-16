@@ -36,9 +36,9 @@ try {
   assert(formatterPackage?.filename, 'npm pack did not produce the local formatter tarball');
   const formatterTarball = path.join(consumer, formatterPackage.filename);
   execFileSync('npm', ['install', '--offline', '--ignore-scripts', '--no-audit', '--no-fund', formatterTarball, ...tarballs], { cwd: consumer, stdio: 'pipe' });
-  const imports = manifests.flatMap(manifest => Object.keys(manifest.exports).map(subpath =>
-    `await import('${manifest.name}${subpath === '.' ? '' : subpath.slice(1)}');`)).join('\n');
-  await writeFile(path.join(consumer, 'smoke.mjs'), imports + `\nconst {formatSource} = await import('@arichtext/editor/format');\nconst result = await formatSource('{"ok":true}', 'json');\nif (!JSON.parse(result).ok) throw new Error('Installed formatter failed');\n`);
+  const imports = manifests.flatMap(manifest => Object.entries(manifest.exports).map(([subpath, entry]) =>
+    `await import('${manifest.name}${subpath === '.' ? '' : subpath.slice(1)}'${entry.import?.endsWith('.json') ? ", { with: { type: 'json' } }" : ''});`)).join('\n');
+  await writeFile(path.join(consumer, 'smoke.mjs'), imports + `\nconst schema = (await import('@arichtext/core/schema/art-v1.schema.json', { with: { type: 'json' } })).default;\nif (schema.properties.version.const !== 1) throw new Error('Installed ART schema missing');\nconst {formatSource} = await import('@arichtext/editor/format');\nconst result = await formatSource('{"ok":true}', 'json');\nif (!JSON.parse(result).ok) throw new Error('Installed formatter failed');\n`);
   execFileSync(process.execPath, ['smoke.mjs'], { cwd: consumer, stdio: 'pipe' });
   await writeFile(path.join(consumer, 'consumer.ts'), `
 import { FormatProfileRegistry, artJSONProfile } from '@arichtext/core/profiles';
