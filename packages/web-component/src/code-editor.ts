@@ -22,15 +22,15 @@ export class CodeBlockEditor {
     this.#dialog.setAttribute('part', 'code-dialog');
     this.#dialog.setAttribute('aria-labelledby', 'code-title');
     this.#dialog.innerHTML = `
-      <form method="dialog">
+      <form part="code-form" method="dialog">
         <h2 id="code-title">Code block</h2>
-        <label>Language (optional)<input data-code-language autocomplete="off" spellcheck="false"></label>
-        <label>Code<textarea data-code-text rows="10" spellcheck="false" autocapitalize="off" aria-describedby="code-error"></textarea></label>
-        <p id="code-error" role="status"></p>
+        <label>Language (optional)<input part="code-language" data-code-language autocomplete="off" spellcheck="false"></label>
+        <label>Code<textarea part="code-input" data-code-text rows="10" spellcheck="false" autocapitalize="off" aria-describedby="code-error"></textarea></label>
+        <p part="code-error" id="code-error" role="status"></p>
         <div class="code-actions">
-          <button type="submit">Apply code</button>
-          <button type="button" data-code-remove>Remove code block</button>
-          <button type="button" data-code-cancel>Cancel</button>
+          <button part="code-apply-button" type="submit">Apply code</button>
+          <button part="code-remove-button" type="button" data-code-remove>Remove code block</button>
+          <button part="code-cancel-button" type="button" data-code-cancel>Cancel</button>
         </div>
       </form>`;
     host.shadowRoot!.append(this.#dialog);

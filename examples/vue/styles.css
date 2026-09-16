@@ -1,0 +1,18 @@
+@import "tailwindcss" source(none);
+@source "./*.vue";
+
+@layer components {
+  .demo-button {
+    @apply rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-indigo-600;
+  }
+  .demo-button[aria-pressed="true"] { @apply bg-indigo-100 text-indigo-900; }
+}
+
+a-rich-text {
+  --art-color: var(--color-slate-900);
+  --art-background: white;
+  --art-editor-min-height: 12rem;
+}
+a-rich-text::part(editor) { @apply border-2 shadow-sm; }
+a-rich-text::part(paragraph) { @apply leading-7; }
+a-rich-text::part(blockquote) { @apply border-l-4 border-indigo-500 pl-4 italic; }

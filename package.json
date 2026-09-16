@@ -12,11 +12,12 @@
     "quality:packages": "node scripts/validate-packages.mjs",
     "quality:bundle": "node scripts/check-bundle-size.mjs",
     "test:browser": "playwright test",
-    "verify": "pnpm quality:packages && pnpm build && pnpm typecheck && pnpm test && pnpm quality:bundle",
+    "verify": "pnpm quality:packages && pnpm build && pnpm typecheck && pnpm typecheck:examples && pnpm test && pnpm quality:bundle",
     "verify:local": "pnpm verify && node scripts/build-distribution.mjs && pnpm test:browser && pnpm verify:distribution",
     "build:distribution": "pnpm build && node scripts/build-distribution.mjs",
     "verify:distribution": "node scripts/verify-distribution.mjs",
-    "generate:icons": "node scripts/generate-toolbar-icons.mjs"
+    "generate:icons": "node scripts/generate-toolbar-icons.mjs",
+    "typecheck:examples": "node scripts/typecheck-vue-example.mjs"
   },
   "devDependencies": {
     "@arichtext/editor": "workspace:*",
@@ -25,11 +26,17 @@
     "@arichtext/web-component": "workspace:*",
     "@fortawesome/free-solid-svg-icons": "7.3.1",
     "@playwright/test": "^1.63.0",
+    "@tailwindcss/cli": "^4.3.3",
+    "@typescript/typescript6": "^6.0.2",
+    "@vue/compiler-sfc": "^3.5.42",
     "esbuild": "^0.28.2",
     "fake-indexeddb": "^6.2.5",
     "happy-dom": "^20.14.5",
+    "tailwindcss": "^4.3.3",
     "typescript": "^7.0.2",
     "vite": "^8.3.0",
-    "vitest": "^5.0.0"
+    "vitest": "^5.0.0",
+    "vue": "^3.5.42",
+    "vue-tsc": "^3.3.11"
   }
 }

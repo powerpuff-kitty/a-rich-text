@@ -20,3 +20,5 @@ document.querySelector('form').addEventListener('submit', event => {
 });
 </script>`));
 console.log('Standalone ESM bundle and working form: dist/browser/index.html');
+
+await import('./build-examples.mjs');
