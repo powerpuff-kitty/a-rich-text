@@ -38,9 +38,12 @@ try {
   execFileSync('npm', ['install', '--offline', '--ignore-scripts', '--no-audit', '--no-fund', formatterTarball, ...tarballs], { cwd: consumer, stdio: 'pipe' });
   const imports = manifests.flatMap(manifest => Object.entries(manifest.exports).map(([subpath, entry]) =>
     `await import('${manifest.name}${subpath === '.' ? '' : subpath.slice(1)}'${entry.import?.endsWith('.json') ? ", { with: { type: 'json' } }" : ''});`)).join('\n');
-  await writeFile(path.join(consumer, 'smoke.mjs'), imports + `\nconst schema = (await import('@arichtext/core/schema/art-v1.schema.json', { with: { type: 'json' } })).default;\nif (schema.properties.version.const !== 1) throw new Error('Installed ART schema missing');\nconst {createARTMigrationRegistry} = await import('@arichtext/core/migrations');\nif (!createARTMigrationRegistry().migrate(JSON.stringify({type:'doc',version:1,content:[]})).ok) throw new Error('Installed migration API failed');\nconst {formatSource} = await import('@arichtext/editor/format');\nconst result = await formatSource('{"ok":true}', 'json');\nif (!JSON.parse(result).ok) throw new Error('Installed formatter failed');\n`);
+  await writeFile(path.join(consumer, 'smoke.mjs'), imports + `\nconst schema = (await import('@arichtext/core/schema/art-v1.schema.json', { with: { type: 'json' } })).default;\nif (schema.properties.version.const !== 1) throw new Error('Installed ART schema missing');\nconst {createARTMigrationRegistry} = await import('@arichtext/core/migrations');\nif (!createARTMigrationRegistry().migrate(JSON.stringify({type:'doc',version:1,content:[]})).ok) throw new Error('Installed migration API failed');\nconst {quillDeltaProfile} = await import('@arichtext/quill-delta');\nif (quillDeltaProfile.id !== 'quill:delta-v2') throw new Error('Installed Delta profile missing');\nconst {formatSource} = await import('@arichtext/editor/format');\nconst result = await formatSource('{"ok":true}', 'json');\nif (!JSON.parse(result).ok) throw new Error('Installed formatter failed');\n`);
   execFileSync(process.execPath, ['smoke.mjs'], { cwd: consumer, stdio: 'pipe' });
   await writeFile(path.join(consumer, 'consumer.ts'), `
+import { quillDeltaProfile, importQuillDelta } from '@arichtext/quill-delta';
+importQuillDelta(JSON.stringify({ ops: [{ insert: 'Text' + String.fromCharCode(10) }] })).value.content;
+quillDeltaProfile.id;
 import { createARTMigrationRegistry } from '@arichtext/core/migrations';
 const migration = createARTMigrationRegistry().migrate('{\"type\":\"doc\",\"version\":1,\"content\":[]}');
 if (migration.ok) migration.document.content;

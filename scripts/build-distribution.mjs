@@ -11,6 +11,8 @@ await copyFile('packages/ui/THIRD_PARTY_NOTICES.txt', 'dist/browser/THIRD_PARTY_
 await copyFile('examples/showcase/index.html', 'dist/browser/index.html');
 await copyFile('examples/showcase/app.js', 'dist/browser/showcase.js');
 await copyFile('examples/format-profiles/index.html', 'dist/browser/format-profiles.html');
+await copyFile('examples/quill-delta/index.html', 'dist/browser/quill-delta.html');
+await build({ entryPoints: ['packages/quill-delta/dist/index.js'], outfile: 'dist/browser/quill-delta.js', bundle: true, minify: true, format: 'esm', platform: 'browser', target: 'es2022' });
 await build({ entryPoints: ['packages/editor/dist/highlight.js'], outfile: 'dist/browser/highlight.js', bundle: true, minify: true, format: 'esm', platform: 'browser', target: 'es2022' });
 await build({ entryPoints: ['packages/editor/dist/format.js'], outdir: 'dist/browser', chunkNames: 'formatter/[name]-[hash]', splitting: true, bundle: true, minify: true, format: 'esm', platform: 'browser', target: 'es2022' });
 await copyFile('docs/editor-formats.md', 'dist/browser/editor-formats.md');

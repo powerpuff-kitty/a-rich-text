@@ -20,8 +20,9 @@ rules an editor expects. There is no finite count of JSON schemas or Markdown di
 | Notion | Public block API JSON with typed blocks and rich-text objects | User exports include HTML or Markdown/CSV. API blocks and export files are different representations; not every UI block is supported by the API. | [Blocks](https://developers.notion.com/reference/block), [Exports](https://www.notion.com/help/export-your-content) |
 | Google Docs | Public document API JSON with structured elements | API resources are not a portable editor-native JSON standard or a claim about Google's internal storage. Document-level layout and resources need explicit mapping. | [Document structure](https://developers.google.com/workspace/docs/api/concepts/structure) |
 
-Foreign JSON profiles above are **reference-only**: this project does not ship their
-converters. HTML from other editors can enter through the supported HTML subset,
+Most foreign JSON profiles above are **reference-only**. The optional
+[Quill text-block profile](quill-delta.md) implements a defined subset; the other
+converters are not supplied. HTML from other editors can enter through the supported HTML subset,
 but that does not guarantee preservation of custom embeds, comments, styles or layout.
 
 ## Common format families
@@ -44,7 +45,7 @@ See the [format contract and standards](conversion.md) and the
 [format-profile registry](format-profiles.md). The `profile`, `source-profile`
 and `profiles` attributes select registered converters. Existing `views` and
 `format` still control source families and submitted values. External-editor
-converters are not bundled.
+converters are optional; the [Quill text-block adapter](quill-delta.md) is available, while the other adapters are not implemented.
 
 ## Detection
 

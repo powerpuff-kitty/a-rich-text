@@ -90,6 +90,7 @@ packages/dom                    @arichtext/dom
 packages/extensions             @arichtext/extensions
 packages/html                   @arichtext/html
 packages/markdown               @arichtext/markdown
+packages/quill-delta            @arichtext/quill-delta
 packages/clipboard              @arichtext/clipboard
 packages/persistence-indexeddb  @arichtext/persistence-indexeddb
 packages/media                  @arichtext/media

@@ -44,8 +44,9 @@ For example, this is an ART v1 document:
 
 `setJSON()` validates ART, not any arbitrary JSON document. The format/view API
 value remains `json`; the menu labels it **ART JSON** to make this explicit.
-Quill Delta and Editor.js JSON are not accepted directly. Dedicated adapters would
-need to map supported nodes/marks and report losses; none are bundled currently.
+The optional [Quill Delta profile](quill-delta.md) maps supported text blocks and
+reports losses when explicitly registered. Default JSON import still accepts only
+ART. Editor.js and other foreign shapes require separate adapters.
 HTML can be an exchange bridge when both applications support the relevant content,
 but it cannot promise preservation of editor-specific features.
 

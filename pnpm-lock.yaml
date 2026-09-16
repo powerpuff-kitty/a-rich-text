@@ -271,6 +271,12 @@ importers:
         specifier: workspace:*
         version: link:../core
 
+  packages/quill-delta:
+    dependencies:
+      '@arichtext/core':
+        specifier: workspace:*
+        version: link:../core
+
   packages/suggestions:
     dependencies:
       '@arichtext/annotations':
