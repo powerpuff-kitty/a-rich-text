@@ -7,8 +7,8 @@
       "status": "verified-local",
       "verifiedAt": "2026-09-16",
       "browserVersion": "153.0.8010.12",
-      "evidence": "docs/verification/2026-09-16-commonmark.md",
-      "verifiedRevision": "fd270d2748c6dc597c5d32bb7165a249402189f3"
+      "evidence": "docs/verification/2026-09-16-surfaces.md",
+      "verifiedRevision": "e3ef33ddbba388aa4fc51221824ede8ab0858306"
     },
     {
       "target": "Firefox desktop",
@@ -16,8 +16,8 @@
       "status": "verified-local",
       "verifiedAt": "2026-09-16",
       "browserVersion": "155.0",
-      "evidence": "docs/verification/2026-09-16-commonmark.md",
-      "verifiedRevision": "fd270d2748c6dc597c5d32bb7165a249402189f3"
+      "evidence": "docs/verification/2026-09-16-surfaces.md",
+      "verifiedRevision": "e3ef33ddbba388aa4fc51221824ede8ab0858306"
     },
     {
       "target": "WebKit desktop",
@@ -25,8 +25,8 @@
       "status": "verified-local",
       "verifiedAt": "2026-09-16",
       "browserVersion": "26.6",
-      "evidence": "docs/verification/2026-09-16-commonmark.md",
-      "verifiedRevision": "fd270d2748c6dc597c5d32bb7165a249402189f3"
+      "evidence": "docs/verification/2026-09-16-surfaces.md",
+      "verifiedRevision": "e3ef33ddbba388aa4fc51221824ede8ab0858306"
     },
     {
       "target": "Android-class Chromium emulation (Pixel 7)",
@@ -34,8 +34,8 @@
       "status": "verified-local",
       "verifiedAt": "2026-09-16",
       "browserVersion": "153.0.8010.12",
-      "evidence": "docs/verification/2026-09-16-commonmark.md",
-      "verifiedRevision": "fd270d2748c6dc597c5d32bb7165a249402189f3"
+      "evidence": "docs/verification/2026-09-16-surfaces.md",
+      "verifiedRevision": "e3ef33ddbba388aa4fc51221824ede8ab0858306"
     },
     {
       "target": "iOS-class WebKit emulation (iPhone 15)",
@@ -43,8 +43,8 @@
       "status": "verified-local",
       "verifiedAt": "2026-09-16",
       "browserVersion": "26.6",
-      "evidence": "docs/verification/2026-09-16-commonmark.md",
-      "verifiedRevision": "fd270d2748c6dc597c5d32bb7165a249402189f3"
+      "evidence": "docs/verification/2026-09-16-surfaces.md",
+      "verifiedRevision": "e3ef33ddbba388aa4fc51221824ede8ab0858306"
     }
   ],
   "manual": [

@@ -1,0 +1,32 @@
+{
+  "revision": "e3ef33ddbba388aa4fc51221824ede8ab0858306",
+  "unit": {
+    "passed": 648,
+    "files": 78
+  },
+  "browser": {
+    "stats": {
+      "startTime": "2026-09-16T19:48:42.394Z",
+      "duration": 623489.015,
+      "expected": 470,
+      "skipped": 0,
+      "unexpected": 0,
+      "flaky": 0
+    },
+    "projects": {
+      "chromium": 94,
+      "firefox": 94,
+      "webkit": 94,
+      "mobile-chromium": 94,
+      "mobile-webkit": 94
+    },
+    "workers": 2,
+    "retries": 0,
+    "reportSHA256": "3f90faea5936581c19562455bcb119830e0a5adf10d067ecd76fbeafacec84c4"
+  },
+  "packages": 27,
+  "gzipBytes": {
+    "minimal": 38740,
+    "standard": 57633
+  }
+}
