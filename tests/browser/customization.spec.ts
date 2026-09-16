@@ -79,8 +79,9 @@ test('external keyboard controls retain a selection before selectionchange deliv
     const text = editor.shadowRoot!.querySelector('[part=editor] p')!.firstChild!;
     const root = editor.shadowRoot as ShadowRoot & { getSelection?: () => Selection | null };
     const selection = root.getSelection?.() ?? document.getSelection();
-    // Keep selection and focus transfer in one task, before selectionchange fires.
+    // Model completed Ctrl+A and focus transfer in one task, before selectionchange fires.
     selection!.setBaseAndExtent(text, 0, text, text.textContent!.length);
+    editor.shadowRoot!.querySelector('[part=editor]')!.dispatchEvent(new KeyboardEvent('keyup', { key: 'a', ctrlKey: true, bubbles: true }));
     button.focus(); button.click(); button.remove();
     return editor.getHTML();
   });

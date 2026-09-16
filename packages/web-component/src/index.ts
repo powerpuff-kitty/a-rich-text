@@ -380,6 +380,9 @@ export class ARichTextElement extends HTMLElementBase {
     this.#editor.addEventListener('compositionstart', this.#handleCompositionStart);
     this.#editor.addEventListener('compositionend', this.#handleCompositionEnd);
     this.#editor.addEventListener('keydown', this.#handleKeyDown);
+    // Keyboard selection must be captured before Tab/programmatic focus moves
+    // clear the DOM selection in WebKit, even if selectionchange is delayed.
+    this.#editor.addEventListener('keyup', this.#handleDocumentSelectionChange);
     this.#editor.addEventListener('paste', this.#handlePaste);
     this.#editor.addEventListener('blur', () => {
       // Capture the final DOM selection before an external toolbar takes focus;
