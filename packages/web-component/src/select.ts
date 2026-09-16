@@ -1,3 +1,5 @@
+import { selectChevronIcon } from './select-icon.js';
+
 const Base = (typeof HTMLElement === 'undefined' ? class {} : HTMLElement) as typeof HTMLElement;
 
 /** Small, dependency-free select with a top-layer, viewport-clamped listbox. */
@@ -17,6 +19,10 @@ export class ARichTextSelectElement extends Base {
       :host([hidden]) { display:none; }
       button { font:inherit; color:inherit; cursor:pointer; }
       [part=trigger] { display:flex; align-items:center; gap:.7em; justify-content:space-between; min-height:2.25rem; max-width:100%; padding:.35rem .6rem; border:0; border-radius:5px; background:transparent; }
+      [part=chevron] { display:inline-flex; align-items:center; justify-content:center; flex:none; width:.75em; height:.75em; transition:transform 150ms ease; }
+      [part=chevron] svg { display:block; width:100%; height:100%; }
+      [aria-expanded=true] [part=chevron] { transform:rotate(180deg); }
+      @media (prefers-reduced-motion:reduce) { [part=chevron] { transition:none; } }
       [part=trigger]:hover { background:color-mix(in srgb,currentColor 7%,transparent); }
       [part=trigger]:focus-visible, [role=option]:focus-visible { outline:2px solid Highlight; outline-offset:-2px; }
       button:disabled { opacity:.5; cursor:default; }
@@ -24,7 +30,7 @@ export class ARichTextSelectElement extends Base {
       [part=menu][hidden] { display:none; }
       [role=option] { display:block; width:100%; min-height:34px; padding:6px 10px; text-align:start; border:0; border-radius:4px; background:transparent; }
       [role=option]:hover, [role=option][aria-selected=true] { background:color-mix(in srgb,Highlight 15%,Canvas); }
-    </style><button part="trigger" type="button" role="combobox" aria-haspopup="listbox" aria-expanded="false" aria-controls="options"><span></span><span aria-hidden="true">⌄</span></button><div part="menu" id="options" role="listbox" popover="manual" hidden></div>`;
+    </style><button part="trigger" type="button" role="combobox" aria-haspopup="listbox" aria-expanded="false" aria-controls="options"><span></span><span part="chevron" aria-hidden="true">${selectChevronIcon}</span></button><div part="menu" id="options" role="listbox" popover="manual" hidden></div>`;
     this.#button = root.querySelector('button')!;
     this.#menu = root.querySelector('[part=menu]')!;
     this.#button.addEventListener('click', () => this.#open ? this.close() : this.open());

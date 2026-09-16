@@ -258,7 +258,7 @@ function getTemplate(): HTMLTemplateElement {
         padding: 0.75rem; font: 0.9rem/1.6 ui-monospace, monospace; color: inherit;
         border: 0; border-radius: 0; background: var(--art-background); }
       [part='source-actions'] { display: flex; gap: 0.4rem; }
-      [part='source-note'], [part='source-error'] { font: 0.85rem/1.5 var(--art-font-family); margin-block: 0.4rem; }
+      [part='source-error'] { font: 0.85rem/1.5 var(--art-font-family); margin-block: 0.4rem; }
       button:focus-visible, [part='source']:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
     </style>
     <div part="view-switcher" role="toolbar" aria-label="Document source tools" hidden><a-rich-text-select label="Document format" exportparts="trigger:view-trigger,menu:view-menu"></a-rich-text-select>      <div part="source-actions">
@@ -268,8 +268,7 @@ function getTemplate(): HTMLTemplateElement {
       </div></div>
     <div part="editor" role="textbox" aria-multiline="true"></div>
     <section part="source-panel" hidden>
-      <p part="source-note" id="source-note">Source edits apply only when you choose Apply changes. Applying clears undo history. ART JSON preserves the document model and uses the A Rich Text schema. Other formats may lose unsupported formatting.</p>
-      <textarea part="source" aria-label="Document source" aria-describedby="source-note source-error" spellcheck="false"></textarea>
+      <textarea part="source" aria-label="Document source" aria-describedby="source-error" spellcheck="false"></textarea>
 
       <p part="source-error" id="source-error" role="status" aria-live="polite"></p>
     </section>
@@ -554,7 +553,6 @@ export class ARichTextElement extends HTMLElementBase {
     this.#source.readOnly = this.readOnly;
     this.#source.setAttribute('aria-label', `${this.#activeView.toUpperCase()} document source`);
     this.#source.setAttribute('aria-invalid', String(Boolean(this.#sourceError)));
-    this.shadowRoot!.querySelector<HTMLElement>('[part="source-note"]')!.textContent = (this.sourceUpdate === 'auto' ? 'Valid source edits update automatically after a pause or on blur. Invalid drafts stay here. ' : 'Source edits apply only when you choose Apply changes. ') + 'Applying clears visual undo history. ART JSON uses the A Rich Text schema. Other formats may lose unsupported formatting.';
     const actions = this.shadowRoot!.querySelector<HTMLElement>('[part="source-actions"]')!;
     this.configureSourceActions(actions);
     this.shadowRoot!.querySelector<HTMLElement>('[part="source-error"]')!.textContent = this.#sourceError;
@@ -565,13 +563,13 @@ export class ARichTextElement extends HTMLElementBase {
   /** Shared source-action state for bundled and custom toolbars. */
   configureSourceActions(actions: HTMLElement): void {
     const canFormat = Boolean(this.#sourceFormatter) && this.view !== 'text' && this.view !== 'visual';
-    actions.hidden = this.view === 'visual' || (!this.#sourceDirty && !canFormat);
+    actions.hidden = this.view === 'visual' || (this.sourceUpdate !== 'auto' && !this.#sourceDirty && !canFormat);
     const formatButton = actions.querySelector<HTMLButtonElement>('[data-source-action="format"]')!;
     formatButton.hidden = !canFormat; formatButton.disabled = this.disabled || this.readOnly;
-    actions.querySelector<HTMLButtonElement>('[data-source-action="discard"]')!.hidden = !this.#sourceDirty;
+    actions.querySelector<HTMLButtonElement>('[data-source-action="discard"]')!.hidden = this.sourceUpdate !== 'auto' && !this.#sourceDirty;
     actions.querySelector<HTMLButtonElement>('[data-source-action="apply"]')!.hidden = this.sourceUpdate === 'auto' || !this.#sourceDirty;
     actions.querySelector<HTMLButtonElement>('[data-source-action="apply"]')!.disabled = this.disabled || this.readOnly;
-    actions.querySelector<HTMLButtonElement>('[data-source-action="discard"]')!.disabled = this.disabled;
+    actions.querySelector<HTMLButtonElement>('[data-source-action="discard"]')!.disabled = this.disabled || !this.#sourceDirty;
   }
 
   /** Shared view-control state for bundled and custom toolbars. */
