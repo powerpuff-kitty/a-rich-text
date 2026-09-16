@@ -257,3 +257,31 @@ test('keyboard toolbar activation formats the retained selection', async ({ page
   await page.keyboard.press('Space');
   await expect(surface.locator('strong')).toHaveText('keyboard');
 });
+
+test('quote, rule and clear-formatting controls use undoable engine edits', async ({ page }) => {
+  const editor = page.locator('#editor');
+  const surface = editor.locator('[part="editor"]');
+  await editor.evaluate(node => (node as ARichTextElement).setHTML('<p><strong>hello</strong></p>'));
+  await surface.click();
+  await surface.press('ControlOrMeta+a');
+  await page.getByRole('button', { name: 'Clear inline formatting', exact: true }).click();
+  expect(await editor.evaluate(node => (node as ARichTextElement).getHTML())).toBe('<p>hello</p>');
+  await page.getByRole('button', { name: 'Toggle blockquote', exact: true }).click();
+  await expect(surface.locator('blockquote')).toHaveText('hello');
+  await page.getByRole('button', { name: 'Toggle blockquote', exact: true }).click();
+  await expect(surface.locator('blockquote')).toHaveCount(0);
+  await surface.press('ArrowRight');
+  await page.getByRole('button', { name: 'Insert horizontal rule', exact: true }).click();
+  await expect(surface.locator('hr')).toHaveCount(1);
+  await surface.pressSequentially('after');
+  await expect(surface.locator('p').last()).toHaveText('after');
+  await editor.evaluate(node => {
+    const rich = node as ARichTextElement;
+    for (let i = 0; i < 6; i++) rich.undo();
+  });
+  await expect(surface.locator('hr')).toHaveCount(0);
+  await editor.evaluate(node => (node as ARichTextElement).setAttribute('tools', 'bold'));
+  await expect(page.getByRole('button', { name: 'Toggle blockquote', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Insert horizontal rule', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Clear inline formatting', exact: true })).toHaveCount(0);
+});

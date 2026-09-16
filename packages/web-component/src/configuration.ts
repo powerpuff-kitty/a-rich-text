@@ -1,5 +1,6 @@
 export const EDITOR_TOOLS = [
   'paragraph', 'heading', 'bold', 'italic', 'underline', 'strike', 'code', 'link',
+  'blockquote', 'horizontal-rule', 'clear-formatting',
   'bullet-list', 'ordered-list', 'task-list', 'indent', 'outdent',
   'insert-table', 'add-row', 'remove-row', 'add-column', 'remove-column', 'undo', 'redo',
 ] as const;

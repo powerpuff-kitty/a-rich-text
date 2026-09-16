@@ -120,3 +120,17 @@ describe('<a-rich-text> commands and shortcuts', () => {
     expect(editor.isMarkActive('bold')).toBe(false);
   });
 });
+
+it('clears caret formatting for subsequent typing and guards authoring methods when locked', () => {
+  const editor = createEditor();
+  editor.setHTML('<p><strong>hello</strong></p>');
+  editor.dispatch(transaction().setSelection(textSelection(textPoint([0], 5))).build());
+  expect(editor.clearFormatting()).toBe(true);
+  expect(editor.getActiveMarks()).toEqual([]);
+  surface(editor).dispatchEvent(new InputEvent('beforeinput', { inputType: 'insertText', data: '!', bubbles: true, cancelable: true }));
+  expect(editor.getHTML()).toBe('<p><strong>hello</strong>!</p>');
+  editor.readOnly = true;
+  expect(editor.toggleBlockquote()).toBe(false);
+  expect(editor.insertHorizontalRule()).toBe(false);
+  expect(editor.clearFormatting()).toBe(false);
+});

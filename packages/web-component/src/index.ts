@@ -30,6 +30,9 @@ import {
   type TransactionResult,
 } from '@arichtext/engine';
 import {
+  clearSelectionFormatting,
+  toggleBlockquote,
+  insertHorizontalRule,
   deleteBackward,
   deleteForward,
   deleteSelection,
@@ -593,6 +596,35 @@ export class ARichTextElement extends HTMLElementBase {
       if (mark) command.addMark(selection.anchor, selection.head, mark);
       else command.removeMark(selection.anchor, selection.head, type);
       this.dispatch(command.build());
+    }
+    return true;
+  }
+
+  toggleBlockquote(): boolean {
+    if (this.disabled || this.readOnly) return false;
+    const command = toggleBlockquote(this.#engine.state);
+    if (!command) return false;
+    this.dispatch(command);
+    return true;
+  }
+
+  insertHorizontalRule(): boolean {
+    if (this.disabled || this.readOnly) return false;
+    const command = insertHorizontalRule(this.#engine.state);
+    if (!command) return false;
+    this.dispatch(command);
+    return true;
+  }
+
+  clearFormatting(): boolean {
+    if (this.disabled || this.readOnly || !this.getSelection()) return false;
+    if (isCollapsedSelection(this.getSelection()!)) {
+      this.#storedMarks = [];
+      this.#emitFormatState();
+    } else {
+      const command = clearSelectionFormatting(this.#engine.state);
+      if (!command) return false;
+      this.dispatch(command);
     }
     return true;
   }
