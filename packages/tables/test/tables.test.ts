@@ -586,7 +586,7 @@ describe('column editing with horizontal spans', () => {
     engine.undo(); expect(engine.state.document).toEqual(doc);
   });
 
-  it('uses logical rather than physical columns and rejects vertical spans', () => {
+  it('uses logical rather than physical columns with both span directions', () => {
     const grid = table([['wide', 'next'], ['a', 'b', 'c']]); grid.content[0]!.content[0]!.colspan = 2;
     const state = createEditorState(document(grid), textSelection(textPoint([0, 0, 1, 0], 0)));
     const result = applyTransaction(state, removeCurrentTableColumn(state)!).state.document.content[0] as ARTTableNode;
@@ -595,7 +595,80 @@ describe('column editing with horizontal spans', () => {
     grid.content[0]!.content[0]!.rowspan = 2;
     grid.content[1]!.content = [cell('remaining')];
     const vertical = createEditorState(document(grid), state.selection);
-    expect(() => addTableColumn(vertical)).toThrow(/Vertical/);
-    expect(() => removeCurrentTableColumn(vertical)).toThrow(/Vertical/);
+    expect(addTableColumn(vertical)).not.toBeNull();
+    expect(removeCurrentTableColumn(vertical)).not.toBeNull();
+  });
+});
+
+describe('column editing with vertical spans', () => {
+  it.each(['before', 'after'] as const)('inserts %s a cell beside a carried span and maps shifted cells', position => {
+    const grid = table([['span', 'top'], ['bottom']]); grid.content[0]!.content[0]!.rowspan = 2;
+    const doc = document(grid);
+    const engine = new EditorEngine(createEditorState(doc, textSelection(textPoint([0, 1, 0, 0], 0))));
+    const command = addTableColumn(engine.state, position)!;
+    const anchor = createAnchoredRange(doc, textSelection(textPoint([0, 1, 0, 0], 0), textPoint([0, 1, 0, 0], 1)));
+    const mapped = mapAnchoredRangeThroughTransaction(doc, anchor, command);
+    expect(mapped.status).toBe('mapped');
+    if (mapped.status !== 'orphaned') expect(mapped.range.start.blockPath).toEqual([0, 1, position === 'before' ? 1 : 0, 0]);
+    engine.dispatch(command);
+    const expected = table(position === 'before' ? [['span', '', 'top'], ['', 'bottom']] : [['span', 'top', ''], ['bottom', '']]);
+    expected.content[0]!.content[0]!.rowspan = 2;
+    expect(engine.state.document).toEqual(document(expected));
+    expect(engine.state.selection?.anchor.blockPath).toEqual([0, 1, position === 'before' ? 0 : 1, 0]);
+    engine.undo(); expect(engine.state.document).toEqual(doc);
+  });
+
+  it('widens a crossing combined span once and keeps covered rows empty', () => {
+    const grid = table([['a', 'b'], ['wide'], []]);
+    grid.content[1]!.content[0]!.colspan = 2; grid.content[1]!.content[0]!.rowspan = 2;
+    const state = createEditorState(document(grid), textSelection(textPoint([0, 0, 0, 0], 0)));
+    const expected = structuredClone(grid); expected.content[0]!.content.splice(1, 0, cell('')); expected.content[1]!.content[0]!.colspan = 3;
+    expect(applyTransaction(state, addTableColumn(state)!).state.document).toEqual(document(expected));
+  });
+
+  it('adds cells beside a span in every covered row', () => {
+    const grid = table([['span'], []]); grid.content[0]!.content[0]!.rowspan = 2;
+    const state = createEditorState(document(grid), textSelection(textPoint([0, 0, 0, 0], 0)));
+    const expected = table([['span', ''], ['']]); expected.content[0]!.content[0]!.rowspan = 2;
+    expect(applyTransaction(state, addTableColumn(state)!).state.document).toEqual(document(expected));
+  });
+
+  it('shrinks wide rowspans and removes unit-width rowspans with correct review mapping', () => {
+    const grid = table([['wide', 'other'], [], ['delete', 'keep', 'last']]);
+    grid.content[0]!.content[0]!.colspan = 2;
+    grid.content[0]!.content.forEach(cell => { cell.rowspan = 2; });
+    const doc = document(grid);
+    const engine = new EditorEngine(createEditorState(doc, textSelection(textPoint([0, 0, 0, 0], 0))));
+    const command = removeCurrentTableColumn(engine.state)!;
+    const retained = createAnchoredRange(doc, textSelection(textPoint([0, 2, 1, 0], 0), textPoint([0, 2, 1, 0], 1)));
+    const mapped = mapAnchoredRangeThroughTransaction(doc, retained, command);
+    expect(mapped.status).toBe('mapped');
+    if (mapped.status !== 'orphaned') expect(mapped.range.start.blockPath).toEqual([0, 2, 0, 0]);
+    engine.dispatch(command);
+    const expected = table([['wide', 'other'], [], ['keep', 'last']]); expected.content[0]!.content.forEach(cell => { cell.rowspan = 2; });
+    expect(engine.state.document).toEqual(document(expected));
+    engine.dispatch(removeCurrentTableColumn(engine.state)!);
+    const final = table([['other'], [], ['last']]); final.content[0]!.content[0]!.rowspan = 2;
+    expect(engine.state.document).toEqual(document(final));
+    expect(removeCurrentTableColumn(engine.state)).toBeNull();
+    engine.undo(); engine.undo(); expect(engine.state.document).toEqual(doc);
+    engine.redo(); expect(engine.state.document).toEqual(document(expected));
+  });
+
+  it('targets a carried cell when deleting the last physical cell of a row', () => {
+    const grid = table([['span', 'top'], ['remove']]); grid.content[0]!.content[0]!.rowspan = 2;
+    const state = createEditorState(document(grid), textSelection(textPoint([0, 1, 0, 0], 0)));
+    const result = applyTransaction(state, removeCurrentTableColumn(state)!).state;
+    const expected = table([['span'], []]); expected.content[0]!.content[0]!.rowspan = 2;
+    expect(result.document).toEqual(document(expected));
+    expect(result.selection?.anchor.blockPath).toEqual([0, 0, 0, 0]);
+  });
+
+  it('preserves a caret destination for surviving cells without text blocks', () => {
+    const grid = table([['delete', '']]); grid.content[0]!.content[1]!.content = [];
+    const state = createEditorState(document(grid), textSelection(textPoint([0, 0, 0, 0], 0)));
+    const result = applyTransaction(state, removeCurrentTableColumn(state)!).state;
+    expect(result.document).toEqual(document(table([['']])));
+    expect(result.selection?.anchor.blockPath).toEqual([0, 0, 0, 0]);
   });
 });

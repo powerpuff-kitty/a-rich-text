@@ -68,7 +68,7 @@ task checkbox editing honor their corresponding tool switches.
 | `split-cell` | Expand a horizontal, vertical or combined span into unit cells; keep content in the top-left cell |
 | `remove-table` | Remove the containing table at a single text-block selection, including imported merged tables; leaves an editable paragraph and supports Undo |
 | `add-row`, `remove-row` | Inside supported tables, including horizontal and vertical spans; unavailable dimensions are hidden |
-| `add-column`, `remove-column` | Inside supported tables, including horizontal spans; unavailable dimensions are hidden |
+| `add-column`, `remove-column` | Inside supported tables, including horizontal and vertical spans; unavailable dimensions are hidden |
 | `find-replace` | Search and navigate visual body text without a selection; replacement is hidden in readonly mode |
 | `focus-mode` | Expand the editor into a modal writing area; available without a text selection, including source views and readonly inspection |
 | `undo`, `redo` | Only while the corresponding history step exists |
@@ -237,7 +237,7 @@ is configurable because not every application should expose lossy editing paths.
 Image insertion, editing and optional uploads are available through the
 [image dialog](image-authoring.md). Comments, suggestions and AI have optional
 packages but no bundled toolbar UI.
-Column editing in vertical grids is still absent. Text alignment, font/color/highlight choices would require extending
+Text alignment, font/color/highlight choices would require extending
 the current schema or defining extensions; hiding/showing toolbar tools does not
 add those capabilities. These are follow-up features, not advertised controls.
 
@@ -293,8 +293,8 @@ adapters can call `mergeTableCellRight(state)`, `mergeTableCellBelow(state)`, `s
 
 Grids larger than 50×50 and selections across text blocks expose neither action.
 Vertical grids support splitting, merging below matching cells, merging right
-across matching row boundaries, and row insertion/removal. Column editing remains
-restricted to horizontal grids.
+across matching row boundaries, and row/column insertion/removal. Editing is
+limited to valid grids of at most 50 rows and 50 logical columns.
 
 Row insertion happens before or after the active cell's full vertical extent.
 Other spans crossing that boundary grow; uncovered columns receive empty cells.
@@ -310,7 +310,9 @@ merged-cell structure. Use HTML or JSON when this structure matters.
 
 Column insertion uses the boundary before/after the entire active cell; the
 standard toolbar inserts after it. Other rows get an empty cell at that boundary,
-or widen an existing span if it crosses the boundary. Column removal deletes the
+or widen an existing span if it crosses the boundary, including a cell spanning
+several rows. Covered rows receive no duplicate cell where that wider span
+already occupies the new column. Column removal deletes the
 active cell's leftmost logical column: single-column cells in that column are
 removed, while wider cells shrink and keep their content. The final logical
 column cannot be removed. Each change is one Undo step and maps surviving review
