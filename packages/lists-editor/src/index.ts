@@ -1,5 +1,5 @@
-import { readDOMSelection } from '@arichtext/dom';
-import { getActiveList, insertListParagraph, indentListItem, outdentListItem } from '@arichtext/lists';
+import { readDOMSelection, decodeARTPath } from '@arichtext/dom';
+import { getActiveList, insertListParagraph, indentListItem, outdentListItem, setTaskItemChecked } from '@arichtext/lists';
 import type { ARichTextElement } from '@arichtext/web-component';
 
 export interface ListEditingController {
@@ -18,6 +18,35 @@ export function enableListEditing(editor: ARichTextElement): ListEditingControll
   let composing = false;
   const startComposition = (): void => { composing = true; };
   const endComposition = (): void => { composing = false; };
+  const taskCheckbox = (target: EventTarget | null): HTMLInputElement | null =>
+    target instanceof HTMLInputElement && target.matches('[data-art-list="task"] > li > input[type="checkbox"]') ? target : null;
+  const updateTasks = (): void => {
+    for (const input of surface.querySelectorAll<HTMLInputElement>('[data-art-list="task"] > li > input[type="checkbox"]')) {
+      input.disabled = editor.disabled || editor.readOnly || !editor.isToolEnabled('task-list');
+      input.tabIndex = input.disabled ? -1 : 0;
+      input.setAttribute('aria-label', `Task: ${input.parentElement?.textContent?.trim().slice(0, 100) || 'Untitled'}`);
+    }
+  };
+  const taskInput = (event: Event): void => { if (taskCheckbox(event.target)) event.stopPropagation(); };
+  const taskChange = (event: Event): void => {
+    const input = taskCheckbox(event.target);
+    if (!input) return;
+    event.stopPropagation();
+    if (editor.disabled || editor.readOnly || !editor.isToolEnabled('task-list')) { updateTasks(); return; }
+    const block = input.parentElement?.querySelector('[data-art-text-block]');
+    const encoded = block?.getAttribute('data-art-block-path');
+    if (!encoded) return;
+    const point = { blockPath: decodeARTPath(encoded), offset: 0 };
+    const selection = editor.getSelection();
+    const command = setTaskItemChecked({ document: editor.getJSON(), selection: { anchor: point, head: point } }, input.checked);
+    if (command) editor.dispatch({ ...command, ...(selection ? { selection } : {}) });
+  };
+  surface.addEventListener('input', taskInput, true);
+  surface.addEventListener('change', taskChange, true);
+  for (const event of ['transaction', 'reconcile', 'input', 'format-state-change']) editor.addEventListener(event, updateTasks);
+  const observer = new MutationObserver(updateTasks);
+  observer.observe(editor, { attributes: true, attributeFilter: ['disabled', 'readonly', 'tools'] });
+  updateTasks();
   const beforeInput = (event: InputEvent): void => {
     if (event.defaultPrevented || !event.cancelable || composing || event.isComposing
       || editor.disabled || editor.readOnly) return;
@@ -46,6 +75,7 @@ export function enableListEditing(editor: ARichTextElement): ListEditingControll
       || editor.disabled || editor.readOnly || event.key !== 'Tab' || event.ctrlKey || event.metaKey || event.altKey) return;
     const state = { document: editor.getJSON(), selection: readDOMSelection(surface) ?? editor.getSelection() };
     if (!getActiveList(state)) return;
+    if (!editor.isToolEnabled(event.shiftKey ? 'outdent' : 'indent')) return;
     const command = event.shiftKey ? outdentListItem(state) : indentListItem(state);
     if (!command) return; // Keep Tab available to leave the first item.
     event.preventDefault();
@@ -57,6 +87,11 @@ export function enableListEditing(editor: ARichTextElement): ListEditingControll
   surface.addEventListener('compositionend', endComposition);
   const controller: ListEditingController = {
     destroy() {
+      observer.disconnect();
+      surface.removeEventListener('input', taskInput, true);
+      surface.removeEventListener('change', taskChange, true);
+      for (const event of ['transaction', 'reconcile', 'input', 'format-state-change']) editor.removeEventListener(event, updateTasks);
+      for (const input of surface.querySelectorAll<HTMLInputElement>('[data-art-list="task"] > li > input[type="checkbox"]')) { input.disabled = true; input.tabIndex = -1; }
       surface.removeEventListener('beforeinput', beforeInput, true);
       surface.removeEventListener('keydown', keyDown, true);
       surface.removeEventListener('compositionstart', startComposition);

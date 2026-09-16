@@ -23,6 +23,7 @@ static assets; no import map, framework or runtime dependencies are needed.
   <span id="body-label">Body</span>
   <a-rich-text-toolbar for="body"></a-rich-text-toolbar>
   <a-rich-text id="body" name="body" format="html"
+    views="visual html markdown json"
     aria-labelledby="body-label" required></a-rich-text>
   <button>Save</button>
 </form>
@@ -69,6 +70,9 @@ and opt into individual adapters. Styles are encapsulated in Shadow DOM and can
 be customized with the documented CSS properties and `::part(editor)`.
 
 ## Editing contract
+
+Use [`tools`, `views` and `view` attributes](editor-configuration.md) to configure
+the toolbar and source editors. `format` continues to control form serialization.
 
 - Bold/italic/underline: Ctrl or Command+B/I/U. Undo: Ctrl or Command+Z;
   redo: Shift+Ctrl or Command+Z (also Ctrl+Y).

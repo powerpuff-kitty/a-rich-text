@@ -46,10 +46,12 @@ import {
   type HTMLExtensionHooks,
 } from '@arichtext/html';
 import { fromMarkdown, toMarkdown } from '@arichtext/markdown';
+import { EDITOR_TOOLS, EDITOR_VIEWS, tokens, type ARichTextTool, type ARichTextView } from './configuration.js';
+export { EDITOR_TOOLS, EDITOR_VIEWS, type ARichTextTool, type ARichTextView } from './configuration.js';
 
 export type ARichTextFormat = 'html' | 'json' | 'markdown' | 'text';
 export type ARichTextReconcileSource = 'native-input' | 'composition';
-export type ARichTextSimpleMark = 'bold' | 'italic' | 'underline' | 'strike';
+export type ARichTextSimpleMark = 'bold' | 'italic' | 'underline' | 'strike' | 'code';
 
 export interface ARichTextExtensionKeyBinding {
   key: string;
@@ -126,6 +128,7 @@ function getTemplate(): HTMLTemplateElement {
       }
 
       [part='editor'] {
+        position: relative;
         white-space: pre-wrap;
         min-height: 8rem;
         box-sizing: border-box;
@@ -143,6 +146,15 @@ function getTemplate(): HTMLTemplateElement {
       [part='editor'] > :last-child { margin-bottom: 0; }
       [part='editor'] table { border-collapse: collapse; width: 100%; }
       [part='editor'] td { border: 1px solid var(--art-border-color); padding: 0.4rem; min-width: 2rem; }
+      [part='editor'] p { margin-block: 0 0.6em; }
+      [part='editor'] li > :last-child, [part='editor'] td > :last-child { margin-bottom: 0; }
+      [data-art-list='task'] { list-style: none; padding-inline-start: 0; }
+      [data-art-list='task'] > li { position: relative; padding-inline-start: 1.75em; margin-block: 0.4em; }
+      [data-art-list='task'] > li > input[type='checkbox'] {
+        position: absolute; inset-inline-start: 0; inset-block-start: 0.3em;
+        width: 1em; height: 1em; margin: 0; cursor: pointer;
+      }
+      [data-art-list='task'] > li > :not(input):first-of-type { margin-top: 0; }
 
       [part='editor']:focus-visible {
         outline: 2px solid currentColor;
@@ -155,12 +167,38 @@ function getTemplate(): HTMLTemplateElement {
       }
 
       [part='editor'][data-empty='true']::before {
+        position: absolute;
+        inset-block-start: 0.75rem;
+        inset-inline-start: 0.75rem;
         content: attr(data-placeholder);
         opacity: 0.55;
         pointer-events: none;
       }
+      [hidden] { display: none !important; }
+      [part='view-switcher'] { display: flex; flex-wrap: wrap; gap: 0.25rem; margin-block: 0.4rem; }
+      [part='view-switcher'] button, [part='source-actions'] button {
+        font: inherit; color: inherit; padding: 0.4rem 0.7rem; cursor: pointer;
+        border: 1px solid var(--art-border-color); border-radius: var(--art-radius); background: var(--art-background);
+      }
+      [part='view-switcher'] [aria-pressed='true'] { background: color-mix(in srgb, var(--art-color) 12%, var(--art-background)); }
+      [part='source'] { display: block; width: 100%; min-height: 14rem; box-sizing: border-box; resize: vertical;
+        padding: 0.75rem; font: 0.9rem/1.6 ui-monospace, monospace; color: inherit;
+        border: 1px solid var(--art-border-color); border-radius: var(--art-radius); background: var(--art-background); }
+      [part='source-actions'] { display: flex; gap: 0.4rem; margin-block: 0.5rem; }
+      [part='source-note'], [part='source-error'] { font: 0.85rem/1.5 var(--art-font-family); margin-block: 0.4rem; }
+      button:focus-visible, [part='source']:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
     </style>
+    <div part="view-switcher" role="group" aria-label="Document view" hidden></div>
     <div part="editor" role="textbox" aria-multiline="true"></div>
+    <section part="source-panel" hidden>
+      <p part="source-note" id="source-note">Source edits apply only when you choose Apply changes. Applying clears undo history. JSON preserves the full document; other formats may lose unsupported formatting.</p>
+      <textarea part="source" aria-label="Document source" aria-describedby="source-note source-error" spellcheck="false"></textarea>
+      <div part="source-actions">
+        <button type="button" data-source-action="apply">Apply changes</button>
+        <button type="button" data-source-action="discard">Discard changes</button>
+      </div>
+      <p part="source-error" id="source-error" role="status" aria-live="polite"></p>
+    </section>
   `;
   cachedTemplate = template;
   return template;
@@ -175,6 +213,7 @@ export class ARichTextElement extends HTMLElementBase {
     'value',
     'format',
     'required',
+    'tools', 'views', 'view',
     ...ARIA_FORWARD_ATTRIBUTES,
   ];
 
@@ -188,6 +227,11 @@ export class ARichTextElement extends HTMLElementBase {
   #reconcileQueued = false;
   #storedMarks: ARTTextMark[] | null = null;
   #formDisabled = false;
+  #activeView: ARichTextView = 'visual';
+  #source: HTMLTextAreaElement;
+  #sourceDirty = false;
+  #sourceError = '';
+  #sourceDocument = '';
 
   constructor() {
     super();
@@ -198,9 +242,27 @@ export class ARichTextElement extends HTMLElementBase {
     const shadow = this.attachShadow({ mode: 'open' });
     shadow.append(getTemplate().content.cloneNode(true));
     this.#editor = shadow.querySelector<HTMLDivElement>('[part="editor"]')!;
+    this.#source = shadow.querySelector<HTMLTextAreaElement>('[part="source"]')!;
     this.#internals = typeof this.attachInternals === 'function' ? this.attachInternals() : null;
     this.#engine = this.#createEngine(createTextDocument(''));
     this.#renderFromEngine();
+    this.#source.addEventListener('input', (event) => {
+      event.stopPropagation();
+      this.#sourceDirty = this.#source.value !== this.#serializeView();
+      this.#sourceError = '';
+      this.#syncViews();
+      this.#syncFormValue();
+    });
+    this.#source.addEventListener('change', (event) => event.stopPropagation());
+    shadow.querySelector('[part="view-switcher"]')!.addEventListener('click', (event) => {
+      const button = (event.target as Element).closest<HTMLButtonElement>('[data-view]');
+      if (button && !button.disabled) { this.view = button.dataset.view as ARichTextView; this.focus(); }
+    });
+    shadow.querySelector('[part="source-actions"]')!.addEventListener('click', (event) => {
+      const action = (event.target as Element).closest<HTMLElement>('[data-source-action]')?.dataset.sourceAction;
+      if (action === 'apply') this.applySource();
+      if (action === 'discard') this.discardSource();
+    });
 
     this.#editor.addEventListener('beforeinput', this.#handleBeforeInput);
     this.#editor.addEventListener('input', this.#handleNativeInput);
@@ -222,6 +284,7 @@ export class ARichTextElement extends HTMLElementBase {
     this.#syncState();
     this.#syncDerivedState();
     this.#syncFormValue();
+    this.#syncViews();
   }
 
   disconnectedCallback(): void {
@@ -230,6 +293,24 @@ export class ARichTextElement extends HTMLElementBase {
   }
 
   attributeChangedCallback(name: string, oldValue: string | null, newValue: string | null): void {
+    if (oldValue === newValue) return;
+    if (name === 'view' || name === 'views') {
+      const requested = this.getAttribute('view')?.toLowerCase() === 'md' ? 'markdown' : this.getAttribute('view');
+      const next = this.views.includes(requested as ARichTextView) ? requested as ARichTextView : 'visual';
+      if (this.#sourceDirty && next !== this.#activeView) {
+        this.#sourceError = 'Apply or discard your source changes before switching views.';
+        if (name === 'views') {
+          if (oldValue === null) this.removeAttribute('views'); else this.setAttribute('views', oldValue);
+        }
+        this.setAttribute('view', this.#activeView);
+      } else if (next !== this.#activeView) {
+        this.#activeView = next;
+        this.#source.value = this.#serializeView();
+        this.#sourceDocument = this.serializeJSON();
+        this.#sourceError = '';
+        this.dispatchEvent(new CustomEvent('view-change', { bubbles: true, composed: true, detail: { view: next } }));
+      }
+    }
     if (name === 'value' && oldValue !== newValue && this.isConnected && !this.#editor.matches(':focus')) {
       this.value = newValue ?? '';
       return;
@@ -237,6 +318,92 @@ export class ARichTextElement extends HTMLElementBase {
     this.#syncState();
     this.#syncDerivedState();
     this.#syncFormValue();
+    this.#syncViews();
+  }
+
+  get tools(): ARichTextTool[] {
+    const value = this.getAttribute('tools');
+    return value === null ? [...EDITOR_TOOLS] : tokens(value).filter((tool): tool is ARichTextTool => EDITOR_TOOLS.includes(tool as ARichTextTool));
+  }
+  set tools(value: readonly ARichTextTool[] | string) { this.setAttribute('tools', typeof value === 'string' ? value : value.join(' ')); }
+  isToolEnabled(tool: string): boolean { return this.tools.includes(tool as ARichTextTool); }
+  get views(): ARichTextView[] {
+    return ['visual', ...tokens(this.getAttribute('views') ?? '').filter((view): view is Exclude<ARichTextView, 'visual'> => view !== 'visual' && EDITOR_VIEWS.includes(view as ARichTextView))];
+  }
+  set views(value: readonly ARichTextView[] | string) { this.setAttribute('views', typeof value === 'string' ? value : value.join(' ')); }
+  get view(): ARichTextView { return this.#activeView; }
+  set view(value: ARichTextView) { this.setAttribute('view', value); }
+  get sourceDirty(): boolean { return this.#sourceDirty; }
+
+  applySource(): boolean {
+    if (this.disabled || this.readOnly || this.#activeView === 'visual') return false;
+    if (!this.#sourceDirty) return true;
+    try {
+      if (this.#sourceDocument && this.#sourceDocument !== this.serializeJSON()) throw new Error('The document changed while you were editing source. Discard this draft and try again.');
+      const value = this.#source.value;
+      const document = this.#activeView === 'json' ? parseDocument(value)
+        : this.#activeView === 'html' ? fromHTML(value, this.#extensions ? { extensions: this.#extensions } : {})
+          : this.#activeView === 'markdown' ? fromMarkdown(value) : createTextDocument(value);
+      this.#sourceDirty = false;
+      this.#sourceError = '';
+      this.setJSON(document);
+      this.#source.value = this.#serializeView();
+      this.#syncViews();
+      this.#emitInput();
+      return true;
+    } catch (error) {
+      this.#sourceError = `Cannot apply ${this.#activeView.toUpperCase()}: ${error instanceof Error ? error.message : 'Invalid document'}`;
+      this.#syncViews();
+      this.#syncFormValue();
+      return false;
+    }
+  }
+
+  discardSource(): void {
+    this.#sourceDirty = false;
+    this.#sourceError = '';
+    this.#source.value = this.#serializeView();
+    this.#sourceDocument = this.serializeJSON();
+    this.#syncViews();
+    this.#syncFormValue();
+  }
+
+  #serializeView(): string {
+    if (this.#activeView === 'json') return JSON.stringify(this.getJSON(), null, 2);
+    if (this.#activeView === 'html') return this.getHTML();
+    if (this.#activeView === 'markdown') return this.getMarkdown();
+    if (this.#activeView === 'text') return this.getText();
+    return '';
+  }
+
+  #syncViews(): void {
+    const switcher = this.shadowRoot!.querySelector<HTMLElement>('[part="view-switcher"]')!;
+    const signature = this.views.join(' ');
+    if (switcher.dataset.views !== signature) {
+      switcher.replaceChildren(...this.views.map((view) => {
+        const button = this.ownerDocument.createElement('button');
+        button.type = 'button'; button.dataset.view = view;
+        button.textContent = { visual: 'Editor', html: 'HTML', markdown: 'Markdown', json: 'JSON', text: 'Text' }[view];
+        return button;
+      }));
+      switcher.dataset.views = signature;
+    }
+    switcher.hidden = this.views.length < 2;
+    for (const button of switcher.querySelectorAll('button')) {
+      button.setAttribute('aria-pressed', String(button.dataset.view === this.#activeView));
+      button.disabled = this.disabled || (this.#sourceDirty && button.dataset.view !== this.#activeView);
+    }
+    this.#editor.hidden = this.#activeView !== 'visual';
+    this.shadowRoot!.querySelector<HTMLElement>('[part="source-panel"]')!.hidden = this.#activeView === 'visual';
+    this.#source.disabled = this.disabled;
+    this.#source.readOnly = this.readOnly;
+    this.#source.setAttribute('aria-label', `${this.#activeView.toUpperCase()} document source`);
+    this.#source.setAttribute('aria-invalid', String(Boolean(this.#sourceError)));
+    const actions = this.shadowRoot!.querySelector<HTMLElement>('[part="source-actions"]')!;
+    actions.hidden = !this.#sourceDirty;
+    actions.querySelector<HTMLButtonElement>('[data-source-action="apply"]')!.disabled = this.disabled || this.readOnly;
+    actions.querySelector<HTMLButtonElement>('[data-source-action="discard"]')!.disabled = this.disabled;
+    this.shadowRoot!.querySelector<HTMLElement>('[part="source-error"]')!.textContent = this.#sourceError;
   }
 
   get extensions(): ARichTextExtensionRuntime | undefined {
@@ -328,6 +495,7 @@ export class ARichTextElement extends HTMLElementBase {
   }
 
   override focus(options?: FocusOptions): void {
+    if (this.#activeView !== 'visual') { this.#source.focus(options); return; }
     this.#editor.focus(options);
     const selection = this.#engine.state.selection;
     if (selection) writeDOMSelection(this.#editor, selection);
@@ -488,6 +656,8 @@ export class ARichTextElement extends HTMLElementBase {
   }
 
   formResetCallback(): void {
+    this.#sourceDirty = false;
+    this.#sourceError = '';
     this.value = this.getAttribute('value') ?? '';
   }
 
@@ -496,6 +666,7 @@ export class ARichTextElement extends HTMLElementBase {
     this.#syncState();
     this.#syncFormValue();
     this.#emitFormatState();
+    this.#syncViews();
   }
 
   formStateRestoreCallback(state: string | File | FormData): void {
@@ -523,6 +694,11 @@ export class ARichTextElement extends HTMLElementBase {
     this.#syncDerivedState();
     this.#syncFormValue();
     this.#emitFormatState();
+    if (!this.#sourceDirty) {
+      this.#source.value = this.#serializeView();
+      this.#sourceDocument = this.serializeJSON();
+    }
+    this.#syncViews();
   }
 
   #handleEngineResult = (result: TransactionResult): void => {
@@ -530,6 +706,10 @@ export class ARichTextElement extends HTMLElementBase {
       this.#renderFromEngine();
       this.#syncDerivedState();
       this.#syncFormValue();
+      if (!this.#sourceDirty) {
+        this.#source.value = this.#serializeView();
+        this.#sourceDocument = this.serializeJSON();
+      }
     } else if (result.selectionChanged && result.state.selection && this.shadowRoot?.activeElement === this.#editor) {
       writeDOMSelection(this.#editor, result.state.selection);
     }
@@ -546,6 +726,9 @@ export class ARichTextElement extends HTMLElementBase {
 
     const intent = classifyBeforeInput(event);
     if (!intent.intercept) return;
+    if (intent.kind === 'toggleMark' && !this.isToolEnabled(intent.mark.type)) { event.preventDefault(); return; }
+    if (intent.kind === 'historyUndo' && !this.isToolEnabled('undo')) { event.preventDefault(); return; }
+    if (intent.kind === 'historyRedo' && !this.isToolEnabled('redo')) { event.preventDefault(); return; }
 
     this.#syncSelectionFromDOM();
     const state = this.#engine.state;
@@ -606,6 +789,10 @@ export class ARichTextElement extends HTMLElementBase {
     const mod = event.ctrlKey || event.metaKey;
     const key = event.key.toLowerCase();
     let handled = false;
+    const tool = mod && key === 'b' ? 'bold' : mod && key === 'i' ? 'italic'
+      : mod && key === 'u' ? 'underline' : mod && key === 'z' ? (event.shiftKey ? 'redo' : 'undo')
+        : event.ctrlKey && key === 'y' ? 'redo' : null;
+    if (tool && !this.isToolEnabled(tool)) { event.preventDefault(); return; }
 
     if (mod && key === 'b') handled = this.toggleMark('bold');
     else if (mod && key === 'i') handled = this.toggleMark('italic');
@@ -823,13 +1010,17 @@ export class ARichTextElement extends HTMLElementBase {
   }
 
   #syncDerivedState(): void {
-    this.#editor.dataset.empty = String(this.getText().length === 0);
+    const content = this.#engine.state.document.content;
+    this.#editor.dataset.empty = String(content.length === 1 && content[0]?.type === 'paragraph' && this.getText().length === 0);
   }
 
   #syncFormValue(): void {
     this.#internals?.setFormValue(this.value, this.serializeJSON());
     const missing = this.required && !this.readOnly && !this.disabled && this.getText().trim().length === 0;
-    this.#internals?.setValidity?.(missing ? { valueMissing: true } : {}, missing ? 'Please enter some text.' : '', this.#editor);
+    const draft = this.#sourceDirty && !this.disabled && !this.readOnly;
+    this.#internals?.setValidity?.(draft ? { customError: true } : missing ? { valueMissing: true } : {},
+      draft ? 'Apply or discard your source changes before submitting.' : missing ? 'Please enter some text.' : '',
+      this.#activeView === 'visual' ? this.#editor : this.#source);
   }
 }
 
