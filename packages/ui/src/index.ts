@@ -1,7 +1,8 @@
+import { toolbarIcon } from './icons.js';
 import {
   createLinkMark,
 } from '@arichtext/links';
-import { getActiveList, toggleList, type ListStyle } from '@arichtext/lists';
+import { getActiveList, toggleList, indentListItem, outdentListItem, type ListStyle } from '@arichtext/lists';
 import {
   addTableColumn,
   addTableRow,
@@ -21,6 +22,7 @@ const MARK_ACTIONS: ReadonlyArray<{ action: ARichTextSimpleMark; label: string; 
   { action: 'italic', label: 'Italic', text: 'I' },
   { action: 'underline', label: 'Underline', text: 'U' },
   { action: 'strike', label: 'Strikethrough', text: 'S' },
+  { action: 'code', label: 'Inline code', text: '</>' },
 ];
 
 const LIST_ACTIONS: ReadonlyArray<{ action: string; style: ListStyle; label: string; text: string }> = [
@@ -57,13 +59,14 @@ function getTemplate(): HTMLTemplateElement {
         align-items: center;
         gap: 0.25rem;
         box-sizing: border-box;
-        width: max-content;
+        width: 100%;
+        flex-wrap: wrap;
         max-width: 100%;
         padding: 0.25rem;
         border: 1px solid var(--art-toolbar-border);
         border-radius: var(--art-toolbar-radius);
         background: var(--art-toolbar-background);
-        overflow-x: auto;
+        overflow: visible;
       }
 
       [part~='button'],
@@ -90,6 +93,10 @@ function getTemplate(): HTMLTemplateElement {
         background: var(--art-toolbar-active);
       }
 
+      [hidden] { display: none !important; }
+      svg { width: 1em; height: 1em; vertical-align: middle; }
+      .icon-pair { display: inline-flex; align-items: center; gap: 0.15rem; }
+      .icon-pair svg:last-child { width: 0.65em; height: 0.65em; }
       [part~='button']:focus-visible,
       [part='block-select']:focus-visible,
       [part='link-input']:focus-visible {
@@ -118,7 +125,8 @@ function getTemplate(): HTMLTemplateElement {
 
       [part='link-editor'] {
         display: grid;
-        grid-template-columns: minmax(12rem, 1fr) auto auto auto;
+        grid-template-columns: minmax(0, 1fr) auto auto auto;
+        box-sizing: border-box;
         gap: 0.25rem;
         width: min(100%, 36rem);
         margin-top: 0.25rem;
@@ -158,9 +166,9 @@ function getTemplate(): HTMLTemplateElement {
           aria-label="${label}"
           title="${label}"
           aria-pressed="false"
-        >${text}</button>
+        >${toolbarIcon(action)}</button>
       `).join('')}
-      <button part="button link-button" type="button" data-action="link" aria-label="Link" title="Link (Ctrl/⌘+K)" aria-pressed="false">↗</button>
+      <button part="button link-button" type="button" data-action="link" aria-label="Link" title="Link (Ctrl/⌘+K)" aria-pressed="false">${toolbarIcon('link')}</button>
       <span part="separator" aria-hidden="true"></span>
       ${LIST_ACTIONS.map(({ action, label, text }) => `
         <button
@@ -170,17 +178,19 @@ function getTemplate(): HTMLTemplateElement {
           aria-label="${label}"
           title="${label}"
           aria-pressed="false"
-        >${text}</button>
+        >${toolbarIcon(action)}</button>
       `).join('')}
       <span part="separator" aria-hidden="true"></span>
-      <button part="button insert-table-button" type="button" data-action="insert-table" aria-label="Insert table" title="Insert 2 × 2 table">▦</button>
-      <button part="button add-row-button" type="button" data-action="add-row" aria-label="Add table row" title="Add row">+R</button>
-      <button part="button remove-row-button" type="button" data-action="remove-row" aria-label="Remove table row" title="Remove row">−R</button>
-      <button part="button add-column-button" type="button" data-action="add-column" aria-label="Add table column" title="Add column">+C</button>
-      <button part="button remove-column-button" type="button" data-action="remove-column" aria-label="Remove table column" title="Remove column">−C</button>
+      <button part="button indent-button" type="button" data-action="indent" aria-label="Indent list item" title="Indent list item (Tab)">${toolbarIcon('indent')}</button>
+      <button part="button outdent-button" type="button" data-action="outdent" aria-label="Outdent list item" title="Outdent list item (Shift+Tab)">${toolbarIcon('outdent')}</button>
+      <button part="button insert-table-button" type="button" data-action="insert-table" aria-label="Insert table" title="Insert 2 × 2 table">${toolbarIcon('insert-table')}</button>
+      <button part="button add-row-button" type="button" data-action="add-row" aria-label="Add table row" title="Add row">${toolbarIcon('add-row')}</button>
+      <button part="button remove-row-button" type="button" data-action="remove-row" aria-label="Remove table row" title="Remove row">${toolbarIcon('remove-row')}</button>
+      <button part="button add-column-button" type="button" data-action="add-column" aria-label="Add table column" title="Add column">${toolbarIcon('add-column')}</button>
+      <button part="button remove-column-button" type="button" data-action="remove-column" aria-label="Remove table column" title="Remove column">${toolbarIcon('remove-column')}</button>
       <span part="separator" aria-hidden="true"></span>
-      <button part="button undo-button" type="button" data-action="undo" aria-label="Undo" title="Undo">↶</button>
-      <button part="button redo-button" type="button" data-action="redo" aria-label="Redo" title="Redo">↷</button>
+      <button part="button undo-button" type="button" data-action="undo" aria-label="Undo" title="Undo">${toolbarIcon('undo')}</button>
+      <button part="button redo-button" type="button" data-action="redo" aria-label="Redo" title="Redo">${toolbarIcon('redo')}</button>
     </div>
     <form part="link-editor" data-role="link-editor" hidden aria-label="Edit link">
       <input
@@ -296,7 +306,7 @@ export class ARichTextToolbarElement extends HTMLElementBase {
         this.#editorObserver = new MutationObserver(this.#handleEditorStateChange);
         this.#editorObserver.observe(editor, {
           attributes: true,
-          attributeFilter: ['disabled', 'readonly'],
+          attributeFilter: ['disabled', 'readonly', 'tools', 'view', 'views'],
         });
       }
       if (editor.id) this.#toolbar.setAttribute('aria-controls', editor.id);
@@ -313,7 +323,7 @@ export class ARichTextToolbarElement extends HTMLElementBase {
 
   #handleEditorKeyDown = (event: Event): void => {
     const keyboard = event as KeyboardEvent;
-    if (!this.#editor || this.#editor.disabled || this.#editor.readOnly) return;
+    if (!this.#editor || this.#editor.disabled || this.#editor.readOnly || this.#editor.view !== 'visual' || !this.#editor.isToolEnabled('link')) return;
     if (!(keyboard.ctrlKey || keyboard.metaKey) || keyboard.altKey || keyboard.shiftKey) return;
     if (keyboard.key.toLowerCase() !== 'k') return;
     if (keyboard.defaultPrevented || keyboard.isComposing || !this.#editor.getSelection()) return;
@@ -323,8 +333,9 @@ export class ARichTextToolbarElement extends HTMLElementBase {
 
   #handlePointerDown = (event: Event): void => {
     const target = event.target;
-    if (!(target instanceof HTMLButtonElement)) return;
-    if (target.closest('[data-role="link-editor"]')) return;
+    if (!(target instanceof Element)) return;
+    const button = target.closest('button');
+    if (!button || button.closest('[data-role="link-editor"]')) return;
     event.preventDefault();
   };
 
@@ -343,7 +354,7 @@ export class ARichTextToolbarElement extends HTMLElementBase {
     }
 
     const button = target.closest<HTMLButtonElement>('button[data-action]');
-    if (!button || button.disabled || !this.#editor) return;
+    if (!button || button.disabled || button.hidden || !this.#editor || !this.#editor.isToolEnabled(button.dataset.action ?? '')) return;
     const action = button.dataset.action;
 
     if (isMarkAction(action)) {
@@ -357,6 +368,10 @@ export class ARichTextToolbarElement extends HTMLElementBase {
     if (isListAction(action)) {
       const spec = LIST_ACTIONS.find((candidate) => candidate.action === action)!;
       this.#dispatchCommand(toggleList(editorState(this.#editor), spec.style));
+      return;
+    }
+    if (action === 'indent' || action === 'outdent') {
+      this.#dispatchCommand((action === 'indent' ? indentListItem : outdentListItem)(editorState(this.#editor)));
       return;
     }
     if (action === 'insert-table') {
@@ -410,7 +425,7 @@ export class ARichTextToolbarElement extends HTMLElementBase {
   };
 
   #openLinkEditor(): void {
-    if (!this.#editor || this.#editor.disabled || this.#editor.readOnly || !this.#editor.getSelection()) return;
+    if (!this.#editor || this.#editor.disabled || this.#editor.readOnly || this.#editor.view !== 'visual' || !this.#editor.isToolEnabled('link') || !this.#editor.getSelection()) return;
     this.#linkEditor.hidden = false;
     this.#linkInput.value = safeActiveLink(this.#editor) ?? '';
     this.#linkInput.removeAttribute('aria-invalid');
@@ -431,7 +446,7 @@ export class ARichTextToolbarElement extends HTMLElementBase {
   }
 
   #applyLink(): void {
-    if (!this.#editor || this.#editor.disabled || this.#editor.readOnly) return;
+    if (!this.#editor || this.#editor.disabled || this.#editor.readOnly || this.#editor.view !== 'visual' || !this.#editor.isToolEnabled('link')) return;
     try {
       if (!this.#editor.setMark(createLinkMark(this.#linkInput.value))) return;
       this.#closeLinkEditor(true);
@@ -444,7 +459,7 @@ export class ARichTextToolbarElement extends HTMLElementBase {
   }
 
   #removeLink(): void {
-    if (!this.#editor || !this.#editor.removeMark('link')) return;
+    if (!this.#editor || this.#editor.view !== 'visual' || !this.#editor.isToolEnabled('link') || !this.#editor.removeMark('link')) return;
     this.#closeLinkEditor(true);
     this.#refresh();
   }
@@ -473,9 +488,15 @@ export class ARichTextToolbarElement extends HTMLElementBase {
     const activeLink = editor ? safeActiveLink(editor) : null;
     const activeList = state ? safeActiveList(state) : null;
     const activeTable = state ? safeActiveTable(state) : null;
+    const selection = state?.selection;
+    const singleBlock = Boolean(selection && String(selection.anchor.blockPath) === String(selection.head.blockPath));
+    const visual = editor?.view === 'visual';
+    const inline = Boolean(editor?.getActiveBlock());
+    const insideTable = Boolean(state && selection && pathContainsTable(state.document, selection.anchor.blockPath));
 
     for (const button of this.shadowRoot?.querySelectorAll<HTMLButtonElement>('button[data-action]') ?? []) {
       const action = button.dataset.action;
+      let available = selectionAvailable && inline;
       if (isMarkAction(action)) {
         button.disabled = locked;
         button.setAttribute('aria-pressed', String(activeMarks.has(action)));
@@ -486,8 +507,13 @@ export class ARichTextToolbarElement extends HTMLElementBase {
         const spec = LIST_ACTIONS.find((candidate) => candidate.action === action)!;
         button.disabled = locked;
         button.setAttribute('aria-pressed', String(activeList?.style === spec.style));
+        available = singleBlock && inline;
+      } else if (action === 'indent' || action === 'outdent') {
+        available = singleBlock && activeList !== null && (action === 'outdent' || activeList.itemIndex > 0);
+        button.disabled = locked || !available;
       } else if (action === 'insert-table') {
-        button.disabled = locked || !state || activeTable !== null;
+        available = singleBlock && inline && !insideTable;
+        button.disabled = locked || !available;
       } else if (
         action === 'add-row'
         || action === 'remove-row'
@@ -499,20 +525,46 @@ export class ARichTextToolbarElement extends HTMLElementBase {
           || (action === 'remove-column' && activeTable.columns <= 1)
           || (action === 'add-row' && activeTable.rows >= 50)
           || (action === 'add-column' && activeTable.columns >= 50);
+        available = singleBlock && !button.disabled;
       } else if (action === 'undo') {
         button.disabled = locked || !editor?.canUndo;
+        available = Boolean(editor?.canUndo);
       } else if (action === 'redo') {
         button.disabled = locked || !editor?.canRedo;
+        available = Boolean(editor?.canRedo);
       }
+      button.hidden = !visual || locked || !editor?.isToolEnabled(action ?? '') || !available;
     }
 
     this.#blockSelect.disabled = locked;
+    for (const option of this.#blockSelect.options) {
+      const enabled = editor?.isToolEnabled(option.value === 'paragraph' ? 'paragraph' : 'heading') ?? false;
+      option.hidden = !enabled;
+      option.disabled = !enabled;
+    }
+    this.#blockSelect.hidden = !visual || locked || !singleBlock || !inline
+      || (!editor?.isToolEnabled('paragraph') && !editor?.isToolEnabled('heading'));
     const block = editor?.getActiveBlock();
     this.#blockSelect.value = block?.type === 'heading' && block.level && block.level <= 3
       ? `h${block.level}`
       : 'paragraph';
 
-    if ((locked || !selectionAvailable) && !this.#linkEditor.hidden) this.#closeLinkEditor();
+    // Retain one separator only between nonempty groups.
+    let precedingControl = false;
+    const children = Array.from(this.#toolbar.children) as HTMLElement[];
+    children.forEach((child, index) => {
+      if (child.getAttribute('part') === 'separator') {
+        let followingControl = false;
+        for (const next of children.slice(index + 1)) {
+          if (next.getAttribute('part') === 'separator') break;
+          if (!next.hidden) followingControl = true;
+        }
+        child.hidden = !precedingControl || !followingControl;
+        if (!child.hidden) precedingControl = false;
+      } else if (!child.hidden) precedingControl = true;
+    });
+    this.#toolbar.hidden = !children.some((child) => !child.hidden && child.getAttribute('part') !== 'separator');
+    if ((locked || !visual || !editor?.isToolEnabled('link') || !selectionAvailable) && !this.#linkEditor.hidden) this.#closeLinkEditor();
   }
 }
 
@@ -522,6 +574,7 @@ const observedEditorEvents = [
   'reconcile',
   'format-state-change',
   'input',
+  'view-change',
 ] as const;
 
 function editorState(editor: ARichTextElement) {
@@ -529,6 +582,16 @@ function editorState(editor: ARichTextElement) {
     document: editor.getJSON(),
     selection: editor.getSelection(),
   };
+}
+
+function pathContainsTable(document: unknown, path: readonly number[]): boolean {
+  let node = document as { type?: string; content?: unknown[] };
+  for (const index of path) {
+    node = node.content?.[index] as typeof node;
+    if (!node) return false;
+    if (node.type === 'table') return true;
+  }
+  return false;
 }
 
 function safeActiveLink(editor: ARichTextElement): string | null {
@@ -560,7 +623,8 @@ function isMarkAction(value: string | undefined): value is ARichTextSimpleMark {
   return value === 'bold'
     || value === 'italic'
     || value === 'underline'
-    || value === 'strike';
+    || value === 'strike'
+    || value === 'code';
 }
 
 function isListAction(value: string | undefined): boolean {

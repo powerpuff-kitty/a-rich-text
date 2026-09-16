@@ -7,6 +7,7 @@ await build({
   bundle: true, minify: true, sourcemap: true, format: 'esm', platform: 'browser', target: 'es2022',
 });
 await copyFile('LICENSE', 'dist/browser/LICENSE');
+await copyFile('packages/ui/THIRD_PARTY_NOTICES.txt', 'dist/browser/THIRD_PARTY_NOTICES.txt');
 const fixture = await readFile('tests/browser/index.html', 'utf8');
 await writeFile('dist/browser/index.html', fixture
   .replace('A Rich Text browser fixture', 'A Rich Text — standalone editor')

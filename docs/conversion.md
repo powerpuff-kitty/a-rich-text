@@ -63,3 +63,8 @@ editor.getText();
 ```
 
 All conversions above run on the user's device.
+
+The component also exposes developer-configured HTML, Markdown, JSON and text
+source views. See [tools and document views](editor-configuration.md). Merely
+switching views never reparses or changes the canonical document; applying an
+edited source explicitly imports it under the fidelity policy above.

@@ -36,3 +36,7 @@ includes this inherited form state so optional controllers honor it.
 Form reset restores the `value` attribute (or an empty document). Browser form
 state restoration uses canonical JSON, independently of the output `format`.
 Normal `input` events expose document changes; `change` is emitted on blur.
+
+Pending source-view drafts block native form validation until applied or
+discarded. `format` controls submitted serialization independently of `view`.
+See [source editing and recovery](editor-configuration.md#source-editing-and-recovery).

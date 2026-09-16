@@ -33,6 +33,7 @@ locally. GitHub Actions is disabled.
 
 Core architecture docs:
 
+- [`docs/editor-configuration.md`](docs/editor-configuration.md) — available tools, source views and format fidelity
 - [`docs/architecture.md`](docs/architecture.md)
 - [`docs/engine.md`](docs/engine.md)
 - [`docs/dom-adapter.md`](docs/dom-adapter.md)
