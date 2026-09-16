@@ -21,10 +21,12 @@ static assets; no import map, framework or runtime dependencies are needed.
 ```html
 <form>
   <span id="body-label">Body</span>
+  <a-rich-text-shell>
   <a-rich-text-toolbar for="body"></a-rich-text-toolbar>
   <a-rich-text id="body" name="body" format="html"
     views="visual html markdown json"
     aria-labelledby="body-label" required></a-rich-text>
+  </a-rich-text-shell>
   <button>Save</button>
 </form>
 <script type="module">
@@ -63,7 +65,8 @@ These controller commands return `false` when no valid selection is available,
 editing is locked, or the controller is destroyed. Invalid link URLs/table
 dimensions throw. `removeLink()` and `setTaskChecked(boolean)` are also available.
 
-Importing registers `<a-rich-text>` and `<a-rich-text-toolbar>` in a browser.
+Importing registers `<a-rich-text>`, `<a-rich-text-toolbar>`,
+`<a-rich-text-shell>` and `<a-rich-text-select>` in a browser.
 Module imports are safe during server rendering; construct elements and install
 controllers on the client. For smaller integrations, use `@arichtext/web-component`
 and opt into individual adapters. Styles are encapsulated in Shadow DOM and can

@@ -6,6 +6,7 @@ Configure the Web Component itself; an attached `<a-rich-text-toolbar>` reads it
 configuration and updates when attributes change.
 
 ```html
+<a-rich-text-shell>
 <a-rich-text-toolbar for="body"></a-rich-text-toolbar>
 <a-rich-text
   id="body"
@@ -16,6 +17,7 @@ configuration and updates when attributes change.
   tools="paragraph heading bold italic underline code link bullet-list ordered-list task-list indent outdent insert-table add-row remove-row add-column remove-column undo redo"
   placeholder="Write something…"
 ></a-rich-text>
+</a-rich-text-shell>
 ```
 
 Import `@arichtext/editor` and call `enableStandardEditing(editor)` to enable the
@@ -197,6 +199,11 @@ connected and the browser must support native modal dialogs.
 
 ## Source editing and recovery
 
+Available formats appear in the toolbar’s **Document format** dropdown. The base
+component supplies the same dropdown when no standard toolbar is registered.
+`views` determines its options; a dirty draft disables switching until resolved.
+See [traditional/inline modes and the dropdown API](editor-modes.md).
+
 Switching views serializes the current canonical ART document and does not
 reimport it. Merely looking at Markdown/plain text therefore cannot strip marks
 or annotations. `format` stays independent of the active `view`.
@@ -239,7 +246,7 @@ Image insertion, editing and optional uploads are available through the
 packages but no bundled toolbar UI.
 Text alignment, font/color/highlight choices would require extending
 the current schema or defining extensions; hiding/showing toolbar tools does not
-add those capabilities. These are follow-up features, not advertised controls.
+add those capabilities. The [reference review and tracked follow-ups](editor-modes.md#reference-review-and-roadmap) detail these gaps and the planned block interaction mode.
 
 ## Automatic links
 

@@ -18,7 +18,12 @@ test('registers the editor and exposes an accessible textbox surface', async ({ 
 
   await expect(surface).toHaveAttribute('role', 'textbox');
   await expect(surface).toHaveAttribute('aria-multiline', 'true');
-  await expect.poll(() => surface.evaluate((node) => node.ariaLabelledByElements?.map((label) => label.textContent))).toEqual(['Body']);
+  if (!process.env.ART_BROWSER_FIXTURE) await expect(surface).toHaveAttribute('aria-label', 'Document');
+  await editor.evaluate(node => {
+    const label = document.createElement('span'); label.id = 'test-editor-label'; label.textContent = 'Document';
+    document.body.append(label); node.removeAttribute('aria-label'); node.setAttribute('aria-labelledby', label.id);
+  });
+  await expect.poll(() => surface.evaluate(node => node.ariaLabelledByElements?.map(label => label.textContent))).toEqual(['Document']);
   await expect(surface).toHaveAttribute('aria-placeholder', 'Write something…');
   await expect(surface).toHaveAttribute('data-placeholder', 'Write something…');
   // Playwright's DOM-based name calculation does not yet read reflected element
@@ -26,7 +31,7 @@ test('registers the editor and exposes an accessible textbox surface', async ({ 
   if (browserName === 'chromium') {
     const cdp = await page.context().newCDPSession(page);
     const tree = await cdp.send('Accessibility.getFullAXTree');
-    expect(tree.nodes.filter((node) => node.role?.value === 'textbox').map((node) => node.name?.value)).toEqual(['Body']);
+    expect(tree.nodes.filter((node) => node.role?.value === 'textbox').map((node) => node.name?.value)).toEqual(['Document']);
     await cdp.detach();
   }
 });

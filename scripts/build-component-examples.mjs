@@ -10,7 +10,7 @@ for (const [name, title] of componentExamples) {
 <html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${title} — A Rich Text</title><style>${style}</style>
 <body data-example="${name}"><header><a href="./">All component examples</a><h1>${title}</h1><p>Live component example. Edit content and try the controls.</p></header>
-<section id="component" aria-label="${title} example"><a-rich-text-toolbar for="editor"></a-rich-text-toolbar><a-rich-text id="editor" aria-label="Document" views="visual html markdown json text" placeholder="Write something…"></a-rich-text></section>
+<section id="component" aria-label="${title} example"><a-rich-text-shell><a-rich-text-toolbar for="editor"></a-rich-text-toolbar><a-rich-text id="editor" aria-label="Document" views="visual html markdown json text" placeholder="Write something…"></a-rich-text></a-rich-text-shell></section>
 <script type="module" src="./setup.js"></script></body></html>`);
 }
 const links = [...componentExamples.map(([name, title]) => `<li><a href="./${name}.html">${title}</a></li>`), '<li><a href="../custom-toolbar.html">Custom HTML/CSS toolbar</a></li>', '<li><a href="../vue.html">Vue and Tailwind</a></li>'];

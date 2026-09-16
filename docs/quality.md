@@ -2,8 +2,8 @@
 
 A Rich Text treats reliability evidence as part of the product.
 
-Latest [full local verification](verification/2026-09-16-table-authoring.md): 404 unit
-tests, 305 browser cases across five profiles with default timeouts and no
+Latest [full local verification](verification/2026-09-16-editor-showcase.md): 406 unit
+tests, 330 browser cases across five profiles with default timeouts and no
 retries/skips, and 26 package installation checks passed on the recorded revision.
 Manual and physical-device gates below remain open.
 

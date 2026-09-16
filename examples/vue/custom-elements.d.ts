@@ -18,6 +18,7 @@ declare module 'vue' {
       onTransaction?: () => void;
       onViewChange?: () => void;
     }>;
+    'a-rich-text-shell': DefineComponent<HTMLAttributes>;
     'a-rich-text-toolbar': DefineComponent<HTMLAttributes & { for?: string }>;
   }
 }

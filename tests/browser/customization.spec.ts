@@ -1,3 +1,4 @@
+import { chooseView } from './controls.js';
 import { expect, test } from '@playwright/test';
 import type { ARichTextElement } from '../../packages/web-component/src/index.js';
 
@@ -5,7 +6,7 @@ test('custom CSS parts and plain buttons preserve selection, undo and native for
   await page.goto('/dist/browser/custom-toolbar.html');
   const editor = page.locator('#custom-editor');
   const surface = editor.locator('[part="editor"]');
-  await expect(surface).toHaveCSS('border-top-width', '2px');
+  await expect(page.locator('a-rich-text-shell')).toHaveCSS('border-top-width', '2px');
   await expect(surface).toHaveCSS('padding-top', '16px');
   await expect(surface).toHaveCSS('min-height', '192px');
   await surface.click();
@@ -20,9 +21,9 @@ test('custom CSS parts and plain buttons preserve selection, undo and native for
   expect(await surface.locator('p').evaluate(node => Number.parseFloat(getComputedStyle(node).lineHeight))).toBeCloseTo(28.8, 3);
   await page.getByRole('button', { name: 'Save', exact: true }).click();
   await expect(page.locator('#custom-output')).toHaveText('<p><strong>Style me with CSS parts.</strong></p>');
-  await page.addStyleTag({ content: 'a-rich-text::part(active-view-button) { font-weight: 900 }' });
-  await page.getByRole('button', { name: 'HTML', exact: true }).click();
-  await expect(page.getByRole('button', { name: 'HTML', exact: true })).toHaveCSS('font-weight', '900');
+  await page.addStyleTag({ content: 'a-rich-text::part(view-trigger) { font-weight: 900 }' });
+  await chooseView(page, 'HTML');
+  await expect(page.getByRole('combobox', { name: 'Document format' })).toHaveCSS('font-weight', '900');
   await expect(page.getByRole('button', { name: 'My bold button' })).toHaveCount(0);
 });
 
@@ -33,8 +34,8 @@ test('Vue v-model and toolbar slots preserve undo, Tailwind parts, locks and rem
   const editor = page.locator('#vue-editor');
   const surface = editor.locator('[part="editor"]');
   await expect(surface).toHaveText('Hello from Vue');
-  await expect(surface).toHaveCSS('border-top-width', '2px');
-  await expect(surface).toHaveCSS('border-radius', '12px');
+  await expect(page.locator('a-rich-text-shell')).toHaveCSS('border-top-width', '2px');
+  await expect(page.locator('a-rich-text-shell')).toHaveCSS('border-radius', '12px');
   const expectedColor = await page.evaluate(() => {
     const probe = document.createElement('span');
     probe.style.color = 'var(--color-indigo-500)';
@@ -43,7 +44,7 @@ test('Vue v-model and toolbar slots preserve undo, Tailwind parts, locks and rem
     probe.remove();
     return value;
   });
-  await expect(surface).toHaveCSS('border-top-color', expectedColor);
+  await expect(page.locator('a-rich-text-shell')).toHaveCSS('border-top-color', expectedColor);
   await surface.click();
   await surface.press('ControlOrMeta+a');
   await page.getByRole('button', { name: 'Custom bold', exact: true }).click();

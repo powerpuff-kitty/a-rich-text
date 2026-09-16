@@ -5,8 +5,10 @@ The base `<a-rich-text>` editor does not require a toolbar. `@arichtext/ui` prov
 ## Standard toolbar
 
 ```html
-<a-rich-text id="editor" name="body"></a-rich-text>
-<a-rich-text-toolbar for="editor"></a-rich-text-toolbar>
+<a-rich-text-shell>
+  <a-rich-text-toolbar for="editor"></a-rich-text-toolbar>
+  <a-rich-text id="editor" name="body" aria-label="Document"></a-rich-text>
+</a-rich-text-shell>
 
 <script type="module">
   import '@arichtext/web-component';
@@ -102,7 +104,6 @@ a-rich-text-toolbar {
   --art-toolbar-font: inherit;
   --art-toolbar-background: Canvas;
   --art-toolbar-color: CanvasText;
-  --art-toolbar-border: color-mix(in srgb, CanvasText 18%, transparent);
   --art-toolbar-active: color-mix(in srgb, CanvasText 12%, transparent);
   --art-toolbar-radius: 0.375rem;
 }
@@ -120,3 +121,12 @@ And Shadow DOM parts including:
 - `redo-button`
 - `block-select`
 - `separator`
+
+## Shared chrome and contextual mode
+
+Wrap the toolbar and editor in `<a-rich-text-shell>` for one frame. Style its
+`--art-shell-border`, `--art-shell-radius`, `--art-shell-background` and
+`--art-shell-shadow`; the content and toolbar no longer have separate default borders.
+Use `mode="inline"` on the toolbar for selection-based formatting.
+The text-style selector and document-format switcher use `<a-rich-text-select>`.
+See [modes, dropdown API and optional highlighting](editor-modes.md).

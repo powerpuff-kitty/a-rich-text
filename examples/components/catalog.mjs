@@ -1,5 +1,8 @@
 export const componentExamples = [
   ['standard-editor', 'Standard editor'],
+  ['inline-editor', 'Inline toolbar'],
+  ['code-highlighting', 'Optional code highlighting'],
+  ['dropdown', 'Viewport-aware dropdown'],
   ['preset-default', 'Default preset'],
   ['preset-minimal', 'Minimal preset'],
   ['preset-document', 'Document preset'],

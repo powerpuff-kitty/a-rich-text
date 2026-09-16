@@ -1,0 +1,56 @@
+{
+  "revision": "9c08f48cde1c5d2cb4b176d7337cc0d9662cddc0",
+  "commands": [
+    "pnpm verify",
+    "node scripts/build-distribution.mjs",
+    "node scripts/capture-docs.mjs",
+    "pnpm test:browser",
+    "pnpm verify:distribution"
+  ],
+  "exitCode": 0,
+  "environment": {
+    "platform": "Darwin x86_64",
+    "node": "26.8.1",
+    "pnpm": "10.17.1"
+  },
+  "unit": {
+    "files": 66,
+    "passed": 406,
+    "maxWorkers": 4
+  },
+  "browser": {
+    "stats": {
+      "startTime": "2026-09-16T12:09:11.308Z",
+      "duration": 263787.34900000005,
+      "expected": 330,
+      "skipped": 0,
+      "unexpected": 0,
+      "flaky": 0
+    },
+    "projects": {
+      "chromium": 66,
+      "firefox": 66,
+      "webkit": 66,
+      "mobile-chromium": 66,
+      "mobile-webkit": 66
+    },
+    "workers": 4,
+    "testTimeoutMs": 30000,
+    "assertionTimeoutMs": 5000,
+    "configuredRetries": 1,
+    "observedRetries": 0,
+    "reportSha256": "31cce4654ddb3732ed2f2e32747b35256d4fadc1a5626d20c05adb2bb8cbe0fe"
+  },
+  "packages": {
+    "tarballsPassed": 26
+  },
+  "gzipBytes": {
+    "minimal": 34130,
+    "standard": 51461
+  },
+  "optionalHighlighter": {
+    "minifiedBytes": 1702,
+    "gzipBytes": 933
+  },
+  "componentCaptures": 24
+}

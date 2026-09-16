@@ -47,3 +47,8 @@ The image URL is illustrative; it is not loaded unless Preview is clicked.
 `pnpm docs:screenshots` captures these same pages. The capture region excludes
 headers/navigation and crops custom integrations to their toolbar and editor.
 API-only packages do not have built-in visual widgets; see their package READMEs.
+
+The gallery also includes the contextual inline toolbar, reusable dropdown and
+optional code highlighting. Standard examples use one `<a-rich-text-shell>` around
+the toolbar and borderless content. The root showcase is maintained separately in
+`examples/showcase/`, rather than generated from the browser-test fixture.

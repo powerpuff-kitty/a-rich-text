@@ -4,6 +4,9 @@
   "scale": 1,
   "captures": [
     "standard-editor",
+    "inline-editor",
+    "code-highlighting",
+    "dropdown",
     "preset-default",
     "preset-minimal",
     "preset-document",
