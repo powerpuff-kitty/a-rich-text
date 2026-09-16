@@ -49,7 +49,7 @@ task checkbox editing honor their corresponding tool switches.
 
 | Tools | Visibility / behavior |
 | --- | --- |
-| `paragraph`, `heading` | Text-style selector at a single paragraph/heading selection; heading levels 1–6 |
+| `paragraph`, `heading` | Text-style selector for selected paragraphs/headings; heading levels 1–6 and mixed-style indication |
 | `bold`, `italic`, `underline`, `strike`, `code` | Apply marks to selected text or subsequent caret typing |
 | `link` | Link entry/removal and Ctrl/Command+K |
 | `bullet-list`, `ordered-list`, `task-list` | Toggle or convert the current list at a single-block selection |
@@ -250,3 +250,9 @@ automatically create links; these remain explicit authoring paths.
 Custom adapters can use `insertAutoLinkBoundary(state, whitespace, marks?)` from
 `@arichtext/links`. It returns a transaction or `null`; the host enforces editing
 locks and tool configuration. `detectLinks(text)` remains a non-mutating detector.
+
+Paragraph/heading commands apply to all selected text blocks in one Undo step,
+including nested list, quote and table text. A selection ending at offset zero
+of a following block excludes that block. Text, inline marks, containers and
+selection direction are retained; atomic code/image blocks are unchanged.
+`getSelectedBlockStyle()` returns the common style, `"mixed"`, or `null`.

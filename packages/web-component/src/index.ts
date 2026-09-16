@@ -25,6 +25,7 @@ import {
   EditorEngine,
   createEditorState,
   getActiveBlock as queryActiveBlock,
+  getSelectedBlockStyle as querySelectedBlockStyle,
   getActiveMarks as queryActiveMarks,
   isCollapsedSelection,
   transaction,
@@ -611,6 +612,10 @@ export class ARichTextElement extends HTMLElementBase {
 
   getActiveBlock(): ActiveBlock | null {
     return queryActiveBlock(this.#engine.state);
+  }
+
+  getSelectedBlockStyle(): ActiveBlock | 'mixed' | null {
+    return querySelectedBlockStyle(this.#engine.state);
   }
 
   toggleMark(mark: ARichTextSimpleMark | ARTTextMark): boolean {

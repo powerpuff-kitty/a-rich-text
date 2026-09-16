@@ -323,3 +323,13 @@ function sameMarkValue(left: ARTTextMark, right: ARTTextMark): boolean {
 function cloneValue<T>(value: T): T {
   return typeof structuredClone === 'function' ? structuredClone(value) : JSON.parse(JSON.stringify(value)) as T;
 }
+
+/** Text blocks touched by a block-style selection; an ending offset of zero
+ * does not include that following block. Selection direction is immaterial.
+ */
+export function selectedStyleBlocks(state: import('./types.js').EditorState): TextBlockEntry[] {
+  if (!state.selection) return [];
+  const range = normalizeRange(state.document, state.selection.anchor, state.selection.head);
+  const end = range.toIndex > range.fromIndex && range.to.offset === 0 ? range.toIndex : range.toIndex + 1;
+  return range.blocks.slice(range.fromIndex, end);
+}
