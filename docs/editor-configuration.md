@@ -64,7 +64,7 @@ task checkbox editing honor their corresponding tool switches.
 | `indent`, `outdent` | Only inside a list; indentation needs a preceding sibling |
 | `insert-table` | Single text-block selection outside a table |
 | `merge-cell-right` | Merge the active cell with its right neighbor in tables with horizontal spans only; retain all content |
-| `split-cell` | Expand the active horizontal span into unit cells; keep content in the left cell |
+| `split-cell` | Expand a horizontal, vertical or combined span into unit cells; keep content in the top-left cell |
 | `remove-table` | Remove the containing table at a single text-block selection, including imported merged tables; leaves an editable paragraph and supports Undo |
 | `add-row`, `remove-row` | Inside supported tables, including horizontal spans; unavailable dimensions are hidden |
 | `add-column`, `remove-column` | Inside supported tables, including horizontal spans; unavailable dimensions are hidden |
@@ -236,7 +236,7 @@ is configurable because not every application should expose lossy editing paths.
 Image insertion, editing and optional uploads are available through the
 [image dialog](image-authoring.md). Comments, suggestions and AI have optional
 packages but no bundled toolbar UI.
-Table merge/split is also absent. Text alignment, font/color/highlight choices would require extending
+Vertical cell merging is still absent. Text alignment, font/color/highlight choices would require extending
 the current schema or defining extensions; hiding/showing toolbar tools does not
 add those capabilities. These are follow-up features, not advertised controls.
 
@@ -264,30 +264,31 @@ of a following block excludes that block. Text, inline marks, containers and
 selection direction are retained; atomic code/image blocks are unchanged.
 `getSelectedBlockStyle()` returns the common style, `"mixed"`, or `null`.
 
-## Horizontal merged cells
+## Merged cells
 
 Select text within one table cell and use **Merge with right cell**. The command
 adds the column spans and appends the right cell's content blocks to the left;
 it preserves inline formatting and maps review anchors to the moved content.
-**Split cell** expands a horizontal span into individual cells, retaining all
-content in the left cell and adding empty cells to the right. It does not guess
+**Split cell** expands horizontal, vertical or combined spans into individual
+cells, retaining all content in the top-left cell and filling the rest of the
+selected rectangle with empty cells. Other spans remain unchanged. It does not guess
 how to redistribute content; Undo restores the exact previous arrangement.
 Both commands are a single history step. Tab/Shift+Tab navigate physical cells
-in row order, including horizontal spans.
+in row order, including horizontal and vertical spans.
 
 `merge-cell-right` and `split-cell` tool tokens control their contextual buttons.
 The standard controller exposes `mergeCellRight()` and `splitCell()`; custom
 adapters can call `mergeTableCellRight(state)`, `splitTableCell(state)` and
 `getTableCellActions(state)` from `@arichtext/tables`.
 
-Vertical spans, grids larger than 50×50 and selections across text blocks expose
-neither action. Row and column insertion/removal support horizontal spans.
+Grids larger than 50×50 and selections across text blocks expose neither action.
+Vertical grids support splitting, but not merging or row/column editing. Row and column insertion/removal support horizontal spans.
 Row insertion/removal supports horizontal spans: new rows contain one empty cell
 per logical column, while existing spans/content remain unchanged. Removing a
 row moves the caret to an existing cell in the nearest surviving row. Each row
 change is one Undo step; the final row cannot be removed (use Remove table).
 `getTableRowActions(state)` reports contextual row-control availability.
-HTML and ART JSON preserve horizontal spans; Markdown/plain text do not preserve
+HTML and ART JSON preserve horizontal and vertical spans; Markdown/plain text do not preserve
 merged-cell structure. Use HTML or JSON when this structure matters.
 
 Column insertion uses the boundary before/after the entire active cell; the
