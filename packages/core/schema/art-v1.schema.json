@@ -1,0 +1,588 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://arichtext.com/schemas/art-v1.schema.json",
+  "title": "ART v1 document",
+  "description": "Structural validation for ART v1. Also validate with isARTDocument for table-grid semantics and nesting limits. The identifier is not a hosted download endpoint.",
+  "type": "object",
+  "properties": {
+    "type": {
+      "const": "doc"
+    },
+    "version": {
+      "const": 1
+    },
+    "content": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/block"
+      }
+    }
+  },
+  "required": [
+    "type",
+    "version",
+    "content"
+  ],
+  "$defs": {
+    "attrs": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/jsonValue"
+      }
+    },
+    "jsonValue": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "number"
+        },
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        },
+        {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/jsonValue"
+          }
+        },
+        {
+          "$ref": "#/$defs/attrs"
+        }
+      ]
+    },
+    "mark": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "enum": [
+                "bold",
+                "italic",
+                "underline",
+                "strike",
+                "code"
+              ]
+            }
+          },
+          "required": [
+            "type"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "link"
+            },
+            "href": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "type",
+            "href"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "extensionMark"
+            },
+            "name": {
+              "type": "string",
+              "pattern": "^[a-z0-9][a-z0-9._-]*:[a-z0-9][a-z0-9._-]*$"
+            },
+            "attrs": {
+              "$ref": "#/$defs/attrs"
+            }
+          },
+          "required": [
+            "type",
+            "name"
+          ]
+        }
+      ]
+    },
+    "text": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "text"
+        },
+        "text": {
+          "type": "string"
+        },
+        "marks": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/mark"
+          }
+        }
+      },
+      "required": [
+        "type",
+        "text"
+      ]
+    },
+    "paragraph": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "paragraph"
+        },
+        "content": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/text"
+          }
+        }
+      },
+      "required": [
+        "type"
+      ]
+    },
+    "heading": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "heading"
+        },
+        "level": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 6
+        },
+        "content": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/text"
+          }
+        }
+      },
+      "required": [
+        "type",
+        "level"
+      ]
+    },
+    "blockquote": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "blockquote"
+        },
+        "content": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/block"
+          }
+        }
+      },
+      "required": [
+        "type",
+        "content"
+      ]
+    },
+    "codeBlock": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "codeBlock"
+        },
+        "text": {
+          "type": "string"
+        },
+        "language": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "text"
+      ]
+    },
+    "horizontalRule": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "horizontalRule"
+        }
+      },
+      "required": [
+        "type"
+      ]
+    },
+    "listItem": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "listItem"
+        },
+        "checked": {
+          "type": "boolean"
+        },
+        "content": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/block"
+          }
+        }
+      },
+      "required": [
+        "type",
+        "content"
+      ]
+    },
+    "list": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "list"
+        },
+        "style": {
+          "enum": [
+            "bullet",
+            "ordered",
+            "task"
+          ]
+        },
+        "start": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "content": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/listItem"
+          }
+        }
+      },
+      "required": [
+        "type",
+        "style",
+        "content"
+      ],
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "style": {
+                "const": "task"
+              }
+            },
+            "required": [
+              "style"
+            ]
+          },
+          "then": {
+            "properties": {
+              "content": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "checked"
+                  ],
+                  "properties": {
+                    "checked": {
+                      "type": "boolean"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "image": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "image"
+        },
+        "src": {
+          "type": "string",
+          "minLength": 1
+        },
+        "alt": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "width": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "height": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        }
+      },
+      "required": [
+        "type",
+        "src"
+      ]
+    },
+    "tableCell": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "tableCell"
+        },
+        "colspan": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "rowspan": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "content": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/block"
+          }
+        }
+      },
+      "required": [
+        "type",
+        "content"
+      ]
+    },
+    "tableRow": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "tableRow"
+        },
+        "content": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/tableCell"
+          }
+        }
+      },
+      "required": [
+        "type",
+        "content"
+      ]
+    },
+    "table": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "table"
+        },
+        "content": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/tableRow"
+          },
+          "minItems": 1
+        }
+      },
+      "required": [
+        "type",
+        "content"
+      ]
+    },
+    "extensionBlock": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "extensionBlock"
+        },
+        "name": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9._-]*:[a-z0-9][a-z0-9._-]*$"
+        },
+        "attrs": {
+          "$ref": "#/$defs/attrs"
+        },
+        "content": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/block"
+          }
+        },
+        "fallbackText": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "name"
+      ]
+    },
+    "block": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "enum": [
+            "paragraph",
+            "heading",
+            "blockquote",
+            "codeBlock",
+            "horizontalRule",
+            "list",
+            "image",
+            "table",
+            "extensionBlock"
+          ]
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "paragraph"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "$ref": "#/$defs/paragraph"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "heading"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "$ref": "#/$defs/heading"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "blockquote"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "$ref": "#/$defs/blockquote"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "codeBlock"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "$ref": "#/$defs/codeBlock"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "horizontalRule"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "$ref": "#/$defs/horizontalRule"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "list"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "$ref": "#/$defs/list"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "image"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "$ref": "#/$defs/image"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "table"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "$ref": "#/$defs/table"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "extensionBlock"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "$ref": "#/$defs/extensionBlock"
+          }
+        }
+      ]
+    }
+  },
+  "$comment": "Additional properties are permitted to match the current runtime validator. This schema does not sanitize URLs, enforce extension-specific attrs, validate table coverage, or enforce runtime depth limits."
+}
