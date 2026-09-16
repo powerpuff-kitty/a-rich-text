@@ -156,6 +156,9 @@ function getTemplate(): HTMLTemplateElement {
         <option value="h1">Heading 1</option>
         <option value="h2">Heading 2</option>
         <option value="h3">Heading 3</option>
+        <option value="h4">Heading 4</option>
+        <option value="h5">Heading 5</option>
+        <option value="h6">Heading 6</option>
       </select>
       <span part="separator" aria-hidden="true"></span>
       ${MARK_ACTIONS.map(({ action, label, text }) => `
@@ -429,8 +432,8 @@ export class ARichTextToolbarElement extends HTMLElementBase {
     const value = this.#blockSelect.value;
     const handled = value === 'paragraph'
       ? this.#editor.setParagraph()
-      : /^h[1-3]$/.test(value)
-        ? this.#editor.setHeading(Number.parseInt(value.slice(1), 10) as 1 | 2 | 3)
+      : /^h[1-6]$/.test(value)
+        ? this.#editor.setHeading(Number.parseInt(value.slice(1), 10) as 1 | 2 | 3 | 4 | 5 | 6)
         : false;
     this.#finishEditorAction(handled);
   };
@@ -586,7 +589,7 @@ export class ARichTextToolbarElement extends HTMLElementBase {
     this.#blockSelect.hidden = !visual || locked || !singleBlock || !inline
       || (!editor?.isToolEnabled('paragraph') && !editor?.isToolEnabled('heading'));
     const block = editor?.getActiveBlock();
-    this.#blockSelect.value = block?.type === 'heading' && block.level && block.level <= 3
+    this.#blockSelect.value = block?.type === 'heading' && block.level && block.level <= 6
       ? `h${block.level}`
       : 'paragraph';
 
