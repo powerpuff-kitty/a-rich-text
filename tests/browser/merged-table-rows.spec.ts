@@ -21,7 +21,7 @@ test('rows can be inserted and removed around horizontal spans with Undo', async
   await page.getByRole('button', { name: 'Remove table row', exact: true }).click();
   expect(await editor.evaluate(node => (node as ARichTextElement).getSelection()?.anchor.blockPath)).toEqual([0, 0, 0, 0]);
   await expect(page.getByRole('button', { name: 'Remove table row', exact: true })).toBeHidden();
-  await expect(page.getByRole('button', { name: 'Add table column', exact: true })).toBeHidden();
+  await expect(page.getByRole('button', { name: 'Add table column', exact: true })).toBeVisible();
   await editor.evaluate(node => node.setAttribute('tools', 'remove-table'));
   await expect(page.getByRole('button', { name: 'Add table row', exact: true })).toBeHidden();
 });

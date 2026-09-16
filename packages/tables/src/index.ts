@@ -48,7 +48,7 @@ export function getActiveTable(state: EditorState): ActiveTable | null {
   if (!selection) return null;
   const active = findNearestTable(state.document, selection.anchor.blockPath);
   if (!active) return null;
-  const columns = simpleColumnCount(active.node);
+  const columns = horizontalColumnCount(active.node);
   return {
     path: [...active.path],
     rowIndex: active.rowIndex,
@@ -165,47 +165,86 @@ export function addTableColumn(
 ): EditorTransaction | null {
   const active = tableLocation(state);
   if (!active) return null;
-  const columns = simpleColumnCount(active.node);
+  const columns = horizontalColumnCount(active.node);
   if (columns >= MAX_TABLE_COLUMNS) {
     throw new TableCommandError('invalid-dimensions', `Tables are limited to ${MAX_TABLE_COLUMNS} columns`);
   }
 
-  const insertIndex = active.columnIndex + (position === 'after' ? 1 : 0);
+  const activeCells = active.node.content[active.rowIndex]!.content;
+  const boundary = activeCells.slice(0, active.columnIndex).reduce((sum, cell) => sum + (cell.colspan ?? 1), 0)
+    + (position === 'after' ? (activeCells[active.columnIndex]!.colspan ?? 1) : 0);
   const next = cloneValue(active.node);
-  for (const row of next.content) row.content.splice(insertIndex, 0, createEmptyCell());
+  const inserted: (number | null)[] = [];
+  next.content.forEach((row, rowIndex) => {
+    let logical = 0;
+    for (let cellIndex = 0; cellIndex < row.content.length; cellIndex++) {
+      const cell = row.content[cellIndex]!;
+      if (logical === boundary) {
+        row.content.splice(cellIndex, 0, createEmptyCell()); inserted[rowIndex] = cellIndex; return;
+      }
+      const end = logical + (cell.colspan ?? 1);
+      if (logical < boundary && boundary < end) {
+        cell.colspan = (cell.colspan ?? 1) + 1; inserted[rowIndex] = null; return;
+      }
+      logical = end;
+    }
+    inserted[rowIndex] = row.content.length;
+    row.content.push(createEmptyCell());
+  });
   const mappings = mapPreservedCells(active.node, active.path, (row, column) => ({
-    row,
-    column: column >= insertIndex ? column + 1 : column,
+    row, column: inserted[row] !== null && column >= inserted[row]! ? column + 1 : column,
   }));
-  const targetPath = [...active.path, active.rowIndex, insertIndex, 0];
-
-  return transaction()
-    .replaceBlock(active.path, [next], mappings)
+  const targetPath = [...active.path, active.rowIndex, inserted[active.rowIndex]!, 0];
+  return transaction().replaceBlock(active.path, [next], mappings)
     .setSelection(collapsedSelection(targetPath))
-    .setMeta('command', `addTableColumn:${position}`)
-    .build();
+    .setMeta('command', `addTableColumn:${position}`).build();
 }
 
+/** Remove the leftmost logical column covered by the active cell. A spanning
+ * cell shrinks without losing content; unit cells in that column are removed.
+ */
 export function removeCurrentTableColumn(state: EditorState): EditorTransaction | null {
   const active = tableLocation(state);
   if (!active) return null;
-  const columns = simpleColumnCount(active.node);
+  const columns = horizontalColumnCount(active.node);
   if (columns <= 1) return null;
-
+  const logicalColumn = active.node.content[active.rowIndex]!.content.slice(0, active.columnIndex)
+    .reduce((sum, cell) => sum + (cell.colspan ?? 1), 0);
   const next = cloneValue(active.node);
-  for (const row of next.content) row.content.splice(active.columnIndex, 1);
-  const mappings = mapPreservedCells(active.node, active.path, (row, column) => {
-    if (column === active.columnIndex) return null;
-    return { row, column: column > active.columnIndex ? column - 1 : column };
+  const removed: (number | null)[] = [];
+  next.content.forEach((row, rowIndex) => {
+    let logical = 0;
+    for (let cellIndex = 0; cellIndex < row.content.length; cellIndex++) {
+      const cell = row.content[cellIndex]!;
+      const width = cell.colspan ?? 1;
+      if (logicalColumn < logical + width) {
+        if (width > 1) {
+          if (width === 2) delete cell.colspan; else cell.colspan = width - 1;
+          removed[rowIndex] = null;
+        } else { row.content.splice(cellIndex, 1); removed[rowIndex] = cellIndex; }
+        return;
+      }
+      logical += width;
+    }
   });
-  const targetColumn = Math.min(active.columnIndex, columns - 2);
-  const targetPath = [...active.path, active.rowIndex, targetColumn, 0];
-
-  return transaction()
-    .replaceBlock(active.path, [next], mappings)
-    .setSelection(collapsedSelection(targetPath))
-    .setMeta('command', 'removeTableColumn')
-    .build();
+  const mappings = mapPreservedCells(active.node, active.path, (row, column) => {
+    const index = removed[row];
+    if (index === column) return null;
+    return { row, column: index !== null && column > index! ? column - 1 : column };
+  });
+  const targetColumn = Math.min(active.columnIndex, next.content[active.rowIndex]!.content.length - 1);
+  const cell = next.content[active.rowIndex]!.content[targetColumn]!;
+  const cellPath = [...active.path, active.rowIndex, targetColumn];
+  const textBlocks: ARTPathMapping[] = [];
+  collectPreservedMappings(cell, cellPath, cellPath, textBlocks);
+  let targetPath = textBlocks[0]?.to;
+  if (!targetPath) {
+    targetPath = [...cellPath, cell.content.length];
+    cell.content.push({ type: 'paragraph', content: [] });
+  }
+  return transaction().replaceBlock(active.path, [next], mappings)
+    .setSelection(collapsedSelection([...targetPath]))
+    .setMeta('command', 'removeTableColumn').build();
 }
 
 /** Remove the containing table and leave an editable paragraph at its position.
@@ -370,26 +409,6 @@ function findNearestTable(document: ARTDocument, blockPath: ARTPath): TableLocat
   }
 
   return active && active.rowIndex >= 0 && active.columnIndex >= 0 ? active : null;
-}
-
-function simpleColumnCount(table: ARTTableNode): number {
-  if (table.content.length === 0) {
-    throw new TableCommandError('invalid-dimensions', 'Table must contain at least one row');
-  }
-  const columns = table.content[0]?.content.length ?? 0;
-  if (columns <= 0) throw new TableCommandError('invalid-dimensions', 'Table must contain at least one column');
-
-  for (const row of table.content) {
-    if (row.content.length !== columns) {
-      throw new TableCommandError('invalid-dimensions', 'Table editing requires rectangular rows');
-    }
-    for (const cell of row.content) {
-      if ((cell.colspan ?? 1) !== 1 || (cell.rowspan ?? 1) !== 1) {
-        throw new TableCommandError('merged-cells', 'Merged-cell editing is not supported by the v0.1 table commands');
-      }
-    }
-  }
-  return columns;
 }
 
 function mapPreservedCells(

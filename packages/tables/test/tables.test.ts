@@ -172,7 +172,7 @@ describe('@arichtext/tables', () => {
     }
   });
 
-  it('keeps column editing unavailable for merged cells', () => {
+  it('reports logical dimensions and permits column edits with horizontal spans', () => {
     const merged: ARTTableNode = {
       type: 'table',
       content: [{
@@ -189,9 +189,9 @@ describe('@arichtext/tables', () => {
       textSelection(textPoint([0, 0, 0, 0], 1)),
     );
 
-    expect(() => getActiveTable(state)).toThrowError(expect.objectContaining({ code: 'merged-cells' }));
+    expect(getActiveTable(state)?.columns).toBe(2);
     expect(addTableRow(state)).not.toBeNull();
-    expect(() => addTableColumn(state)).toThrowError(expect.objectContaining({ code: 'merged-cells' }));
+    expect(addTableColumn(state)).not.toBeNull();
   });
 
   it('table insertion and edits are undoable engine history steps', () => {
@@ -336,5 +336,60 @@ describe('row editing with horizontal spans', () => {
     const full = createEditorState(document(table(Array.from({ length: 50 }, () => ['a']))), state.selection);
     expect(getTableRowActions(full)).toEqual({ canAddRow: false, canRemoveRow: true });
     expect(() => addTableRow(full)).toThrow(/limited/);
+  });
+});
+
+describe('column editing with horizontal spans', () => {
+  it.each(['before', 'after'] as const)('inserts %s the active cell and widens a crossing span', position => {
+    const grid = table([['a', 'b', 'c'], ['wide']]); grid.content[1]!.content[0]!.colspan = 3;
+    const doc = document(grid);
+    const state = createEditorState(doc, textSelection(textPoint([0, 0, 1, 0], 0)));
+    const anchor = createAnchoredRange(doc, textSelection(textPoint([0, 1, 0, 0], 0), textPoint([0, 1, 0, 0], 4)));
+    const command = addTableColumn(state, position)!;
+    const mapped = mapAnchoredRangeThroughTransaction(doc, anchor, command);
+    expect(mapped.status).toBe('mapped');
+    if (mapped.status !== 'orphaned') expect(mapped.range.start.blockPath).toEqual([0, 1, 0, 0]);
+    const engine = new EditorEngine(state); engine.dispatch(command);
+    const result = engine.state.document.content[0] as ARTTableNode;
+    expect(result.content[1]!.content[0]).toEqual({ ...cell('wide'), colspan: 4 });
+    expect(result.content[0]!.content).toEqual(position === 'before' ? [cell('a'), cell(''), cell('b'), cell('c')] : [cell('a'), cell('b'), cell(''), cell('c')]);
+    expect(engine.state.selection?.anchor.blockPath).toEqual([0, 0, position === 'before' ? 1 : 2, 0]);
+    engine.undo(); expect(engine.state.document).toEqual(doc);
+  });
+
+  it('inserts after the full active span and shifts following physical cells', () => {
+    const grid = table([['wide', 'next'], ['a', 'b', 'c']]); grid.content[0]!.content[0]!.colspan = 2;
+    const doc = document(grid); const state = createEditorState(doc, textSelection(textPoint([0, 0, 0, 0], 0)));
+    const result = applyTransaction(state, addTableColumn(state)!).state.document.content[0] as ARTTableNode;
+    expect(result.content[0]!.content).toEqual([{ ...cell('wide'), colspan: 2 }, cell(''), cell('next')]);
+    expect(result.content[1]!.content).toEqual([cell('a'), cell('b'), cell(''), cell('c')]);
+  });
+
+  it('shrinks spans, deletes unit cells, maps surviving anchors and undoes exactly', () => {
+    const grid = table([['wide', 'next'], ['a', 'b', 'c']]); grid.content[0]!.content[0]!.colspan = 2;
+    const doc = document(grid); const state = createEditorState(doc, textSelection(textPoint([0, 0, 0, 0], 0)));
+    const command = removeCurrentTableColumn(state)!;
+    const removed = createAnchoredRange(doc, textSelection(textPoint([0, 1, 0, 0], 0), textPoint([0, 1, 0, 0], 1)));
+    expect(mapAnchoredRangeThroughTransaction(doc, removed, command).status).toBe('orphaned');
+    const retained = createAnchoredRange(doc, textSelection(textPoint([0, 0, 0, 0], 0), textPoint([0, 0, 0, 0], 4)));
+    expect(mapAnchoredRangeThroughTransaction(doc, retained, command).status).toBe('mapped');
+    const engine = new EditorEngine(state); engine.dispatch(command);
+    const result = engine.state.document.content[0] as ARTTableNode;
+    expect(result.content[0]!.content).toEqual([cell('wide'), cell('next')]);
+    expect(result.content[1]!.content).toEqual([cell('b'), cell('c')]);
+    expect(engine.state.selection?.anchor.blockPath).toEqual([0, 0, 0, 0]);
+    engine.undo(); expect(engine.state.document).toEqual(doc);
+  });
+
+  it('uses logical rather than physical columns and rejects vertical spans', () => {
+    const grid = table([['wide', 'next'], ['a', 'b', 'c']]); grid.content[0]!.content[0]!.colspan = 2;
+    const state = createEditorState(document(grid), textSelection(textPoint([0, 0, 1, 0], 0)));
+    const result = applyTransaction(state, removeCurrentTableColumn(state)!).state.document.content[0] as ARTTableNode;
+    expect(result.content[0]!.content).toEqual([{ ...cell('wide'), colspan: 2 }]);
+    expect(result.content[1]!.content).toEqual([cell('a'), cell('b')]);
+    grid.content[0]!.content[0]!.rowspan = 2;
+    const vertical = createEditorState(document(grid), state.selection);
+    expect(() => addTableColumn(vertical)).toThrow(/Vertical/);
+    expect(() => removeCurrentTableColumn(vertical)).toThrow(/Vertical/);
   });
 });

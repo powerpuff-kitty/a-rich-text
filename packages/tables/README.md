@@ -17,7 +17,14 @@ multiple text blocks return `null`. Hosts enforce readonly/disabled state.
 and combines their column spans. `splitTableCell(state)` retains content in the
 left cell and adds empty unit cells. Both preserve review-anchor mappings and
 are undoable. `getTableCellActions(state)` reports contextual availability.
-These commands and Tab navigation support horizontal spans; vertical spans and
-column changes to merged grids remain unsupported. Row insertion/removal supports
+These commands, column editing and Tab navigation support horizontal spans;
+vertical spans remain unsupported. Row insertion/removal supports
 horizontal spans; `getTableRowActions(state)` reports availability. HTML/JSON preserve spans;
 Markdown/plain text do not.
+
+Column insertion occurs beside the whole active cell and widens spans crossing
+that boundary in other rows. Removal targets the active cell's leftmost logical
+column, deleting unit cells and shrinking wider cells without losing their
+content. `getActiveTable().columns` is the logical width; `columnIndex` is the
+physical cell index. Surviving review anchors retain mappings; Undo restores the
+complete previous table.
