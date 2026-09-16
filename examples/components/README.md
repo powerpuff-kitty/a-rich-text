@@ -11,7 +11,9 @@ python3 -m http.server 8080 --directory dist/browser
 Open [the component gallery](http://localhost:8080/components/). All 25 examples
 are embedded on this page, with a section navigation list and standalone links.
 Each example runs in its own frame so dialogs, focus mode, and editor state stay
-independent. Frames load lazily as you browse the gallery.
+independent. Frames load lazily as you browse the gallery and never take focus
+on initialization. Embedded dialog and inline-toolbar previews open through an
+explicit button; standalone pages still open their previews for screenshots.
 
 | Example | Local path |
 | --- | --- |
