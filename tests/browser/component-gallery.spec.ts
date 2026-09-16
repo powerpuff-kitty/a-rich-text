@@ -32,3 +32,24 @@ test('background example initialization preserves gallery scroll and focus', asy
   await frame.getByRole('button', { name: 'Open code editor', exact: true }).click();
   await expect(frame.getByRole('dialog')).toBeVisible();
 });
+
+test('example frames fit content and shrink again after content is removed', async ({ page }) => {
+  const errors: string[] = []; page.on('pageerror', error => errors.push(error.message));
+  await page.goto('/dist/browser/components/');
+  await page.getByRole('navigation').getByRole('link', { name: 'Standard editor', exact: true }).click();
+  const frame = page.locator('#standard-editor iframe');
+  const body = page.frameLocator('#standard-editor iframe').locator('body');
+  await expect(body).toHaveAttribute('data-ready', 'true');
+  const difference = () => frame.evaluate(node => {
+    const iframe = node as HTMLIFrameElement;
+    return Math.abs(iframe.getBoundingClientRect().height - iframe.contentDocument!.body.getBoundingClientRect().height - 2);
+  });
+  await expect.poll(difference).toBeLessThan(2);
+  const original = (await frame.boundingBox())!.height;
+  await body.evaluate(node => { const block = document.createElement('div'); block.id = 'height-probe'; block.style.height = '400px'; node.append(block); });
+  await expect.poll(async () => (await frame.boundingBox())!.height).toBeGreaterThan(original + 390);
+  await body.locator('#height-probe').evaluate(node => node.remove());
+  await expect.poll(async () => Math.abs((await frame.boundingBox())!.height - original)).toBeLessThan(2);
+  await expect.poll(difference).toBeLessThan(2);
+  expect(errors).toEqual([]);
+});
