@@ -13,7 +13,7 @@ test('vertical spans round-trip and Tab skips fully covered rows without adding 
   await page.keyboard.press('Shift+Tab');
   expect(await editor.evaluate(node => (node as ARichTextElement).getSelection()?.anchor.blockPath)).toEqual([0, 0, 0, 0]);
   expect(await editor.evaluate(node => (node as ARichTextElement).canUndo)).toBe(false);
-  for (const name of ['Merge with right cell', 'Add table row', 'Add table column']) {
+  for (const name of ['Merge with right cell', 'Add table column']) {
     await expect(page.getByRole('button', { name, exact: true })).toBeHidden();
   }
   await editor.evaluate(node => { const rich = node as ARichTextElement; rich.setHTML(rich.getHTML()); });
@@ -101,4 +101,25 @@ test('merges right across matching rowspans and hides the action across carried 
   await editor.evaluate(node => (node as ARichTextElement).setHTML('<table><tr><td><p>A</p></td><td rowspan="2"><p>Barrier</p></td><td><p>B</p></td></tr><tr><td><p>Left</p></td><td><p>Right</p></td></tr></table>'));
   await editor.locator('tr').nth(1).locator('td p').first().click();
   await expect(merge).toBeHidden();
+});
+
+test('row editing preserves crossing and moved spans with Undo', async ({ page }) => {
+  await page.goto('/dist/browser/');
+  const editor = page.locator('#editor');
+  await editor.evaluate(node => (node as ARichTextElement).setHTML('<table><tr><td rowspan="2"><p>Keep</p></td><td><p>Top</p></td></tr><tr><td><p>Bottom</p></td></tr></table>'));
+  const original = await editor.evaluate(node => (node as ARichTextElement).getJSON());
+  await editor.locator('td p').nth(1).click();
+  await page.getByRole('button', { name: 'Add table row', exact: true }).click();
+  await expect(editor.locator('tr')).toHaveCount(3);
+  await expect(editor.locator('td[rowspan="3"]')).toHaveText('Keep');
+  await expect(editor.locator('tr').nth(1).locator('td')).toHaveCount(1);
+  await editor.evaluate(node => (node as ARichTextElement).undo());
+  expect(await editor.evaluate(node => (node as ARichTextElement).getJSON())).toEqual(original);
+  await editor.locator('td p').first().click();
+  await page.getByRole('button', { name: 'Remove table row', exact: true }).click();
+  await expect(editor.locator('tr')).toHaveCount(1);
+  await expect(editor.locator('td')).toHaveText(['Keep', 'Bottom']);
+  await expect(editor.locator('td[rowspan]')).toHaveCount(0);
+  await editor.evaluate(node => (node as ARichTextElement).undo());
+  expect(await editor.evaluate(node => (node as ARichTextElement).getJSON())).toEqual(original);
 });

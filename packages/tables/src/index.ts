@@ -119,46 +119,72 @@ export function addTableRow(
 ): EditorTransaction | null {
   const active = tableLocation(state);
   if (!active) return null;
-  const columns = horizontalColumnCount(active.node);
-  if (active.node.content.length >= MAX_TABLE_ROWS) {
+  const layout = boundedLayout(active.node);
+  if (layout.rows >= MAX_TABLE_ROWS) {
     throw new TableCommandError('invalid-dimensions', `Tables are limited to ${MAX_TABLE_ROWS} rows`);
   }
-
-  const insertIndex = active.rowIndex + (position === 'after' ? 1 : 0);
+  const selected = layout.cells.find(cell => cell.row === active.rowIndex && cell.cell === active.columnIndex)!;
+  const insertIndex = selected.row + (position === 'after' ? selected.rowspan : 0);
   const next = cloneValue(active.node);
-  next.content.splice(insertIndex, 0, createEmptyRow(columns));
+  const crossing = layout.cells.filter(cell => cell.row < insertIndex && cell.row + cell.rowspan > insertIndex);
+  for (const cell of crossing) next.content[cell.row]!.content[cell.cell]!.rowspan = cell.rowspan + 1;
+  const content: ARTTableCellNode[] = [];
+  for (let column = 0; column < layout.columns; column++) {
+    if (!crossing.some(cell => column >= cell.column && column < cell.column + cell.colspan)) content.push(createEmptyCell());
+  }
+  next.content.splice(insertIndex, 0, { type: 'tableRow', content });
   const mappings = mapPreservedCells(active.node, active.path, (row, column) => ({
-    row: row >= insertIndex ? row + 1 : row,
-    column,
+    row: row >= insertIndex ? row + 1 : row, column,
   }));
-  const firstCellPath = [...active.path, insertIndex, 0, 0];
-
-  return transaction()
-    .replaceBlock(active.path, [next], mappings)
-    .setSelection(collapsedSelection(firstCellPath))
-    .setMeta('command', `addTableRow:${position}`)
-    .build();
+  return transaction().replaceBlock(active.path, [next], mappings)
+    .setSelection(collapsedSelection([...active.path, insertIndex, 0, 0]))
+    .setMeta('command', `addTableRow:${position}`).build();
 }
 
+/** Remove the active cell's starting row. Spans crossing it shrink; spanning
+ * cells originating there move into the next row with their content intact.
+ */
 export function removeCurrentTableRow(state: EditorState): EditorTransaction | null {
   const active = tableLocation(state);
   if (!active || active.node.content.length <= 1) return null;
-  horizontalColumnCount(active.node);
+  const layout = boundedLayout(active.node);
+  const removedRow = active.rowIndex;
+  const selected = layout.cells.find(cell => cell.row === removedRow && cell.cell === active.columnIndex)!;
   const next = cloneValue(active.node);
-  next.content.splice(active.rowIndex, 1);
-  const mappings = mapPreservedCells(active.node, active.path, (row, column) => {
-    if (row === active.rowIndex) return null;
-    return { row: row > active.rowIndex ? row - 1 : row, column };
+  const entries = layout.cells.flatMap(cell => {
+    if (cell.row === removedRow && cell.rowspan === 1) return [];
+    const node = next.content[cell.row]!.content[cell.cell]!;
+    if (cell.row <= removedRow && cell.row + cell.rowspan > removedRow) {
+      if (cell.rowspan === 2) delete node.rowspan;
+      else node.rowspan = cell.rowspan - 1;
+    }
+    return [{ ...cell, targetRow: cell.row > removedRow ? cell.row - 1 : cell.row, node }];
   });
-  const targetRow = Math.min(active.rowIndex, next.content.length - 1);
-  const targetColumn = Math.min(Math.max(0, active.columnIndex), next.content[targetRow]!.content.length - 1);
-  const targetPath = [...active.path, targetRow, targetColumn, 0];
-
-  return transaction()
-    .replaceBlock(active.path, [next], mappings)
-    .setSelection(collapsedSelection(targetPath))
-    .setMeta('command', 'removeTableRow')
-    .build();
+  next.content = Array.from({ length: layout.rows - 1 }, () => ({ type: 'tableRow', content: [] }));
+  const destinations = new Map<string, { row: number; column: number }>();
+  for (let row = 0; row < next.content.length; row++) {
+    const cells = entries.filter(cell => cell.targetRow === row).sort((a, b) => a.column - b.column);
+    next.content[row]!.content = cells.map((cell, index) => {
+      destinations.set(`${cell.row}:${cell.cell}`, { row, column: index });
+      return cell.node;
+    });
+  }
+  const mappings = mapPreservedCells(active.node, active.path, (row, column) => destinations.get(`${row}:${column}`) ?? null);
+  const targetRow = Math.min(removedRow, next.content.length - 1);
+  const target = getTableLayout(next)!.cells.find(cell => cell.row <= targetRow && cell.row + cell.rowspan > targetRow
+    && cell.column <= selected.column && cell.column + cell.colspan > selected.column)!;
+  const cellPath = [...active.path, target.row, target.cell];
+  const textBlocks: ARTPathMapping[] = [];
+  const cell = next.content[target.row]!.content[target.cell]!;
+  collectPreservedMappings(cell, cellPath, cellPath, textBlocks);
+  let targetPath = textBlocks[0]?.to;
+  if (!targetPath) {
+    targetPath = [...cellPath, cell.content.length];
+    cell.content.push({ type: 'paragraph', content: [] });
+  }
+  return transaction().replaceBlock(active.path, [next], mappings)
+    .setSelection(collapsedSelection([...targetPath]))
+    .setMeta('command', 'removeTableRow').build();
 }
 
 export function addTableColumn(
@@ -264,11 +290,11 @@ export function removeCurrentTable(state: EditorState): EditorTransaction | null
 
 export interface TableRowActions { canAddRow: boolean; canRemoveRow: boolean }
 
-/** Row operations support horizontal spans, but reject vertical spans. */
+/** Row operations preserve both horizontal and vertical spans. */
 export function getTableRowActions(state: EditorState): TableRowActions {
   const active = tableLocation(state);
   if (!active) return { canAddRow: false, canRemoveRow: false };
-  try { horizontalColumnCount(active.node); }
+  try { boundedLayout(active.node); }
   catch { return { canAddRow: false, canRemoveRow: false }; }
   return { canAddRow: active.node.content.length < MAX_TABLE_ROWS, canRemoveRow: active.node.content.length > 1 };
 }
@@ -373,6 +399,14 @@ export function splitTableCell(state: EditorState): EditorTransaction | null {
   }));
   return transaction().replaceBlock(active.path, [next], mappings)
     .setSelection(state.selection).setMeta('command', 'splitTableCell').build();
+}
+
+function boundedLayout(table: ARTTableNode) {
+  const layout = getTableLayout(table);
+  if (!layout || layout.rows > MAX_TABLE_ROWS || layout.columns > MAX_TABLE_COLUMNS) {
+    throw new TableCommandError('invalid-dimensions', 'Unsupported table dimensions');
+  }
+  return layout;
 }
 
 function horizontalColumnCount(table: ARTTableNode): number {

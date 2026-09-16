@@ -63,11 +63,11 @@ task checkbox editing honor their corresponding tool switches.
 | `clear-formatting` | Remove all inline marks from selected text, or clear marks for subsequent typing at a caret; retain headings/lists |
 | `indent`, `outdent` | Only inside a list; indentation needs a preceding sibling |
 | `insert-table` | Single text-block selection outside a table |
-| `merge-cell-right` | Merge the active cell with its right neighbor in tables with horizontal spans only; retain all content |
+| `merge-cell-right` | Merge touching cells with matching row boundaries, including rowspans; retain all content |
 | `merge-cell-below` | Merge with the cell immediately below when both have the same logical column extent |
 | `split-cell` | Expand a horizontal, vertical or combined span into unit cells; keep content in the top-left cell |
 | `remove-table` | Remove the containing table at a single text-block selection, including imported merged tables; leaves an editable paragraph and supports Undo |
-| `add-row`, `remove-row` | Inside supported tables, including horizontal spans; unavailable dimensions are hidden |
+| `add-row`, `remove-row` | Inside supported tables, including horizontal and vertical spans; unavailable dimensions are hidden |
 | `add-column`, `remove-column` | Inside supported tables, including horizontal spans; unavailable dimensions are hidden |
 | `find-replace` | Search and navigate visual body text without a selection; replacement is hidden in readonly mode |
 | `focus-mode` | Expand the editor into a modal writing area; available without a text selection, including source views and readonly inspection |
@@ -237,7 +237,7 @@ is configurable because not every application should expose lossy editing paths.
 Image insertion, editing and optional uploads are available through the
 [image dialog](image-authoring.md). Comments, suggestions and AI have optional
 packages but no bundled toolbar UI.
-Row/column editing in vertical grids is still absent. Text alignment, font/color/highlight choices would require extending
+Column editing in vertical grids is still absent. Text alignment, font/color/highlight choices would require extending
 the current schema or defining extensions; hiding/showing toolbar tools does not
 add those capabilities. These are follow-up features, not advertised controls.
 
@@ -292,12 +292,18 @@ adapters can call `mergeTableCellRight(state)`, `mergeTableCellBelow(state)`, `s
 `getTableCellActions(state)` from `@arichtext/tables`.
 
 Grids larger than 50×50 and selections across text blocks expose neither action.
-Vertical grids support splitting and merging below matching cells. Merging right supports matching row boundaries. Row/column editing remains
-restricted to horizontal grids. Row and column insertion/removal support horizontal spans.
-Row insertion/removal supports horizontal spans: new rows contain one empty cell
-per logical column, while existing spans/content remain unchanged. Removing a
-row moves the caret to an existing cell in the nearest surviving row. Each row
-change is one Undo step; the final row cannot be removed (use Remove table).
+Vertical grids support splitting, merging below matching cells, merging right
+across matching row boundaries, and row insertion/removal. Column editing remains
+restricted to horizontal grids.
+
+Row insertion happens before or after the active cell's full vertical extent.
+Other spans crossing that boundary grow; uncovered columns receive empty cells.
+The caret moves to the first new cell. Row removal deletes the active cell's
+starting row: crossing spans shrink, and spans originating in that row move into
+the next row with their content intact. Unit-height cells in the deleted row are
+removed. Surviving review anchors are mapped; anchors in deleted cells become
+orphaned. The caret moves to a surviving cell covering the same logical column.
+Each change is one Undo step; the final row cannot be removed (use Remove table).
 `getTableRowActions(state)` reports contextual row-control availability.
 HTML and ART JSON preserve horizontal and vertical spans; Markdown/plain text do not preserve
 merged-cell structure. Use HTML or JSON when this structure matters.

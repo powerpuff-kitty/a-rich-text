@@ -22,7 +22,11 @@ spans. `mergeTableCellBelow(state)` merges the cell immediately below when its c
 boundaries match, adding rowspans and appending lower content. Merging right supports adjacent cells with matching row boundaries, including
 rowspans. It cannot cross a carried span between physical neighbors. Column
 editing supports horizontal grids only. Row insertion/removal supports
-horizontal spans; `getTableRowActions(state)` reports availability. HTML/JSON preserve spans;
+all spans: insert outside the active cell’s full height, extend crossing spans,
+and create cells in uncovered columns. Removing the starting row shrinks crossing
+spans and moves originating spans into the next row, retaining their content.
+Unit-height cells in that row are deleted; surviving review anchors are mapped.
+`getTableRowActions(state)` reports availability. HTML/JSON preserve spans;
 Markdown/plain text do not.
 
 Column insertion occurs beside the whole active cell and widens spans crossing
