@@ -46,8 +46,9 @@ See [configuration and overrides](customization.md#appearance-presets).
 [Open this example locally](http://localhost:8080/components/vertical-spans.html).
 
 Valid vertical spans survive HTML/JSON round-tripping. Tab visits physical cells,
-including across fully covered rows. Vertical merge/split and row/column editing
-remain unavailable; removing the entire table and Undo are supported.
+including across fully covered rows. Split cell expands vertical or combined
+spans into unit cells and retains content in the top-left cell. Undo restores the
+original span. Vertical merging and row/column editing remain unavailable.
 
 ![Imported vertical table spans](screenshots/vertical-spans.png)
 

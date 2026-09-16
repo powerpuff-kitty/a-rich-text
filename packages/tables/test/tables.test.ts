@@ -281,15 +281,50 @@ describe('horizontal cell authoring', () => {
     engine.undo(); expect(engine.state.document).toEqual(doc);
   });
 
-  it('rejects vertical spans, oversized grids, non-table and multi-block selections', () => {
+  it('splits combined spans across covered rows, maps shifted anchors and undoes exactly', () => {
+    const grid = table([['left', 'shared', 'right'], ['below-left', 'below-right'], ['bottom']]);
+    grid.content[0]!.content[1]!.colspan = 2;
+    grid.content[0]!.content[1]!.rowspan = 2;
+    grid.content[0]!.content[1]!.content.push(paragraph('more'));
+    grid.content[2]!.content[0]!.colspan = 4;
+    const doc = document({ type: 'blockquote', content: [grid] });
+    const engine = new EditorEngine(createEditorState(doc, textSelection(textPoint([0, 0, 0, 1, 1], 2))));
+    const anchor = createAnchoredRange(doc, textSelection(textPoint([0, 0, 1, 1, 0], 0), textPoint([0, 0, 1, 1, 0], 2)));
+    const command = splitTableCell(engine.state)!;
+    const mapped = mapAnchoredRangeThroughTransaction(doc, anchor, command);
+    expect(mapped.status).toBe('mapped');
+    if (mapped.status !== 'orphaned') expect(mapped.range.start.blockPath).toEqual([0, 0, 1, 3, 0]);
+    engine.dispatch(command);
+    const expected = table([['left', 'shared', '', 'right'], ['below-left', '', '', 'below-right'], ['bottom']]);
+    expected.content[0]!.content[1]!.content.push(paragraph('more'));
+    expected.content[2]!.content[0]!.colspan = 4;
+    expect(engine.state.document).toEqual(document({ type: 'blockquote', content: [expected] }));
+    expect(engine.state.selection?.anchor).toEqual(textPoint([0, 0, 0, 1, 1], 2));
+    engine.undo(); expect(engine.state.document).toEqual(doc);
+    engine.redo(); expect(engine.state.document).toEqual(document({ type: 'blockquote', content: [expected] }));
+  });
+
+  it('fills fully covered rows without changing other vertical spans', () => {
+    const grid = table([['shared', 'other'], [], ['a', 'b']]);
+    grid.content[0]!.content[0]!.rowspan = 2;
+    grid.content[0]!.content[1]!.rowspan = 2;
+    const state = createEditorState(document(grid), textSelection(textPoint([0, 0, 0, 0], 1)));
+    const result = applyTransaction(state, splitTableCell(state)!).state.document;
+    const expected = table([['shared', 'other'], [''], ['a', 'b']]);
+    expected.content[0]!.content[1]!.rowspan = 2;
+    expect(result).toEqual(document(expected));
+  });
+
+  it('allows vertical splitting while rejecting unsupported merge contexts', () => {
     const grid = table([['a', 'b'], ['below']]);
     grid.content[0]!.content[0]!.rowspan = 2;
     const state = createEditorState(document(grid), textSelection(textPoint([0, 0, 0, 0], 0)));
-    expect(mergeTableCellRight(state)).toBeNull(); expect(splitTableCell(state)).toBeNull();
+    expect(mergeTableCellRight(state)).toBeNull(); expect(splitTableCell(state)).not.toBeNull();
     delete grid.content[0]!.content[0]!.rowspan;
     grid.content.pop();
     grid.content[0]!.content[0]!.colspan = 50;
     expect(mergeTableCellRight(createEditorState(document(grid), state.selection))).toBeNull();
+    expect(splitTableCell(createEditorState(document(grid), state.selection))).toBeNull();
     expect(getTableCellActions(createEditorState(document(paragraph('text')), textSelection(textPoint([0], 0))))).toEqual({ canMergeRight: false, canSplit: false });
     expect(mergeTableCellRight(createEditorState(document(table([['a', 'b']])), textSelection(textPoint([0, 0, 0, 0], 0), textPoint([0, 0, 1, 0], 1))))).toBeNull();
   });

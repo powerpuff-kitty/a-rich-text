@@ -13,7 +13,7 @@ test('vertical spans round-trip and Tab skips fully covered rows without adding 
   await page.keyboard.press('Shift+Tab');
   expect(await editor.evaluate(node => (node as ARichTextElement).getSelection()?.anchor.blockPath)).toEqual([0, 0, 0, 0]);
   expect(await editor.evaluate(node => (node as ARichTextElement).canUndo)).toBe(false);
-  for (const name of ['Merge with right cell', 'Split cell', 'Add table row', 'Add table column']) {
+  for (const name of ['Merge with right cell', 'Add table row', 'Add table column']) {
     await expect(page.getByRole('button', { name, exact: true })).toBeHidden();
   }
   await editor.evaluate(node => { const rich = node as ARichTextElement; rich.setHTML(rich.getHTML()); });
@@ -21,6 +21,31 @@ test('vertical spans round-trip and Tab skips fully covered rows without adding 
   await editor.locator('td p').first().click();
   await page.getByRole('button', { name: 'Remove table', exact: true }).click();
   await expect(editor.locator('table')).toHaveCount(0);
+  await editor.evaluate(node => (node as ARichTextElement).undo());
+  expect(await editor.evaluate(node => (node as ARichTextElement).getJSON())).toEqual(before);
+});
+
+test('splits vertical and combined spans with Undo, navigation and tool/lock controls', async ({ page }) => {
+  await page.goto('/dist/browser/');
+  const editor = page.locator('#editor');
+  await editor.evaluate(node => (node as ARichTextElement).setHTML('<table><tr><td rowspan="2" colspan="2"><p>Shared</p><p>More</p></td></tr><tr></tr></table>'));
+  const before = await editor.evaluate(node => (node as ARichTextElement).getJSON());
+  await editor.locator('td p').first().click();
+  const split = page.getByRole('button', { name: 'Split cell', exact: true });
+  await expect(split).toBeVisible();
+  await editor.evaluate(node => node.setAttribute('tools', 'remove-table'));
+  await expect(split).toBeHidden();
+  await editor.evaluate(node => { node.removeAttribute('tools'); node.setAttribute('readonly', ''); });
+  await expect(split).toBeHidden();
+  await editor.evaluate(node => node.removeAttribute('readonly'));
+  await split.click();
+  await expect(editor.locator('td')).toHaveCount(4);
+  await expect(editor.locator('td').first().locator('p')).toHaveText(['Shared', 'More']);
+  await expect(editor.locator('td[rowspan], td[colspan]')).toHaveCount(0);
+  await expect(split).toBeHidden();
+  await expect(page.getByRole('button', { name: 'Add table row', exact: true })).toBeVisible();
+  await page.keyboard.press('Tab');
+  expect(await editor.evaluate(node => (node as ARichTextElement).getSelection()?.anchor.blockPath)).toEqual([0, 0, 1, 0]);
   await editor.evaluate(node => (node as ARichTextElement).undo());
   expect(await editor.evaluate(node => (node as ARichTextElement).getJSON())).toEqual(before);
 });

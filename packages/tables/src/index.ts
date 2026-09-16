@@ -275,14 +275,18 @@ export function getTableRowActions(state: EditorState): TableRowActions {
 
 export interface TableCellActions { canMergeRight: boolean; canSplit: boolean }
 
-/** Context for horizontal authoring. Unsupported grids expose no actions. */
+/** Splitting supports every valid bounded grid; merging right remains horizontal. */
 export function getTableCellActions(state: EditorState): TableCellActions {
   const active = tableLocation(state);
   if (!active) return { canMergeRight: false, canSplit: false };
-  try { horizontalColumnCount(active.node); }
-  catch { return { canMergeRight: false, canSplit: false }; }
+  const layout = getTableLayout(active.node);
+  if (!layout || layout.rows > MAX_TABLE_ROWS || layout.columns > MAX_TABLE_COLUMNS) return { canMergeRight: false, canSplit: false };
   const cells = active.node.content[active.rowIndex]!.content;
-  return { canMergeRight: active.columnIndex + 1 < cells.length, canSplit: (cells[active.columnIndex]!.colspan ?? 1) > 1 };
+  const cell = cells[active.columnIndex]!;
+  let canMergeRight = false;
+  try { horizontalColumnCount(active.node); canMergeRight = active.columnIndex + 1 < cells.length; }
+  catch { /* Vertical grids can still be split. */ }
+  return { canMergeRight, canSplit: (cell.colspan ?? 1) > 1 || (cell.rowspan ?? 1) > 1 };
 }
 
 /** Join the active cell and its right neighbor, retaining every content block. */
@@ -308,18 +312,35 @@ export function mergeTableCellRight(state: EditorState): EditorTransaction | nul
     .setSelection(state.selection).setMeta('command', 'mergeTableCellRight').build();
 }
 
-/** Expand a colspan into unit cells, retaining all content in the first cell. */
+/** Expand a span into unit cells, retaining content in its top-left cell. */
 export function splitTableCell(state: EditorState): EditorTransaction | null {
   if (!getTableCellActions(state).canSplit) return null;
   const active = tableLocation(state)!;
+  const layout = getTableLayout(active.node)!;
+  const target = layout.cells.find(cell => cell.row === active.rowIndex && cell.cell === active.columnIndex)!;
   const next = cloneValue(active.node);
-  const cells = next.content[active.rowIndex]!.content;
-  const current = cells[active.columnIndex]!;
-  const width = current.colspan!;
+  const current = next.content[target.row]!.content[target.cell]!;
   delete current.colspan;
-  cells.splice(active.columnIndex + 1, 0, ...Array.from({ length: width - 1 }, createEmptyCell));
+  delete current.rowspan;
+  const indices = new Map<string, number>();
+  for (let row = 0; row < layout.rows; row++) {
+    const entries = layout.cells.filter(cell => cell.row === row).map(cell => ({
+      column: cell.column, original: cell.cell, node: next.content[row]!.content[cell.cell]!,
+    }));
+    if (row >= target.row && row < target.row + target.rowspan) {
+      for (let column = target.column; column < target.column + target.colspan; column++) {
+        if (row === target.row && column === target.column) continue;
+        entries.push({ column, original: -1, node: createEmptyCell() });
+      }
+    }
+    entries.sort((a, b) => a.column - b.column);
+    next.content[row]!.content = entries.map((entry, index) => {
+      if (entry.original >= 0) indices.set(`${row}:${entry.original}`, index);
+      return entry.node;
+    });
+  }
   const mappings = mapPreservedCells(active.node, active.path, (row, column) => ({
-    row, column: row === active.rowIndex && column > active.columnIndex ? column + width - 1 : column,
+    row, column: indices.get(`${row}:${column}`)!,
   }));
   return transaction().replaceBlock(active.path, [next], mappings)
     .setSelection(state.selection).setMeta('command', 'splitTableCell').build();
