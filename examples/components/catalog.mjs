@@ -1,0 +1,16 @@
+export const componentExamples = [
+  ['standard-editor', 'Standard editor'],
+  ['base-editor', 'Base Web Component'],
+  ['toolbar', 'Formatting toolbar'],
+  ['table-controls', 'Table controls'],
+  ['link-editor', 'Link editor'],
+  ['source-html', 'HTML source'],
+  ['source-markdown', 'Markdown source'],
+  ['source-json', 'ART JSON source'],
+  ['source-text', 'Plain-text source'],
+  ['find-replace', 'Find and replace'],
+  ['code-editor', 'Code editor'],
+  ['image-editor', 'Image editor'],
+  ['focus-mode', 'Focus mode'],
+  ['mobile-editor', 'Responsive editor'],
+];

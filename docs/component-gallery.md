@@ -1,11 +1,17 @@
 # Component gallery
 
-Captured from the working local distribution in Chromium. These are real browser
-screenshots, not mockups. The standard capture fixture only styles the outer page
-(font, margins and label spacing); component shadow styles remain unchanged.
-The custom examples demonstrate their own documented styling.
+Captured from dedicated live examples in Chromium. Each screenshot contains only
+the component or editing surface: no example-page title, field label, submit
+button, navigation or bound-value output. Component shadow styles are unchanged;
+the custom HTML/CSS and Vue/Tailwind examples demonstrate their own styling.
+
+Build with `pnpm build:distribution`, serve `dist/browser` on port 8080, then open
+[the component example index](http://localhost:8080/components/). Each gallery
+entry below has its own runnable example. See [example source and setup](../examples/components/README.md).
 
 ## Standard editor
+
+[Open this example locally](http://localhost:8080/components/standard-editor.html).
 
 The standard editor combines the optional toolbar with the native-form Web Component. The sample includes formatted text, a link and interactive task checkboxes.
 
@@ -13,11 +19,15 @@ The standard editor combines the optional toolbar with the native-form Web Compo
 
 ## Base Web Component
 
+[Open this example locally](http://localhost:8080/components/base-editor.html).
+
 The same document without the optional toolbar. Source-view buttons are enabled by the fixture’s `views` attribute.
 
 ![Base Web Component — The same document without the optional toolbar](screenshots/base-editor.png)
 
 ## Formatting toolbar
+
+[Open this example locally](http://localhost:8080/components/toolbar.html).
 
 Font Awesome controls adapt to the selection and enabled tools. Table row/column controls appear only within a table.
 
@@ -25,11 +35,15 @@ Font Awesome controls adapt to the selection and enabled tools. Table row/column
 
 ## Table controls
 
+[Open this example locally](http://localhost:8080/components/table-controls.html).
+
 Selecting a table cell exposes row and column operations.
 
 ![Table controls — Selecting a table cell exposes row and column operations.](screenshots/table-controls.png)
 
 ## Link editor
+
+[Open this example locally](http://localhost:8080/components/link-editor.html).
 
 Inline URL entry with Apply, Remove and Cancel controls.
 
@@ -37,11 +51,15 @@ Inline URL entry with Apply, Remove and Cancel controls.
 
 ## HTML view
 
+[Open this example locally](http://localhost:8080/components/source-html.html).
+
 Editable HTML source with explicit Apply/Discard.
 
 ![HTML view — Editable HTML source with explicit Apply/Discard.](screenshots/source-html.png)
 
 ## Markdown view
+
+[Open this example locally](http://localhost:8080/components/source-markdown.html).
 
 Markdown source for the same document.
 
@@ -49,11 +67,15 @@ Markdown source for the same document.
 
 ## JSON view
 
+[Open this example locally](http://localhost:8080/components/source-json.html).
+
 Canonical ART JSON source.
 
 ![JSON view — Canonical ART JSON source.](screenshots/source-json.png)
 
 ## Plain-text view
+
+[Open this example locally](http://localhost:8080/components/source-text.html).
 
 Plain text omits rich formatting by design.
 
@@ -61,11 +83,15 @@ Plain text omits rich formatting by design.
 
 ## Find and replace
 
+[Open this example locally](http://localhost:8080/components/find-replace.html).
+
 Search options, result navigation, replacement and highlighted matches.
 
 ![Find and replace — Search options, result navigation, replacement and highlighted matches.](screenshots/find-replace.png)
 
 ## Code editor
+
+[Open this example locally](http://localhost:8080/components/code-editor.html).
 
 Code text and optional language metadata in a modal editor.
 
@@ -73,11 +99,15 @@ Code text and optional language metadata in a modal editor.
 
 ## Image editor
 
+[Open this example locally](http://localhost:8080/components/image-editor.html).
+
 URL, alternative text, dimensions and preview controls. The example URL is illustrative; no image is fetched. Upload controls appear only when a host supplies an uploader.
 
 ![Image editor — URL, alternative text, dimensions and preview controls](screenshots/image-editor.png)
 
 ## Focus mode
+
+[Open this example locally](http://localhost:8080/components/focus-mode.html).
 
 The editor and toolbar expand into the built-in focus dialog.
 
@@ -85,17 +115,23 @@ The editor and toolbar expand into the built-in focus dialog.
 
 ## Mobile layout
 
+[Open this example locally](http://localhost:8080/components/mobile-editor.html).
+
 The same editor at a 390px-wide viewport. This is Chromium viewport resizing, not physical-device certification.
 
 ![Mobile layout — The same editor at a 390px-wide viewport](screenshots/mobile-editor.png)
 
 ## Custom HTML/CSS toolbar
 
+[Open this example locally](http://localhost:8080/custom-toolbar.html).
+
 The shipped plain-HTML example uses custom buttons, CSS variables and CSS parts.
 
 ![Custom HTML/CSS toolbar — The shipped plain-HTML example uses custom buttons, CSS variables and CSS parts.](screenshots/custom-toolbar.png)
 
 ## Vue and Tailwind
+
+[Open this example locally](http://localhost:8080/vue.html).
 
 The shipped optional Vue wrapper uses a toolbar slot, two-way binding and compiled Tailwind styles.
 
@@ -118,7 +154,7 @@ pnpm docs:screenshots
 ```
 
 The command builds the current distribution and examples, starts a temporary
-loopback-only server, captures all surfaces and closes the browser/server.
+loopback-only server, opens each dedicated example, captures only component bounds and closes the browser/server.
 Images live in `docs/screenshots/`; `manifest.json` records browser/version,
 viewport and capture names. Review images before committing. Rendering can vary
 with OS fonts and browser versions; this is a documentation capture tool, not a

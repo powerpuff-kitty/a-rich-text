@@ -38,6 +38,10 @@ locally. GitHub Actions is disabled.
 - pluggable extensions, persistence, uploads, collaboration, review and AI
 - accessibility, IME correctness, security and performance as release gates
 
+Component examples: `/components/` links to a dedicated live example for every
+visual surface in the [gallery](docs/component-gallery.md). Screenshots contain
+only the component, without example-page labels or form actions.
+
 Integration examples: `/custom-toolbar.html` (plain HTML/CSS) and `/vue.html`
 (Vue + Tailwind) in the same local preview.
 
