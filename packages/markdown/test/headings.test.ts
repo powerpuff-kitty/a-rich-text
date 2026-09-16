@@ -7,18 +7,18 @@ import type { ARTDocument } from '../../core/src/index.js';
 interface Fixture { example: number; markdown: string; html: string }
 const fixtures: Fixture[] = JSON.parse(readFileSync(new URL('./fixtures/commonmark-0.31.2-atx-headings.json', import.meta.url), 'utf8'));
 // ART omits block-separating newlines, folds paragraph soft breaks to spaces,
-// and uses the equivalent HTML void-element spelling <hr>.
-const expectedHTML = (html: string) => html.trimEnd().replace(/>\n</g, '><').replaceAll('<hr />', '<hr>').replaceAll('foo\n# bar', 'foo # bar');
+// uses the equivalent HTML void-element spelling <hr>, and omits the code
+// block final line terminator (the same convention as fenced-code import).
+const expectedHTML = (html: string) => html.trimEnd().replace(/>\n</g, '><').replaceAll('<hr />', '<hr>').replaceAll('foo\n# bar', 'foo # bar').replace(/\n<\/code>/g, '</code>');
 
 describe('CommonMark 0.31.2 ATX headings', () => {
   it('accounts for every upstream heading example', () => {
     expect(fixtures.map(f => f.example)).toEqual(Array.from({ length: 18 }, (_, i) => 62 + i));
   });
   for (const fixture of fixtures) {
-    it(`${fixture.example === 69 ? 'records unsupported indented code' : 'matches upstream example'} ${fixture.example}`, () => {
+    it(`matches upstream example ${fixture.example}`, () => {
       const actual = toHTML(fromMarkdown(fixture.markdown));
-      if (fixture.example === 69) expect(actual).not.toBe(expectedHTML(fixture.html));
-      else expect(actual).toBe(expectedHTML(fixture.html));
+      expect(actual).toBe(expectedHTML(fixture.html));
     });
   }
   it.each(['foo#', 'foo ###', '#', '###', 'foo \\###', 'foo\t###', ''])('round-trips heading text %j', text => {

@@ -49,8 +49,8 @@ The [latest full local run](verification/2026-09-16-commonmark.md) passed 598 un
 tests, all 440 browser cases without retries/skips, and 27 package installation
 checks. This closes the accumulated automated-regression check at its recorded
 revision; the manual and release prerequisites below remain. The subsequent
-[heading increment](verification/2026-09-16-headings.md) passed 626 unit tests,
-65 targeted browser cases and 27 package checks.
+[indented-code increment](verification/2026-09-16-indented-code.md) passed 647 unit tests,
+90 targeted browser cases and 27 package checks.
 
 - [Quality #11](https://github.com/powerpuff-kitty/a-rich-text/issues/11) and
   [local gates #46](https://github.com/powerpuff-kitty/a-rich-text/issues/46): real
