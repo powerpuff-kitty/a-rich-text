@@ -12,6 +12,9 @@ Image authoring uses `openImageEditor()` and the optional `imageUploader` proper
 See [image integration](https://github.com/powerpuff-kitty/a-rich-text/blob/main/docs/image-authoring.md)
 for previews, upload cancellation, formats and custom styling.
 
+Use `preset="default"`, `preset="minimal"` or `preset="document"` for optional appearance defaults.
+See [presets and styling overrides](https://github.com/powerpuff-kitty/a-rich-text/blob/main/docs/customization.md#appearance-presets).
+
 ## Screenshot
 
 ![Base Web Component](../../docs/screenshots/base-editor.png)

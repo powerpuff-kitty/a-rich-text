@@ -7,8 +7,8 @@
       "status": "verified-local",
       "verifiedAt": "2026-09-16",
       "browserVersion": "153.0.8010.12",
-      "evidence": "docs/verification/2026-09-16-full-local.md",
-      "verifiedRevision": "fd126f9c51ba3defaf85d9ce8cf4031bb492919b"
+      "evidence": "docs/verification/2026-09-16-presets.md",
+      "verifiedRevision": "b73be0b91c6379f59cfc672dfebea2e73f9161e9"
     },
     {
       "target": "Firefox desktop",
@@ -16,8 +16,8 @@
       "status": "verified-local",
       "verifiedAt": "2026-09-16",
       "browserVersion": "155.0",
-      "evidence": "docs/verification/2026-09-16-full-local.md",
-      "verifiedRevision": "fd126f9c51ba3defaf85d9ce8cf4031bb492919b"
+      "evidence": "docs/verification/2026-09-16-presets.md",
+      "verifiedRevision": "b73be0b91c6379f59cfc672dfebea2e73f9161e9"
     },
     {
       "target": "WebKit desktop",
@@ -25,8 +25,8 @@
       "status": "verified-local",
       "verifiedAt": "2026-09-16",
       "browserVersion": "26.6",
-      "evidence": "docs/verification/2026-09-16-full-local.md",
-      "verifiedRevision": "fd126f9c51ba3defaf85d9ce8cf4031bb492919b"
+      "evidence": "docs/verification/2026-09-16-presets.md",
+      "verifiedRevision": "b73be0b91c6379f59cfc672dfebea2e73f9161e9"
     },
     {
       "target": "Android-class Chromium emulation (Pixel 7)",
@@ -34,8 +34,8 @@
       "status": "verified-local",
       "verifiedAt": "2026-09-16",
       "browserVersion": "153.0.8010.12",
-      "evidence": "docs/verification/2026-09-16-full-local.md",
-      "verifiedRevision": "fd126f9c51ba3defaf85d9ce8cf4031bb492919b"
+      "evidence": "docs/verification/2026-09-16-presets.md",
+      "verifiedRevision": "b73be0b91c6379f59cfc672dfebea2e73f9161e9"
     },
     {
       "target": "iOS-class WebKit emulation (iPhone 15)",
@@ -43,8 +43,8 @@
       "status": "verified-local",
       "verifiedAt": "2026-09-16",
       "browserVersion": "26.6",
-      "evidence": "docs/verification/2026-09-16-full-local.md",
-      "verifiedRevision": "fd126f9c51ba3defaf85d9ce8cf4031bb492919b"
+      "evidence": "docs/verification/2026-09-16-presets.md",
+      "verifiedRevision": "b73be0b91c6379f59cfc672dfebea2e73f9161e9"
     }
   ],
   "manual": [

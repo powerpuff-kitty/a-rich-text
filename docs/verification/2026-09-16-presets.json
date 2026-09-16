@@ -1,0 +1,45 @@
+{
+  "revision": "b73be0b91c6379f59cfc672dfebea2e73f9161e9",
+  "command": "pnpm verify:local",
+  "exitCode": 0,
+  "environment": {
+    "platform": "Darwin x86_64",
+    "node": "26.8.1",
+    "pnpm": "10.17.1"
+  },
+  "unit": {
+    "files": 65,
+    "passed": 381
+  },
+  "browser": {
+    "stats": {
+      "startTime": "2026-09-16T09:41:11.100Z",
+      "duration": 173149.928,
+      "expected": 280,
+      "skipped": 0,
+      "unexpected": 0,
+      "flaky": 0
+    },
+    "projects": {
+      "chromium": 56,
+      "firefox": 56,
+      "webkit": 56,
+      "mobile-chromium": 56,
+      "mobile-webkit": 56
+    },
+    "workers": 4,
+    "testTimeoutMs": 30000,
+    "assertionTimeoutMs": 5000,
+    "configuredRetries": 1,
+    "observedRetries": 0,
+    "reportSha256": "6ee734fc96cfb02361d800f7ff7b6bb7e4b24d5cb1ada6a3a240824a02c4a254"
+  },
+  "packages": {
+    "tarballsPassed": 26
+  },
+  "gzipBytes": {
+    "minimal": 31588,
+    "standard": 46637
+  },
+  "componentCaptures": 21
+}
