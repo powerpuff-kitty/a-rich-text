@@ -2,12 +2,14 @@ import { describe, expect, it } from 'vitest';
 import { createTextDocument } from '../../core/src/index.js';
 import {
   applyTransaction,
+  transaction,
   createEditorState,
   textPoint,
   textSelection,
 } from '../../engine/src/index.js';
 import {
   createLinkMark,
+  insertAutoLinkBoundary,
   detectLinks,
   getActiveLinkHref,
   normalizeLinkHref,
@@ -23,6 +25,7 @@ describe('@arichtext/links', () => {
     expect(normalizeLinkHref('#section')).toBe('#section');
     expect(normalizeLinkHref('www.example.com')).toBe('https://www.example.com');
     expect(normalizeLinkHref('person@example.com')).toBe('mailto:person@example.com');
+    expect(normalizeLinkHref('mailto:person@example.com')).toBe('mailto:person@example.com');
     expect(createLinkMark('tel:+3212345678')).toEqual({ type: 'link', href: 'tel:+3212345678' });
   });
 
@@ -113,5 +116,42 @@ describe('@arichtext/links', () => {
     const detected = detectLinks('See https://example.com/a_(b)).');
     expect(detected).toHaveLength(1);
     expect(detected[0]?.text).toBe('https://example.com/a_(b)');
+  });
+});
+
+describe('automatic link boundaries', () => {
+  it.each([
+    ['https://example.com', 'https://example.com'],
+    ['www.example.com.', 'https://www.example.com'],
+    ['person@example.com', 'mailto:person@example.com'],
+    ['(https://example.com/a(b))', 'https://example.com/a(b)'],
+  ])('links %s and inserts an unlinked space in one transaction', (text, href) => {
+    const state = createEditorState(createTextDocument(text), textSelection(textPoint([0], text.length)));
+    const command = insertAutoLinkBoundary(state, ' ')!;
+    expect(command.operations).toHaveLength(2);
+    const result = applyTransaction(state, command).state;
+    const block = result.document.content[0] as { content: { text: string; marks?: unknown[] }[] };
+    expect(block.content.some(run => run.marks?.some(mark => JSON.stringify(mark) === JSON.stringify({ type: 'link', href })))).toBe(true);
+    expect(block.content.at(-1)?.marks ?? []).toEqual([]);
+    expect(result.selection?.anchor.offset).toBe(text.length + 1);
+  });
+
+  it.each(['prefixhttps://example.com', 'javascript:www.example.com', 'just-text'])('ignores non-token or unsupported text %s', text => {
+    const state = createEditorState(createTextDocument(text), textSelection(textPoint([0], text.length)));
+    expect(insertAutoLinkBoundary(state, ' ')).toBeNull();
+  });
+
+  it('preserves formatting and skips code, existing links and non-collapsed selections', () => {
+    const text = 'https://example.com';
+    let state = createEditorState(createTextDocument(text), textSelection(textPoint([0], text.length)));
+    state = applyTransaction(state, transaction().addMark(textPoint([0], 0), textPoint([0], text.length), { type: 'bold' }).build()).state;
+    const result = applyTransaction(state, insertAutoLinkBoundary(state, ' ')!).state;
+    expect((result.document.content[0] as { content: { marks?: unknown[] }[] }).content[0]?.marks).toContainEqual({ type: 'bold' });
+    for (const mark of [{ type: 'code' } as const, createLinkMark('/existing')]) {
+      const marked = applyTransaction(state, transaction().addMark(textPoint([0], 0), textPoint([0], 3), mark).build()).state;
+      expect(insertAutoLinkBoundary(marked, ' ')).toBeNull();
+    }
+    expect(insertAutoLinkBoundary({ ...state, selection: textSelection(textPoint([0], 0), textPoint([0], text.length)) }, ' ')).toBeNull();
+    expect(insertAutoLinkBoundary(state, 'x')).toBeNull();
   });
 });

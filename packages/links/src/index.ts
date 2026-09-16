@@ -27,7 +27,7 @@ export function normalizeLinkHref(value: string): string {
   if (!trimmed) throw new TypeError('Link href cannot be empty');
 
   if (/^www\./i.test(trimmed)) return `https://${trimmed}`;
-  if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) return `mailto:${trimmed}`;
+  if (/^[^\s@:/]+@[^\s@:/]+\.[^\s@:/]+$/.test(trimmed)) return `mailto:${trimmed}`;
 
   if (
     trimmed.startsWith('/')
@@ -134,4 +134,39 @@ function isCollapsed(selection: NonNullable<EditorState['selection']>): boolean 
   return selection.anchor.offset === selection.head.offset
     && selection.anchor.blockPath.length === selection.head.blockPath.length
     && selection.anchor.blockPath.every((value, index) => value === selection.head.blockPath[index]);
+}
+
+/** Complete a plain-text URL/email when whitespace is typed at a collapsed caret.
+ * Returns one transaction containing both whitespace and the link mark.
+ */
+export function insertAutoLinkBoundary(state: EditorState, text: string, marks = getActiveMarks(state)): EditorTransaction | null {
+  const selection = state.selection;
+  if (!selection || !isCollapsed(selection) || !/^[ \t]+$/.test(text)
+    || marks.some(mark => mark.type === 'link' || mark.type === 'code')) return null;
+  const point = selection.anchor;
+  let node: unknown = state.document;
+  for (const index of point.blockPath) node = (node as { content?: unknown[] })?.content?.[index];
+  const block = node as { type?: string; content?: { text: string; marks?: ARTTextMark[] }[] } | undefined;
+  if (!block || (block.type !== 'paragraph' && block.type !== 'heading')) return null;
+  const content = block.content ?? [];
+  const before = content.map(run => run.text).join('').slice(0, point.offset);
+  const tokenStart = before.search(/[^\s]+$/);
+  if (tokenStart < 0) return null;
+  const token = before.slice(tokenStart);
+  const match = detectLinks(token)[0];
+  // Require a whole token, allowing balanced-wrapper punctuation but never
+  // a URL substring inside an identifier or an unsupported protocol.
+  if (!match || !/^[([{“"']*$/.test(token.slice(0, match.from))
+    || !/^[.,!?;:)\]}”"']*$/.test(token.slice(match.to))) return null;
+  const from = tokenStart + match.from;
+  const to = tokenStart + match.to;
+  let offset = 0;
+  for (const run of content) {
+    const end = offset + run.text.length;
+    if (offset < to && end > from && run.marks?.some(mark => mark.type === 'link' || mark.type === 'code')) return null;
+    offset = end;
+  }
+  return transaction().replaceText(point, point, text, marks)
+    .addMark({ ...point, offset: from }, { ...point, offset: to }, createLinkMark(match.href))
+    .setMeta('command', 'autoLink').build();
 }
