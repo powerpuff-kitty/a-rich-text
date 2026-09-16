@@ -275,7 +275,7 @@ export function getTableRowActions(state: EditorState): TableRowActions {
 
 export interface TableCellActions { canMergeRight: boolean; canMergeBelow: boolean; canSplit: boolean }
 
-/** Splitting supports every valid bounded grid; merging right remains horizontal. */
+/** Merge only adjacent cells sharing the complete edge; split any valid span. */
 export function getTableCellActions(state: EditorState): TableCellActions {
   const active = tableLocation(state);
   if (!active) return { canMergeRight: false, canMergeBelow: false, canSplit: false };
@@ -283,10 +283,9 @@ export function getTableCellActions(state: EditorState): TableCellActions {
   if (!layout || layout.rows > MAX_TABLE_ROWS || layout.columns > MAX_TABLE_COLUMNS) return { canMergeRight: false, canMergeBelow: false, canSplit: false };
   const cells = active.node.content[active.rowIndex]!.content;
   const cell = cells[active.columnIndex]!;
-  let canMergeRight = false;
-  try { horizontalColumnCount(active.node); canMergeRight = active.columnIndex + 1 < cells.length; }
-  catch { /* Vertical grids can still be split. */ }
   const current = layout.cells.find(cell => cell.row === active.rowIndex && cell.cell === active.columnIndex)!;
+  const canMergeRight = layout.cells.some(cell => cell.row === current.row
+    && cell.column === current.column + current.colspan && cell.rowspan === current.rowspan);
   const canMergeBelow = layout.cells.some(cell => cell.row === current.row + current.rowspan
     && cell.column === current.column && cell.colspan === current.colspan);
   return { canMergeRight, canMergeBelow, canSplit: (cell.colspan ?? 1) > 1 || (cell.rowspan ?? 1) > 1 };

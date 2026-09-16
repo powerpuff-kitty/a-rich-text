@@ -270,6 +270,9 @@ selection direction are retained; atomic code/image blocks are unchanged.
 Select text within one table cell and use **Merge with right cell**. The command
 adds the column spans and appends the right cell's content blocks to the left;
 it preserves inline formatting and maps review anchors to the moved content.
+The cells must share their top/bottom boundaries and touch in the logical grid.
+Matching rowspans are supported; a carried span between physical neighbors or
+mismatched row heights makes the action unavailable.
 **Split cell** expands horizontal, vertical or combined spans into individual
 cells, retaining all content in the top-left cell and filling the rest of the
 selected rectangle with empty cells. Other spans remain unchanged. It does not guess
@@ -289,8 +292,8 @@ adapters can call `mergeTableCellRight(state)`, `mergeTableCellBelow(state)`, `s
 `getTableCellActions(state)` from `@arichtext/tables`.
 
 Grids larger than 50×50 and selections across text blocks expose neither action.
-Vertical grids support splitting and merging below matching cells. Merging right
-and row/column editing remain restricted to horizontal grids. Row and column insertion/removal support horizontal spans.
+Vertical grids support splitting and merging below matching cells. Merging right supports matching row boundaries. Row/column editing remains
+restricted to horizontal grids. Row and column insertion/removal support horizontal spans.
 Row insertion/removal supports horizontal spans: new rows contain one empty cell
 per logical column, while existing spans/content remain unchanged. Removing a
 row moves the caret to an existing cell in the nearest surviving row. Each row
