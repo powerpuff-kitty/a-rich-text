@@ -1,8 +1,8 @@
 import { enableStandardEditing } from '../a-rich-text.js';
 
 const name = document.body.dataset.example;
-const editor = document.querySelector('a-rich-text');
-const toolbar = document.querySelector('a-rich-text-toolbar');
+const editor = document.querySelector('a-rich-text, art-editor');
+const toolbar = document.querySelector('a-rich-text-toolbar, art-toolbar');
 const surface = editor.shadowRoot.querySelector('[part="editor"]');
 enableStandardEditing(editor);
 const normal = '<h2>A better place to write</h2><p>Write <strong>clearly</strong>, share ideas, and keep your content portable.</p><p>One document. <em>Your interface.</em> <a href="https://example.com/docs">Your workflow.</a></p><ul data-art-list="task"><li><input type="checkbox" checked><p>Choose your tools</p></li><li><input type="checkbox"><p>Make it your own</p></li></ul>';
@@ -52,7 +52,7 @@ if (name === 'find-replace') {
 if (name === 'code-editor') {
   editor.openCodeEditor();
   editor.shadowRoot.querySelector('[data-code-language]').value = 'typescript';
-  editor.shadowRoot.querySelector('[data-code-text]').value = "const editor = document.querySelector('a-rich-text');\neditor.setHTML('<p>Hello, world!</p>');";
+  editor.shadowRoot.querySelector('[data-code-text]').value = "const editor = document.querySelector('a-rich-text, art-editor');\neditor.setHTML('<p>Hello, world!</p>');";
 }
 if (name === 'image-editor') {
   editor.openImageEditor();

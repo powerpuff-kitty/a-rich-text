@@ -8,11 +8,11 @@
   .demo-button[aria-pressed="true"] { @apply bg-indigo-100 text-indigo-900; }
 }
 
-a-rich-text {
+a-rich-text, art-editor {
   --art-color: var(--color-slate-900);
   --art-background: white;
   --art-editor-min-height: 12rem;
 }
-a-rich-text-shell { @apply border-2 border-indigo-500 rounded-xl shadow-sm p-4; }
-a-rich-text::part(paragraph) { @apply leading-7; }
-a-rich-text::part(blockquote) { @apply border-l-4 border-indigo-500 pl-4 italic; }
+a-rich-text-shell, art-shell { @apply border-2 border-indigo-500 rounded-xl shadow-sm p-4; }
+a-rich-text::part(paragraph), art-editor::part(paragraph) { @apply leading-7; }
+a-rich-text::part(blockquote), art-editor::part(blockquote) { @apply border-l-4 border-indigo-500 pl-4 italic; }

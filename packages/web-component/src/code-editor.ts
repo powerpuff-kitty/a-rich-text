@@ -1,3 +1,4 @@
+import { codeEditIcon } from './code-edit-icon.js';
 import type { ARTBlockNode, ARTDocument } from '@arichtext/core';
 import { decodeARTPath, encodeARTPath } from '@arichtext/dom';
 import { setCodeBlock, removeCodeBlock } from '@arichtext/engine/commands';
@@ -90,7 +91,9 @@ export class CodeBlockEditor {
       if (!button) {
         button = this.#host.ownerDocument.createElement('button');
         button.type = 'button';
-        button.textContent = 'Edit code block';
+        button.innerHTML = codeEditIcon;
+        button.setAttribute('aria-label', 'Edit code block');
+        button.title = 'Edit code block';
         button.setAttribute('data-art-editor-ui', '');
         button.setAttribute('part', 'code-edit-button');
         button.addEventListener('click', () => this.open(decodeARTPath(pre.getAttribute('data-art-code-path')!)));

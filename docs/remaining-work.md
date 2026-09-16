@@ -7,6 +7,10 @@ there is no public npm release yet.
 
 ## Core editor and integration
 
+Automatic source updates, optional source formatting and non-mutating format
+detection are implemented. See [source editing](editor-configuration.md#automatic-source-updates-and-formatting)
+and the [editor format catalogue](editor-formats.md).
+
 - [Block interaction #74](https://github.com/powerpuff-kitty/a-rich-text/issues/74): slash insertion, block menus, keyboard movement and drag handles. Contextual inline formatting is implemented separately.
 - [Additional formatting #75](https://github.com/powerpuff-kitty/a-rich-text/issues/75): color/background, font/size, sub/superscript, alignment/direction, formula/video contracts and an optional full-grammar highlighting adapter. See [reference review and current modes](editor-modes.md).
 
@@ -29,6 +33,7 @@ there is no public npm release yet.
   custom inline atomic nodes and public API stability guarantees. The component
   now includes Default, Minimal and Document appearance presets; these are
   independent of extension feature bundles and tool allowlists.
+- [Format profiles #77](https://github.com/powerpuff-kitty/a-rich-text/issues/77): optional converter registry, developer-selected defaults/allowlists and foreign-JSON adapters with loss diagnostics remain a proposal. Detection hints do not implement those converters.
 - [Schema #2](https://github.com/powerpuff-kitty/a-rich-text/issues/2) and
   [foundation #1](https://github.com/powerpuff-kitty/a-rich-text/issues/1): schema
   migration API, versioning/persistence decisions and stability policy.
@@ -39,8 +44,8 @@ separate Vue editing engine is unnecessary; the wrapper is optional.
 
 ## Production release gates
 
-The [latest full local run](verification/2026-09-16-editor-showcase.md) passed 406 unit
-tests, all 330 browser cases without retries/skips, and 26 package installation
+The [latest full local run](verification/2026-09-16-live-source.md) passed 428 unit
+tests, all 365 browser cases without retries/skips, and 26 package installation
 checks. This closes the accumulated automated-regression check at its recorded
 revision; the manual and release prerequisites below remain.
 

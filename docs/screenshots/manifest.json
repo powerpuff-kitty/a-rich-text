@@ -4,6 +4,7 @@
   "scale": 1,
   "captures": [
     "standard-editor",
+    "short-tags",
     "inline-editor",
     "code-highlighting",
     "dropdown",

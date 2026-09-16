@@ -1,4 +1,4 @@
-export { ARichTextShellElement } from './shell.js';
+export { ARichTextShellElement, defineARichTextShell } from './shell.js';
 import { ARichTextSelectElement } from '@arichtext/web-component';
 import { toolbarIcon } from './icons.js';
 import {
@@ -63,6 +63,8 @@ function getTemplate(): HTMLTemplateElement {
       }
 
       [part='toolbar-header'] { display:flex; align-items:center; gap:.75rem; padding:.4rem .6rem; font-size:.8rem; color:GrayText; }
+      [part='source-actions'] { display: inline-flex; align-items:center; gap:.25rem; }
+      [part='toolbar-header'] { flex-wrap:wrap; }
       [part='toolbar-header'][hidden] { display:none; }
       [part='toolbar'][popover] { position:fixed; inset:auto; margin:0; width:max-content; max-width:calc(100vw - 16px); max-height:calc(100dvh - 16px); overflow:auto; border:1px solid #d5dbe5; border-radius:8px; box-shadow:0 6px 28px #0003; z-index:9999; }
       [part='toolbar'] {
@@ -172,9 +174,12 @@ function getTemplate(): HTMLTemplateElement {
         font-size: 0.875em;
       }
     </style>
-    <div part="toolbar-header" hidden><span>Select text to format · Alt+F10</span></div>
+    <div part="toolbar-header" hidden><span data-inline-hint>Select text to format · Alt+F10</span></div>
     <div part="toolbar" role="toolbar" aria-label="Text formatting">
       <a-rich-text-select part="format-select" label="Document format" exportparts="trigger:view-trigger,menu:view-menu" data-role="view"></a-rich-text-select>
+      <span part="source-actions" hidden>
+        ${[['format', 'Format source'], ['apply', 'Apply changes'], ['discard', 'Discard changes']].map(([action, label]) => `<button part="button source-${action}-button" type="button" data-source-action="${action}" aria-label="${label}" title="${label}">${toolbarIcon('source-' + action)}</button>`).join('')}
+      </span>
       <a-rich-text-select part="block-select" label="Text style" data-role="block">
         <option value="mixed" disabled hidden>Mixed styles</option>
         <option value="paragraph">Paragraph</option>
@@ -303,6 +308,8 @@ export class ARichTextToolbarElement extends HTMLElementBase {
     this.ownerDocument.defaultView?.visualViewport?.addEventListener('resize', this.#positionInline);
     this.ownerDocument.defaultView?.visualViewport?.addEventListener('scroll', this.#positionInline);
     this.#resolveEditor();
+    // A toolbar can connect before its editor sibling is upgraded/connected.
+    queueMicrotask(() => { if (this.isConnected && !this.#editor) this.#resolveEditor(); });
     this.#refresh();
   }
 
@@ -463,6 +470,14 @@ export class ARichTextToolbarElement extends HTMLElementBase {
     const target = event.target;
     if (!(target instanceof Element)) return;
 
+    const sourceButton = target.closest<HTMLButtonElement>('button[data-source-action]');
+    if (sourceButton && !sourceButton.hidden && !sourceButton.disabled && this.#editor) {
+      const action = sourceButton.dataset.sourceAction;
+      if (action === 'format') void this.#editor.formatSource();
+      if (action === 'apply') this.#editor.applySource();
+      if (action === 'discard') this.#editor.discardSource();
+      return;
+    }
     const linkAction = target.closest<HTMLButtonElement>('button[data-link-action]')?.dataset.linkAction;
     if (linkAction === 'remove') {
       this.#removeLink();
@@ -629,6 +644,10 @@ export class ARichTextToolbarElement extends HTMLElementBase {
     header.hidden = !inlineMode;
     const viewParent = inlineMode ? header : this.#toolbar;
     if (this.#viewSelect.parentNode !== viewParent) viewParent.prepend(this.#viewSelect);
+    const sourceActions = this.shadowRoot!.querySelector<HTMLElement>('[part="source-actions"]')!;
+    if (sourceActions.parentNode !== viewParent) this.#viewSelect.after(sourceActions);
+    if (editor) editor.configureSourceActions(sourceActions); else sourceActions.hidden = true;
+    header.querySelector<HTMLElement>('[data-inline-hint]')!.hidden = editor?.view !== 'visual';
     this.#toolbar.dataset.preset = editor?.preset ?? 'default';
     this.#viewSelect.hidden = !editor || editor.views.length < 2;
     if (editor) editor.configureViewSelect(this.#viewSelect);
@@ -692,7 +711,9 @@ export class ARichTextToolbarElement extends HTMLElementBase {
         button.disabled = locked || !editor?.canRedo;
         available = Boolean(editor?.canRedo);
       }
-      button.hidden = !visual || locked || !editor?.isToolEnabled(action ?? '') || !available;
+      if (action !== 'find-replace' && action !== 'focus-mode') {
+        button.hidden = !visual || locked || !editor?.isToolEnabled(action ?? '') || !available;
+      }
       if (action === 'find-replace') {
         button.hidden = !visual || !editor || editor.disabled || !editor.isToolEnabled('find-replace');
         button.disabled = !editor || editor.disabled;
@@ -823,7 +844,15 @@ function isARichTextElement(value: Element | null): value is ARichTextElement {
 
 export function defineARichTextToolbar(tagName = 'a-rich-text-toolbar'): void {
   if (typeof customElements === 'undefined') return;
-  if (!customElements.get(tagName)) customElements.define(tagName, ARichTextToolbarElement);
+  if (!customElements.get(tagName)) customElements.define(tagName, tagName === 'a-rich-text-toolbar' ? ARichTextToolbarElement : class extends ARichTextToolbarElement {});
 }
 
 defineARichTextToolbar();
+defineARichTextToolbar('art-toolbar');
+
+declare global {
+  interface HTMLElementTagNameMap {
+    'a-rich-text-toolbar': ARichTextToolbarElement;
+    'art-toolbar': ARichTextToolbarElement;
+  }
+}

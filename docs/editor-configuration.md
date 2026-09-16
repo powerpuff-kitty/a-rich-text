@@ -33,6 +33,7 @@ See [appearance presets](customization.md#appearance-presets) for styling defaul
 | `preset` | Appearance: `default`, `minimal` or `document`; linked toolbar follows live | `default` |
 | `format` | Serialization used by `value` and native form submission | `html` |
 | `views` | Allowed user-selectable views, separated by spaces or commas | `visual` only |
+| `source-update` | `manual` Apply workflow or `auto` updates after a pause | `manual` |
 | `view` | Requested active view; unavailable values fall back to the visual editor | `visual` |
 | `autolink` | Standard-editing URL/email detection on typed spaces; `false` disables it | Enabled with standard editing |
 | `tools` | Allowlist of toolbar actions and their built-in formatting shortcuts | All supported tools |
@@ -208,9 +209,11 @@ Switching views serializes the current canonical ART document and does not
 reimport it. Merely looking at Markdown/plain text therefore cannot strip marks
 or annotations. `format` stays independent of the active `view`.
 
-Source drafts are held separately until **Apply changes**. Successful application
-parses/validates the source, sanitizes HTML, replaces the document, clears undo
-history (the same contract as `setHTML`/`setJSON`) and emits one editor `input`.
+By default, source drafts are held separately until **Apply changes**. Opt into
+[automatic updates](#automatic-source-updates-and-formatting) to remove that step.
+Successful application parses/validates the source and sanitizes HTML. A changed
+document replaces the model, clears visual undo history (the same contract as
+`setHTML`/`setJSON`) and emits one editor `input`.
 Draft input does not bubble as canonical editor input. `sourceDirty` reports a
 pending draft; `applySource()` returns success/failure and `discardSource()`
 restores the latest canonical representation.
@@ -327,3 +330,71 @@ removed, while wider cells shrink and keep their content. The final logical
 column cannot be removed. Each change is one Undo step and maps surviving review
 anchors. `getActiveTable()` reports logical table width while `columnIndex` remains
 the physical cell index within its row.
+
+## Automatic source updates and formatting
+
+```html
+<a-rich-text views="html markdown json text" source-update="auto"></a-rich-text>
+```
+
+`source-update="auto"` imports source after a 350 ms pause or on blur, without an
+Apply button. The default remains `manual` for compatibility. The `sourceUpdate`
+property accepts `auto` or `manual`. Both modes retain invalid drafts, protect
+against overwriting newer external document changes, and block ordinary native
+form submission while an editable draft is pending. Automatic updates wait for
+IME composition to finish and pause while disabled, readonly or disconnected.
+`applySource()` can explicitly flush a draft before a programmatic submission;
+check its boolean result. `form.submit()` bypasses native validation as usual.
+
+Successful automatic updates preserve the typed source, caret and textarea undo
+buffer. They emit the editor's `input` event only when the canonical document
+changes. Source import replaces the document and clears **visual** undo history;
+this is not per-keystroke visual undo. Invalid JSON retains the last valid
+canonical value. HTML parsing repairs incomplete markup and sanitizes it; Markdown
+uses our permissive subset parser. Neither guarantees arbitrary source fidelity.
+Switching to another view serializes the supported document, so unsupported
+markup may disappear. `discardSource()` reloads the current canonical document.
+The submitted `format` remains independent of the selected source view.
+
+Formatting is optional and separate from applying changes:
+
+```js
+import { formatSource } from '@arichtext/editor/format';
+editor.sourceFormatter = formatSource;
+// Shows Format source for HTML, Markdown and ART JSON views.
+// Or supply your own (source, format) => string | Promise<string>.
+const formatted = await editor.formatSource(); // false on failure/stale result
+```
+
+The optional Prettier 3.9.7 entry loads only the requested parsers; it is not
+imported by the base or standard editor entry. The package dependency is installed
+with the editor package, but its formatter code enters the browser only when the
+optional entry is used. The standalone showcase serves locally bundled split
+chunks, with no runtime CDN. Formatting uses two spaces, preserves Markdown prose
+wrapping and HTML whitespace sensitivity, and disables embedded-language
+formatting. Plain text has no Format action. JSON syntax must be strict JSON;
+validating the ART schema still happens when importing it.
+
+Source actions live next to the format dropdown in the toolbar: Format source
+when a formatter is installed, Apply changes for manual drafts, and Discard
+changes for pending drafts. Inline mode keeps these in its persistent toolbar
+header; the base component without a linked toolbar uses its own top toolbar.
+The content panel has no separate action row.
+
+Formatting is an explicit action to avoid caret jumps while typing. Its result
+becomes a draft in manual mode and auto-applies in automatic mode. New input,
+reset, disconnection or a changed document/view invalidates an outstanding async
+result. Errors leave the source intact. This is source formatting, not linting,
+sanitization, schema conversion or automatic repair of unsupported features.
+Setting `sourceFormatter = undefined` removes the action. The format button is
+styleable through `::part(source-format-button)`.
+
+See the [editor format catalogue and detection API](editor-formats.md).
+
+Existing code blocks expose a Font Awesome edit icon at their top-right corner.
+On hover-capable devices it appears on block hover or keyboard focus; it remains
+visible on touch devices. Its accessible name and tooltip are “Edit code block”.
+The button remains keyboard-focusable and the dialog returns focus on Cancel.
+Readonly/disabled state and the `code-block` tool allowlist still hide it.
+`::part(code-edit-button)` remains the styling hook. Code scrolls inside its own
+area so the edit button stays in place.

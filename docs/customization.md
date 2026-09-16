@@ -210,7 +210,8 @@ native custom elements. In a Vite/Vue application:
 import vue from '@vitejs/plugin-vue';
 export default {
   plugins: [vue({ template: { compilerOptions: {
-    isCustomElement: tag => tag === 'a-rich-text' || tag === 'a-rich-text-toolbar',
+    isCustomElement: tag => tag.startsWith('a-rich-text') ||
+      ['art-editor', 'art-toolbar', 'art-shell', 'art-select'].includes(tag),
   } } })],
 };
 ```

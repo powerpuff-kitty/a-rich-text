@@ -1,0 +1,78 @@
+{
+  "revision": "dcf1e7fded102ae08a979f98d25bd7ed2648e887",
+  "commands": [
+    "pnpm verify",
+    "node scripts/build-distribution.mjs",
+    "node scripts/capture-docs.mjs",
+    "pnpm test:browser",
+    "pnpm verify:distribution"
+  ],
+  "exitCode": 0,
+  "environment": {
+    "platform": "Darwin x86_64",
+    "node": "26.8.1",
+    "pnpm": "10.17.1"
+  },
+  "unit": {
+    "files": 69,
+    "passed": 428,
+    "maxWorkers": 4
+  },
+  "browser": {
+    "stats": {
+      "startTime": "2026-09-16T16:04:55.620Z",
+      "duration": 204817.492,
+      "expected": 365,
+      "skipped": 0,
+      "unexpected": 0,
+      "flaky": 0
+    },
+    "projects": {
+      "chromium": 73,
+      "firefox": 73,
+      "webkit": 73,
+      "mobile-chromium": 73,
+      "mobile-webkit": 73
+    },
+    "workers": 4,
+    "testTimeoutMs": 30000,
+    "assertionTimeoutMs": 5000,
+    "configuredRetries": 1,
+    "observedRetries": 0,
+    "reportSha256": "61f7388d2714886dc656eefd43d7a0aa2c0a513f0b5583ba8cf7bc93cdb06aef"
+  },
+  "packages": {
+    "tarballsPassed": 26,
+    "formatterInstalledAndExecutedOffline": true
+  },
+  "gzipBytes": {
+    "minimal": 35472,
+    "standard": 54190
+  },
+  "optionalFormatter": {
+    "prettierVersion": "3.9.7",
+    "chunks": {
+      "babel-QZIK7ITF.js": {
+        "minifiedBytes": 318127,
+        "gzipBytes": 82105
+      },
+      "estree-DENMQHIX.js": {
+        "minifiedBytes": 211804,
+        "gzipBytes": 61347
+      },
+      "html-KQ2Y77WT.js": {
+        "minifiedBytes": 168553,
+        "gzipBytes": 50653
+      },
+      "markdown-QHFOSC2L.js": {
+        "minifiedBytes": 291310,
+        "gzipBytes": 93355
+      },
+      "standalone-TNKT3645.js": {
+        "minifiedBytes": 81736,
+        "gzipBytes": 27108
+      }
+    }
+  },
+  "componentCaptures": 25
+}

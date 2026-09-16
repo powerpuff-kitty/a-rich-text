@@ -108,3 +108,48 @@ physical-device evidence. See [quality gates](quality.md) before production use.
 
 No account, API key, telemetry or mandatory network request is required. Images
 or links loaded by your own document may naturally access their URLs.
+
+## Short tag aliases
+
+The same imports also register concise tag names. Both naming styles can be used
+together; attributes, properties, events, CSS variables, Shadow Parts, native
+forms and controller APIs are identical.
+
+| Existing tag | Short alias | Package |
+| --- | --- | --- |
+| `a-rich-text` | `art-editor` | `@arichtext/web-component` |
+| `a-rich-text-select` | `art-select` | `@arichtext/web-component` |
+| `a-rich-text-toolbar` | `art-toolbar` | `@arichtext/ui` |
+| `a-rich-text-shell` | `art-shell` | `@arichtext/ui` |
+
+`@arichtext/editor` includes both packages and registers all eight names.
+
+```html
+<art-shell>
+  <art-toolbar for="body"></art-toolbar>
+  <art-editor id="body" name="body" aria-label="Document"
+    views="html markdown json text" source-update="auto"></art-editor>
+</art-shell>
+```
+
+Continue calling `enableStandardEditing(editor)` when using the standard list/table
+keyboard controller. In plain HTML custom elements need closing tags; `<art-editor />`
+is not a self-closing HTML element. Vue SFC templates can use their normal component
+syntax, provided the compiler recognizes the tags as custom elements.
+
+The short names are aliases, not a separate smaller editor build. Existing class
+exports such as `ARichTextElement` remain valid, including `instanceof`; TypeScript
+also infers the element type from `document.createElement('art-editor')`. A short
+alias has its own registered subclass because the browser does not allow a single
+constructor to be registered under two names. Registration is idempotent and does
+not overwrite an occupied custom-element name.
+
+Update application CSS selectors and Vue's `isCustomElement` allowlist when using
+the short tags. Built-in shell styles handle both naming styles. For example:
+
+```js
+isCustomElement: tag => tag.startsWith('a-rich-text') ||
+  ['art-editor', 'art-toolbar', 'art-shell', 'art-select'].includes(tag)
+```
+
+Try [the short-tag example](http://localhost:8080/components/short-tags.html).

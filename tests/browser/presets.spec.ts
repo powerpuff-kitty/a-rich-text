@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 import type { ARichTextElement } from '../../packages/web-component/src/index.js';
 
 test('presets change appearance live without changing content, history, tools or source drafts', async ({ page }) => {
-  await page.goto('/dist/browser/');
+  await page.goto('/dist/browser/'); await page.locator('#editor').evaluate(node => node.setAttribute('source-update', 'manual'));
   const editor = page.locator('#editor');
   const surface = editor.locator('[part="editor"]');
   const toolbar = page.locator('a-rich-text-toolbar [part="toolbar"]');

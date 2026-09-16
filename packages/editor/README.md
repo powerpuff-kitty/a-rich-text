@@ -40,3 +40,15 @@ Wrap toolbar and editor in `<a-rich-text-shell>` for one shared frame. Set
 `mode="inline"` on the toolbar for contextual formatting. Optional basic code
 highlighting is exported separately from `@arichtext/editor/highlight`; call
 `enableCodeHighlighting(editor)` and dispose its returned controller on teardown.
+
+Set `source-update="auto"` with allowed `views` to apply valid source edits after a
+pause, preserving invalid drafts. Manual Apply remains the default. Optional
+`@arichtext/editor/format` exports a Prettier `formatSource` hook to assign to
+`editor.sourceFormatter`. `detectInputFormat(source)` suggests a format without
+mutating content or treating foreign JSON as importable.
+See [source editing](https://github.com/powerpuff-kitty/a-rich-text/blob/main/docs/editor-configuration.md#automatic-source-updates-and-formatting)
+and the [format catalogue](https://github.com/powerpuff-kitty/a-rich-text/blob/main/docs/editor-formats.md).
+
+Short tags are registered alongside the existing names: `art-editor` and
+`art-select` in the base package; `art-toolbar` and `art-shell` in the UI package.
+The standard editor imports both. [Alias examples](https://github.com/powerpuff-kitty/a-rich-text/blob/main/docs/getting-started.md#short-tag-aliases).

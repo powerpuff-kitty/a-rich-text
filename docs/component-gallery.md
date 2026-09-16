@@ -17,6 +17,15 @@ The standard editor combines the optional toolbar with the native-form Web Compo
 
 ![Standard editor — The standard editor combines the optional toolbar with the native-form Web Component](screenshots/standard-editor.png)
 
+## Short tag aliases
+
+[Open this example locally](http://localhost:8080/components/short-tags.html).
+
+`art-editor`, `art-toolbar` and `art-shell` use the same implementation and styles
+as their longer names. See the [complete alias mapping](getting-started.md#short-tag-aliases).
+
+![Editor using the short tag aliases](screenshots/short-tags.png)
+
 ## Appearance presets
 
 Presets use the same document and available tools. These examples omit source

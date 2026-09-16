@@ -25,3 +25,15 @@ The base package also registers `<a-rich-text-select>`, a small keyboard-operate
 viewport-aware dropdown. `value`, `disabled` and `label` attributes, light-DOM
 `option` elements and bubbling `change` events form its API. The optional UI
 package provides `<a-rich-text-shell>` for a shared toolbar/content frame.
+
+Set `source-update="auto"` with allowed `views` to apply valid source edits after a
+pause, preserving invalid drafts. Manual Apply remains the default. Optional
+`@arichtext/editor/format` exports a Prettier `formatSource` hook to assign to
+`editor.sourceFormatter`. `detectInputFormat(source)` suggests a format without
+mutating content or treating foreign JSON as importable.
+See [source editing](https://github.com/powerpuff-kitty/a-rich-text/blob/main/docs/editor-configuration.md#automatic-source-updates-and-formatting)
+and the [format catalogue](https://github.com/powerpuff-kitty/a-rich-text/blob/main/docs/editor-formats.md).
+
+Short tags are registered alongside the existing names: `art-editor` and
+`art-select` in the base package; `art-toolbar` and `art-shell` in the UI package.
+The standard editor imports both. [Alias examples](https://github.com/powerpuff-kitty/a-rich-text/blob/main/docs/getting-started.md#short-tag-aliases).
