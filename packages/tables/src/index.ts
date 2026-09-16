@@ -49,7 +49,7 @@ export function getActiveTable(state: EditorState): ActiveTable | null {
   if (!selection) return null;
   const active = findNearestTable(state.document, selection.anchor.blockPath);
   if (!active) return null;
-  const columns = horizontalColumnCount(active.node);
+  const columns = boundedLayout(active.node).columns;
   return {
     path: [...active.path],
     rowIndex: active.rowIndex,
@@ -193,76 +193,75 @@ export function addTableColumn(
 ): EditorTransaction | null {
   const active = tableLocation(state);
   if (!active) return null;
-  const columns = horizontalColumnCount(active.node);
-  if (columns >= MAX_TABLE_COLUMNS) {
+  const layout = boundedLayout(active.node);
+  if (layout.columns >= MAX_TABLE_COLUMNS) {
     throw new TableCommandError('invalid-dimensions', `Tables are limited to ${MAX_TABLE_COLUMNS} columns`);
   }
-
-  const activeCells = active.node.content[active.rowIndex]!.content;
-  const boundary = activeCells.slice(0, active.columnIndex).reduce((sum, cell) => sum + (cell.colspan ?? 1), 0)
-    + (position === 'after' ? (activeCells[active.columnIndex]!.colspan ?? 1) : 0);
+  const selected = layout.cells.find(cell => cell.row === active.rowIndex && cell.cell === active.columnIndex)!;
+  const boundary = selected.column + (position === 'after' ? selected.colspan : 0);
   const next = cloneValue(active.node);
-  const inserted: (number | null)[] = [];
-  next.content.forEach((row, rowIndex) => {
-    let logical = 0;
-    for (let cellIndex = 0; cellIndex < row.content.length; cellIndex++) {
-      const cell = row.content[cellIndex]!;
-      if (logical === boundary) {
-        row.content.splice(cellIndex, 0, createEmptyCell()); inserted[rowIndex] = cellIndex; return;
-      }
-      const end = logical + (cell.colspan ?? 1);
-      if (logical < boundary && boundary < end) {
-        cell.colspan = (cell.colspan ?? 1) + 1; inserted[rowIndex] = null; return;
-      }
-      logical = end;
+  const crossing = layout.cells.filter(cell => cell.column < boundary && cell.column + cell.colspan > boundary);
+  for (const cell of crossing) next.content[cell.row]!.content[cell.cell]!.colspan = cell.colspan + 1;
+  const destinations = new Map<string, number>();
+  let targetCell = 0;
+  for (let row = 0; row < layout.rows; row++) {
+    const entries = layout.cells.filter(cell => cell.row === row).map(cell => ({
+      column: cell.column >= boundary ? cell.column + 1 : cell.column,
+      original: cell.cell, node: next.content[row]!.content[cell.cell]!,
+    }));
+    if (!crossing.some(cell => cell.row <= row && cell.row + cell.rowspan > row)) {
+      entries.push({ column: boundary, original: -1, node: createEmptyCell() });
     }
-    inserted[rowIndex] = row.content.length;
-    row.content.push(createEmptyCell());
-  });
+    entries.sort((a, b) => a.column - b.column);
+    next.content[row]!.content = entries.map((entry, index) => {
+      if (entry.original >= 0) destinations.set(`${row}:${entry.original}`, index);
+      else if (row === active.rowIndex) targetCell = index;
+      return entry.node;
+    });
+  }
   const mappings = mapPreservedCells(active.node, active.path, (row, column) => ({
-    row, column: inserted[row] !== null && column >= inserted[row]! ? column + 1 : column,
+    row, column: destinations.get(`${row}:${column}`)!,
   }));
-  const targetPath = [...active.path, active.rowIndex, inserted[active.rowIndex]!, 0];
   return transaction().replaceBlock(active.path, [next], mappings)
-    .setSelection(collapsedSelection(targetPath))
+    .setSelection(collapsedSelection([...active.path, active.rowIndex, targetCell, 0]))
     .setMeta('command', `addTableColumn:${position}`).build();
 }
 
-/** Remove the leftmost logical column covered by the active cell. A spanning
- * cell shrinks without losing content; unit cells in that column are removed.
+/** Remove the active cell's leftmost logical column. Wider cells shrink and
+ * retain content; unit-width cells are removed, including their rowspans.
  */
 export function removeCurrentTableColumn(state: EditorState): EditorTransaction | null {
   const active = tableLocation(state);
   if (!active) return null;
-  const columns = horizontalColumnCount(active.node);
-  if (columns <= 1) return null;
-  const logicalColumn = active.node.content[active.rowIndex]!.content.slice(0, active.columnIndex)
-    .reduce((sum, cell) => sum + (cell.colspan ?? 1), 0);
+  const layout = boundedLayout(active.node);
+  if (layout.columns <= 1) return null;
+  const selected = layout.cells.find(cell => cell.row === active.rowIndex && cell.cell === active.columnIndex)!;
+  const logicalColumn = selected.column;
   const next = cloneValue(active.node);
-  const removed: (number | null)[] = [];
-  next.content.forEach((row, rowIndex) => {
-    let logical = 0;
-    for (let cellIndex = 0; cellIndex < row.content.length; cellIndex++) {
-      const cell = row.content[cellIndex]!;
-      const width = cell.colspan ?? 1;
-      if (logicalColumn < logical + width) {
-        if (width > 1) {
-          if (width === 2) delete cell.colspan; else cell.colspan = width - 1;
-          removed[rowIndex] = null;
-        } else { row.content.splice(cellIndex, 1); removed[rowIndex] = cellIndex; }
-        return;
+  const destinations = new Map<string, number>();
+  for (let row = 0; row < layout.rows; row++) {
+    next.content[row]!.content = layout.cells.filter(cell => cell.row === row).flatMap(cell => {
+      const node = next.content[row]!.content[cell.cell]!;
+      if (cell.column <= logicalColumn && cell.column + cell.colspan > logicalColumn) {
+        if (cell.colspan === 1) return [];
+        if (cell.colspan === 2) delete node.colspan;
+        else node.colspan = cell.colspan - 1;
       }
-      logical += width;
-    }
-  });
+      return [{ original: cell.cell, node }];
+    }).map((entry, index) => {
+      destinations.set(`${row}:${entry.original}`, index);
+      return entry.node;
+    });
+  }
   const mappings = mapPreservedCells(active.node, active.path, (row, column) => {
-    const index = removed[row];
-    if (index === column) return null;
-    return { row, column: index !== null && column > index! ? column - 1 : column };
+    const index = destinations.get(`${row}:${column}`);
+    return index === undefined ? null : { row, column: index };
   });
-  const targetColumn = Math.min(active.columnIndex, next.content[active.rowIndex]!.content.length - 1);
-  const cell = next.content[active.rowIndex]!.content[targetColumn]!;
-  const cellPath = [...active.path, active.rowIndex, targetColumn];
+  const targetColumn = Math.min(logicalColumn, layout.columns - 2);
+  const target = getTableLayout(next)!.cells.find(cell => cell.row <= active.rowIndex && cell.row + cell.rowspan > active.rowIndex
+    && cell.column <= targetColumn && cell.column + cell.colspan > targetColumn)!;
+  const cell = next.content[target.row]!.content[target.cell]!;
+  const cellPath = [...active.path, target.row, target.cell];
   const textBlocks: ARTPathMapping[] = [];
   collectPreservedMappings(cell, cellPath, cellPath, textBlocks);
   let targetPath = textBlocks[0]?.to;
@@ -407,23 +406,6 @@ function boundedLayout(table: ARTTableNode) {
     throw new TableCommandError('invalid-dimensions', 'Unsupported table dimensions');
   }
   return layout;
-}
-
-function horizontalColumnCount(table: ARTTableNode): number {
-  if (!table.content.length || table.content.length > MAX_TABLE_ROWS) throw new TableCommandError('invalid-dimensions', 'Unsupported table dimensions');
-  let width: number | undefined;
-  for (const row of table.content) {
-    let columns = 0;
-    for (const cell of row.content) {
-      if ((cell.rowspan ?? 1) !== 1) throw new TableCommandError('merged-cells', 'Vertical merged-cell editing is not supported');
-      const span = cell.colspan ?? 1;
-      if (!Number.isInteger(span) || span < 1) throw new TableCommandError('invalid-dimensions', 'Invalid column span');
-      columns += span;
-    }
-    if (!columns || columns > MAX_TABLE_COLUMNS || (width !== undefined && width !== columns)) throw new TableCommandError('invalid-dimensions', 'Unsupported table dimensions');
-    width = columns;
-  }
-  return width!;
 }
 
 function createEmptyTable(rows: number, columns: number): ARTTableNode {

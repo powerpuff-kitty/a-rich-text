@@ -21,7 +21,7 @@ Splitting and Tab navigation support valid horizontal, vertical and combined
 spans. `mergeTableCellBelow(state)` merges the cell immediately below when its column
 boundaries match, adding rowspans and appending lower content. Merging right supports adjacent cells with matching row boundaries, including
 rowspans. It cannot cross a carried span between physical neighbors. Column
-editing supports horizontal grids only. Row insertion/removal supports
+editing supports all spans, including rows covered by earlier rowspans. Row insertion/removal supports
 all spans: insert outside the active cell’s full height, extend crossing spans,
 and create cells in uncovered columns. Removing the starting row shrinks crossing
 spans and moves originating spans into the next row, retaining their content.
@@ -30,8 +30,9 @@ Unit-height cells in that row are deleted; surviving review anchors are mapped.
 Markdown/plain text do not.
 
 Column insertion occurs beside the whole active cell and widens spans crossing
-that boundary in other rows. Removal targets the active cell's leftmost logical
-column, deleting unit cells and shrinking wider cells without losing their
+that boundary in other rows, widening each crossing cell once regardless of its
+rowspan. New unit cells fill the remaining rows in the new column. Removal targets the active cell's leftmost logical
+column, deleting unit-width cells including their rowspans and shrinking wider cells without losing their
 content. `getActiveTable().columns` is the logical width; `columnIndex` is the
 physical cell index. Surviving review anchors retain mappings; Undo restores the
 complete previous table.
