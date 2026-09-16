@@ -3,7 +3,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { ART_DOCUMENT_VERSION, type ARTDocument } from '../../core/src/index.js';
 import { textPoint, textSelection } from '../../engine/src/index.js';
-import { readDOMSelection, renderARTDocument, writeDOMSelection } from '../src/index.js';
+import { createDOMTextRange, readDOMSelection, renderARTDocument, writeDOMSelection } from '../src/index.js';
 
 interface CapturedSelection {
   anchorNode: Node | null;
@@ -131,4 +131,19 @@ describe('@arichtext/dom selection mapping', () => {
     } as unknown as Selection;
     expect(readDOMSelection(root, fake)).toEqual(textSelection(textPoint([0], 4), textPoint([0], 1)));
   });
+});
+
+it('resolves a decoration range across marks and hard breaks without changing selection', () => {
+  renderARTDocument(root, { type: 'doc', version: ART_DOCUMENT_VERSION, content: [{ type: 'paragraph', content: [
+    { type: 'text', text: 'ab' }, { type: 'text', text: 'cd', marks: [{ type: 'bold' }] }, { type: 'text', text: '\nef' },
+  ] }] });
+  const html = root.innerHTML;
+  writeDOMSelection(root, textSelection(textPoint([0], 0), textPoint([0], 1)));
+  const range = createDOMTextRange(root, textPoint([0], 1), textPoint([0], 6))!;
+  expect(range.startContainer.textContent).toBe('ab'); expect(range.startOffset).toBe(1);
+  expect(range.endContainer.textContent).toBe('ef'); expect(range.endOffset).toBe(1);
+  expect(range.cloneContents().querySelector('br')).not.toBeNull();
+  expect(readDOMSelection(root)).toEqual(textSelection(textPoint([0], 0), textPoint([0], 1)));
+  expect(root.innerHTML).toBe(html);
+  expect(createDOMTextRange(root, textPoint([99], 0), textPoint([99], 1))).toBeNull();
 });

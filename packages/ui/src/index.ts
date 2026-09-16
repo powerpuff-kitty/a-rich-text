@@ -191,6 +191,7 @@ function getTemplate(): HTMLTemplateElement {
       <button part="button remove-column-button" type="button" data-action="remove-column" aria-label="Remove table column" title="Remove column">${toolbarIcon('remove-column')}</button>
       <span part="separator" aria-hidden="true"></span>
       <button part="button undo-button" type="button" data-action="undo" aria-label="Undo" title="Undo">${toolbarIcon('undo')}</button>
+      <button part="button find-replace-button" type="button" data-action="find-replace" aria-label="Find and replace" title="Find and replace (Ctrl/⌘+F)" aria-pressed="false">${toolbarIcon('find-replace')}</button>
       <button part="button focus-mode-button" type="button" data-action="focus-mode" aria-label="Enter focus mode" title="Enter focus mode" aria-pressed="false">${toolbarIcon('focus-mode')}</button>
       <button part="button redo-button" type="button" data-action="redo" aria-label="Redo" title="Redo">${toolbarIcon('redo')}</button>
     </div>
@@ -368,6 +369,7 @@ export class ARichTextToolbarElement extends HTMLElementBase {
       this.#finishEditorAction(this.#editor.toggleMark(action));
       return;
     }
+    if (action === 'find-replace') { this.#editor.openFindReplace(); return; }
     if (action === 'focus-mode') { this.#editor.toggleFocusMode(); return; }
     if (action === 'link') {
       this.#openLinkEditor();
@@ -560,6 +562,11 @@ export class ARichTextToolbarElement extends HTMLElementBase {
         available = Boolean(editor?.canRedo);
       }
       button.hidden = !visual || locked || !editor?.isToolEnabled(action ?? '') || !available;
+      if (action === 'find-replace') {
+        button.hidden = !visual || !editor || editor.disabled || !editor.isToolEnabled('find-replace');
+        button.disabled = !editor || editor.disabled;
+        button.setAttribute('aria-pressed', String(editor?.findReplaceOpen ?? false));
+      }
       if (action === 'focus-mode') {
         button.hidden = !editor || editor.disabled || !editor.isToolEnabled('focus-mode');
         button.disabled = !editor || editor.disabled;
@@ -610,6 +617,7 @@ const observedEditorEvents = [
   'input',
   'view-change',
   'focus-mode-change',
+  'find-replace-change',
 ] as const;
 
 function editorState(editor: ARichTextElement) {

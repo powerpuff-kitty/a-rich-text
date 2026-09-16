@@ -1,0 +1,136 @@
+import { expect, test } from '@playwright/test';
+import type { ARichTextElement } from '../../packages/web-component/src/index.js';
+
+const panelName = { name: 'Find and replace', exact: true };
+test.beforeEach(async ({ page }) => { await page.goto('/dist/browser/'); });
+
+test('literal search navigates marked and nested text without changing canonical data', async ({ page }) => {
+  const editor = page.locator('#editor');
+  const panel = page.getByRole('search', panelName);
+  await editor.evaluate(node => {
+    const rich = node as ARichTextElement;
+    rich.setHTML('<h2><strong>a+</strong>b</h2><ul><li><p>a+b</p></li></ul><table><tr><td><p>a+b</p></td></tr></table><pre><code>a+b</code></pre>');
+    (window as unknown as { inputs: number }).inputs = 0;
+    rich.addEventListener('input', () => (window as unknown as { inputs: number }).inputs++);
+  });
+  const before = await editor.evaluate(node => (node as ARichTextElement).getJSON());
+  await page.getByRole('button', panelName).click();
+  await panel.getByRole('textbox', { name: 'Find text', exact: true }).fill('a+b');
+  await expect(panel.getByRole('status')).toHaveText('1 of 3 matches');
+  await expect(editor.locator('[part="find-highlight"]').first()).toBeVisible();
+  await panel.getByRole('button', { name: 'Next match', exact: true }).click();
+  await expect(panel.getByRole('status')).toHaveText('2 of 3 matches');
+  await panel.getByRole('button', { name: 'Previous match', exact: true }).click();
+  await panel.getByRole('button', { name: 'Previous match', exact: true }).click();
+  await expect(panel.getByRole('status')).toHaveText('3 of 3 matches');
+  expect(await editor.evaluate(node => (node as ARichTextElement).getJSON())).toEqual(before);
+  expect(await editor.evaluate(node => (node as ARichTextElement).canUndo)).toBe(false);
+  expect(await page.evaluate(() => (window as unknown as { inputs: number }).inputs)).toBe(0);
+  expect(await editor.evaluate(node => (node as ARichTextElement).getHTML())).not.toContain('find-highlight');
+  await panel.getByRole('button', { name: 'Close find', exact: true }).click();
+  await expect(editor.locator('[part="editor"]')).toBeFocused();
+  await page.keyboard.type('changed');
+  expect(await editor.evaluate(node => (node as ARichTextElement).getHTML())).toContain('<td><p>changed</p></td>');
+});
+
+test('replacement preserves first-character marks and replace-all is one undo step', async ({ page }) => {
+  const editor = page.locator('#editor');
+  await editor.evaluate(node => (node as ARichTextElement).setHTML('<p><strong>cat</strong> cat Cat</p>'));
+  await editor.evaluate(node => (node as ARichTextElement).openFindReplace('cat'));
+  const panel = page.getByRole('search', panelName);
+  await panel.getByRole('textbox', { name: 'Replace with', exact: true }).fill('dog');
+  await panel.getByRole('button', { name: 'Replace match', exact: true }).click();
+  expect(await editor.evaluate(node => (node as ARichTextElement).getHTML())).toBe('<p><strong>dog</strong> cat Cat</p>');
+  await expect(panel.getByRole('status')).toHaveText('1 of 2 matches');
+  await panel.getByRole('textbox', { name: 'Replace with', exact: true }).fill('catcat');
+  await panel.getByRole('button', { name: 'Replace all', exact: true }).click();
+  expect(await page.locator('#fixture-form').evaluate(node => new FormData(node as HTMLFormElement).get('body'))).toBe('<p><strong>dog</strong> catcat catcat</p>');
+  await editor.evaluate(node => (node as ARichTextElement).undo());
+  expect(await editor.evaluate(node => (node as ARichTextElement).getHTML())).toBe('<p><strong>dog</strong> cat Cat</p>');
+  await editor.evaluate(node => (node as ARichTextElement).undo());
+  expect(await editor.evaluate(node => (node as ARichTextElement).getHTML())).toBe('<p><strong>cat</strong> cat Cat</p>');
+  await panel.getByRole('checkbox', { name: 'Match case', exact: true }).check();
+  await expect(panel.getByRole('status')).toHaveText('1 of 2 matches');
+  await panel.getByRole('textbox', { name: 'Replace with', exact: true }).fill('');
+  await panel.getByRole('button', { name: 'Replace all', exact: true }).click();
+  expect(await editor.evaluate(node => (node as ARichTextElement).getText())).toBe('  Cat');
+});
+
+test('whole-word options, readonly inspection, source views and tool locks are respected', async ({ page }) => {
+  const editor = page.locator('#editor');
+  const surface = editor.locator('[part="editor"]');
+  await editor.evaluate(node => { (node as ARichTextElement).setText('cat cats Cat'); node.setAttribute('readonly', ''); });
+  await surface.focus();
+  await page.keyboard.press('ControlOrMeta+f');
+  const panel = page.getByRole('search', panelName);
+  await panel.getByRole('textbox', { name: 'Find text', exact: true }).fill('cat');
+  await expect(panel.getByRole('status')).toHaveText('1 of 3 matches');
+  await panel.getByRole('checkbox', { name: 'Whole words', exact: true }).check();
+  await expect(panel.getByRole('status')).toHaveText('1 of 2 matches');
+  await expect(panel.getByRole('textbox', { name: 'Replace with', exact: true })).toBeHidden();
+  await editor.evaluate(node => node.removeAttribute('readonly'));
+  await expect(panel.getByRole('textbox', { name: 'Replace with', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'JSON', exact: true }).click();
+  await expect(panel).not.toBeVisible();
+  await expect(page.getByRole('button', panelName)).toBeHidden();
+  expect(await editor.evaluate(node => (node as ARichTextElement).openFindReplace())).toBe(false);
+  await page.getByRole('button', { name: 'Editor', exact: true }).click();
+  await editor.evaluate(node => { (node as ARichTextElement).openFindReplace(); node.setAttribute('tools', 'bold'); });
+  await expect(panel).not.toBeVisible();
+  expect(await editor.evaluate(node => (node as ARichTextElement).openFindReplace())).toBe(false);
+  await editor.evaluate(node => { node.removeAttribute('tools'); (node as ARichTextElement).openFindReplace(); node.setAttribute('disabled', ''); });
+  await expect(panel).not.toBeVisible();
+});
+
+test('find keyboard navigation and nested dialogs work inside focus mode', async ({ page }) => {
+  const editor = page.locator('#editor');
+  await editor.evaluate(node => { const rich = node as ARichTextElement; rich.setText('cat cat'); rich.toggleFocusMode(true); });
+  await page.keyboard.press('ControlOrMeta+f');
+  const panel = page.getByRole('search', panelName);
+  await panel.getByRole('textbox', { name: 'Find text', exact: true }).fill('cat');
+  await page.keyboard.press('Enter');
+  await expect(panel.getByRole('status')).toHaveText('2 of 2 matches');
+  await page.keyboard.press('Shift+Enter');
+  await expect(panel.getByRole('status')).toHaveText('1 of 2 matches');
+  await page.getByRole('button', { name: 'Insert image', exact: true }).click();
+  await expect(page.getByRole('dialog', { name: 'Image', exact: true })).toBeVisible();
+  expect(await editor.evaluate(node => (node as ARichTextElement).openFindReplace())).toBe(false);
+  await page.keyboard.press('Escape');
+  await expect(panel).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(panel).not.toBeVisible();
+  await expect(page.getByRole('dialog', { name: 'Editor focus mode', exact: true })).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('dialog', { name: 'Editor focus mode', exact: true })).not.toBeVisible();
+});
+
+test('live content changes, composition, reconciliation and reset keep search current', async ({ page }) => {
+  const editor = page.locator('#editor');
+  const surface = editor.locator('[part="editor"]');
+  await editor.evaluate(node => { const rich = node as ARichTextElement; rich.setText('cat'); rich.openFindReplace('cat'); });
+  const panel = page.getByRole('search', panelName);
+  await expect(editor.locator('[part="find-highlight"]').first()).toBeVisible();
+  await surface.dispatchEvent('compositionstart');
+  await expect(editor.locator('[part="find-highlight"]')).toHaveCount(0);
+  await expect(panel.getByRole('button', { name: 'Replace all', exact: true })).toBeDisabled();
+  await surface.dispatchEvent('compositionend');
+  await expect(editor.locator('[part="find-highlight"]').first()).toBeVisible();
+  await surface.dispatchEvent('input');
+  expect(await editor.evaluate(node => (node as ARichTextElement).getHTML())).toBe('<p>cat</p>');
+  await editor.evaluate(node => (node as ARichTextElement).setText('prefix cat'));
+  await panel.getByRole('button', { name: 'Close find', exact: true }).click();
+  await page.keyboard.type('dog');
+  expect(await editor.evaluate(node => (node as ARichTextElement).getText())).toBe('prefix dog');
+  await editor.evaluate(node => (node as ARichTextElement).openFindReplace());
+  await expect(panel.getByRole('status')).toHaveText('No matches.');
+  await expect(editor.locator('[part="find-highlight"]')).toHaveCount(0);
+  await panel.getByRole('textbox', { name: 'Replace with', exact: true }).fill('pending');
+  await page.locator('#fixture-form').evaluate(node => (node as HTMLFormElement).reset());
+  await expect(panel).not.toBeVisible();
+  await editor.evaluate(node => (node as ARichTextElement).openFindReplace());
+  await expect(panel.getByRole('textbox', { name: 'Find text', exact: true })).toHaveValue('');
+  await expect(panel.getByRole('textbox', { name: 'Replace with', exact: true })).toHaveValue('');
+  await editor.evaluate(node => { const parent = node.parentElement!; node.remove(); parent.append(node); });
+  await expect(panel).not.toBeVisible();
+  await expect(editor.locator('[part="find-highlight"]')).toHaveCount(0);
+});

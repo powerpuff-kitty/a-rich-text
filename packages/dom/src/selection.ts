@@ -75,6 +75,19 @@ export function getLogicalTextLength(block: HTMLElement): number {
   return logicalLength(block);
 }
 
+/** Resolve a forward logical text range without changing browser selection. */
+export function createDOMTextRange(root: HTMLElement, from: ARTTextPoint, to: ARTTextPoint): Range | null {
+  const fromBlock = findBlockByPath(root, from.blockPath);
+  const toBlock = findBlockByPath(root, to.blockPath);
+  if (!fromBlock || !toBlock) return null;
+  const start = findDOMPoint(fromBlock, from.offset);
+  const end = findDOMPoint(toBlock, to.offset);
+  if (!start || !end) return null;
+  const range = root.ownerDocument.createRange();
+  range.setStart(start.node, start.offset); range.setEnd(end.node, end.offset);
+  return range;
+}
+
 function selectionForRoot(root: HTMLElement): Selection | null {
   const scope = root.getRootNode() as Node & { getSelection?: () => Selection | null };
   return scope.getSelection?.() ?? root.ownerDocument.getSelection();
