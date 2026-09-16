@@ -1,0 +1,42 @@
+{
+  "revision": "1c9e969eb37adf66199ecf0daaed2a30cbbfe443",
+  "unit": {
+    "passed": 647,
+    "files": 78
+  },
+  "browser": {
+    "scope": [
+      "markdown-compatibility",
+      "live-source",
+      "profiles",
+      "code-editor"
+    ],
+    "stats": {
+      "startTime": "2026-09-16T19:06:48.389Z",
+      "duration": 143597.525,
+      "expected": 90,
+      "skipped": 0,
+      "unexpected": 0,
+      "flaky": 0
+    },
+    "workers": 4,
+    "retries": 0,
+    "reportSHA256": "4d46cf73d15213b3c466622566137df6cdb187f323ff87f9d58a4d3ebe611652"
+  },
+  "packages": 27,
+  "gzipBytes": {
+    "minimal": 38735,
+    "standard": 57630
+  },
+  "commonmark": {
+    "reference": "0.31.2",
+    "section": "Indented code blocks",
+    "supportedExamples": 10,
+    "knownMismatches": [
+      109,
+      115
+    ],
+    "atxSupportedExamples": 18,
+    "fixtureSHA256": "a09a59b224147240b4ed667b7d4657d97dd607d5697bd5d2f3909c6b4710dac0"
+  }
+}
