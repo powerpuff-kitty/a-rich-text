@@ -35,7 +35,7 @@ No framework wrapper, extra stylesheet or runtime dependency is required.
 | --- | --- |
 | `default` | One rounded frame, tinted toolbar and comfortable sans-serif content |
 | `minimal` | Open surface with a bottom rule, transparent toolbar and compact spacing |
-| `document` | Centered paper frame and shadow, serif font, 52rem maximum width, 18px text at a 16px root size, 1.8 line height, responsive padding and a taller writing area |
+| `document` | Paper frame and shadow, serif font, the same available width as other presets, 18px text at a 16px root size, 1.8 line height, responsive padding and a taller writing area |
 
 Presets change appearance only. They do not select tools, enable formats, create
 content, alter exports, reset history or discard source drafts. The toolbar remains
@@ -280,3 +280,5 @@ See [editor modes, dropdown API, optional highlighting and roadmap](editor-modes
 Source views now use a toolbar dropdown. The old `view-button` and
 `active-view-button` parts have been replaced by `view-trigger` and `view-menu`.
 Without a registered toolbar, the editor exposes the same menu above its content.
+
+Source and visual views share shell chrome, padding and minimum-height settings. Source uses a plain-text textarea to preserve incomplete markup safely, with no separate focus outline; shell focus indication remains. Inline toolbars use a top-layer popover with an opaque `--art-inline-toolbar-background` (default `Canvas`). Set `--art-shell-max-width` explicitly to constrain every appearance uniformly.

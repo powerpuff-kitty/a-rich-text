@@ -11,7 +11,7 @@ export class ARichTextShellElement extends Base {
       ::slotted(:is(a-rich-text, art-editor)) { --art-max-width:100%; --art-editor-focus-outline:none; margin:0; }
       :host([data-preset=minimal]) { border:var(--art-shell-border,0); border-bottom:1px solid #d5dbe5; border-radius:var(--art-shell-radius,0); }
       :host([data-preset=minimal]) ::slotted(:is(a-rich-text-toolbar, art-toolbar)) { --art-toolbar-background:transparent; --art-toolbar-padding:.2rem 0; border-bottom:0; }
-      :host([data-preset=document]) { max-width:var(--art-shell-max-width,52rem); border-radius:var(--art-shell-radius,3px); box-shadow:var(--art-shell-shadow,0 12px 40px #18284614); }
+      :host([data-preset=document]) { border-radius:var(--art-shell-radius,3px); box-shadow:var(--art-shell-shadow,0 12px 40px #18284614); }
       :host([data-preset=document]) ::slotted(:is(a-rich-text-toolbar, art-toolbar)) { --art-toolbar-background:#faf9f6; --art-toolbar-padding:.7rem; }
       @media (prefers-color-scheme:dark) { ::slotted(:is(a-rich-text-toolbar, art-toolbar)) { --art-toolbar-background:color-mix(in srgb,CanvasText 6%,Canvas); } }
     </style><slot></slot>`;
