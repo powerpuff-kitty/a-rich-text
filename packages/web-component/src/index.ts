@@ -731,6 +731,9 @@ export class ARichTextElement extends HTMLElementBase {
       try { this.value = pending; } catch (error) { this.#profileError = error instanceof Error ? error.message : 'Cannot import initial value'; }
     }
     if (this.#profileError && previousError !== this.#profileError) this.dispatchEvent(new CustomEvent('profile-error', { bubbles: true, composed: true, detail: { message: this.#profileError } }));
+    // Activating a profile changes the view without the ordinary attribute path.
+    // Refresh visual-only panels/dialogs just as a direct view switch does.
+    this.#syncState();
     this.#syncViews(); this.#syncFormValue();
   }
 

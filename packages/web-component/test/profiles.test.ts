@@ -120,3 +120,15 @@ it('rejects an explicitly empty output profile instead of silently using HTML', 
   expect(() => { editor.value = '<p>Wrong</p>'; }).toThrow('Unknown format profile');
   expect(editor.getText()).toBe('Original');
 });
+
+it('closes visual-only find controls when a source profile activates', () => {
+  const { editor } = setup();
+  editor.view = 'visual';
+  expect(editor.openFindReplace()).toBe(true);
+  const panel = editor.shadowRoot!.querySelector<HTMLElement>('[part="find-panel"]')!;
+  expect(panel.hidden).toBe(false);
+  editor.sourceProfile = 'art:json-v1';
+  expect(editor.view).toBe('json');
+  expect(panel.hidden).toBe(true);
+  expect(editor.openFindReplace()).toBe(false);
+});
