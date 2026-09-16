@@ -26,3 +26,4 @@ await build({
 execFileSync('pnpm', ['exec', 'tailwindcss', '-i', 'examples/vue/styles.css', '-o', 'dist/browser/vue-example.css', '--minify'], { stdio: 'inherit' });
 await writeFile('dist/browser/vue.html', '<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Vue integration — A Rich Text</title><link rel="stylesheet" href="./vue-example.css"><div id="app"></div><script type="module" src="./vue-example.js"></script></html>');
 console.log('Integration examples: dist/browser/custom-toolbar.html and dist/browser/vue.html');
+await import('./build-component-examples.mjs');

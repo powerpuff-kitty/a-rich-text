@@ -8,7 +8,8 @@ there is no public npm release yet.
 ## Core editor and integration
 
 - [Authoring #4](https://github.com/powerpuff-kitty/a-rich-text/issues/4): merged-cell authoring and broader
-  selection editing. The toolbar and API/model support H1–H6. Standard editing detects URL/email tokens on typed spaces;
+  selection editing beyond paragraph/heading formatting. Block-style commands now
+  apply across selections in one Undo step. The toolbar and API/model support H1–H6. Standard editing detects URL/email tokens on typed spaces;
   Enter/paste/import do not trigger detection. Image, quote, rule, code-block and
   clear-formatting controls, focus mode and find/replace are implemented.
 - [Media #8](https://github.com/powerpuff-kitty/a-rich-text/issues/8): physical-browser image/orientation checks around

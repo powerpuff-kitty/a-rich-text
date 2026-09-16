@@ -4,8 +4,8 @@
   "scale": 1,
   "captures": [
     "standard-editor",
-    "toolbar",
     "base-editor",
+    "toolbar",
     "table-controls",
     "link-editor",
     "source-html",
