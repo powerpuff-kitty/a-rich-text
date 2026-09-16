@@ -32,7 +32,8 @@ bundled + gzipped size budgets
 tests that distribution in Playwright, then packs and installs all public packages
 in an isolated consumer. Keep the console output and
 `test-results/playwright-results.json` with the revision being reviewed; traces
-are retained for failed browser tests. See [integration verification](verification/2026-09-15-usable.md)
+are retained for failed browser tests. See [configuration verification](verification/2026-09-16-configuration.md),
+[integration verification](verification/2026-09-15-usable.md)
 and the earlier [foundation verification](verification/2026-09-15-local.md).
 
 `pnpm test:browser` expects `pnpm build:distribution` first. To exercise the Vite
