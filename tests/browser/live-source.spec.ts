@@ -47,3 +47,19 @@ test('optional formatter loads local chunks and detection distinguishes foreign 
   await expect(page.locator('#detected')).toContainText('No compatible built-in converter');
   expect(errors).toEqual([]);
 });
+
+test('source actions stay in traditional and inline toolbars with no content action row', async ({ page }) => {
+  const toolbar = page.locator('a-rich-text-toolbar');
+  await page.locator('#editor').evaluate(node => { (node as ARichTextElement).sourceUpdate = 'manual'; });
+  await chooseView(page, 'HTML');
+  const source = page.locator('#editor [part="source"]');
+  await source.fill('<p>Draft</p>');
+  await expect(page.locator('#editor [part="source-panel"] button')).toHaveCount(0);
+  await toolbar.getByRole('button', { name: 'Discard changes', exact: true }).click();
+  await expect(source).toHaveValue('<p></p>');
+  await toolbar.evaluate(node => node.setAttribute('mode', 'inline'));
+  await source.fill('<p>Applied in toolbar</p>');
+  await toolbar.getByRole('button', { name: 'Apply changes', exact: true }).click();
+  expect(await page.locator('#editor').evaluate(node => (node as ARichTextElement).getText())).toBe('Applied in toolbar');
+  await expect(toolbar.locator('[part="toolbar-header"] [part="source-actions"]')).toBeHidden();
+});

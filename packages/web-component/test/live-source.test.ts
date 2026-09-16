@@ -100,3 +100,19 @@ it('recovers after reset interrupts composition', () => {
   source.dispatchEvent(new Event('compositionstart')); type('Interrupted'); editor.formResetCallback();
   type('<p>After reset</p>'); vi.advanceTimersByTime(350); expect(editor.getText()).toBe('After reset');
 });
+
+it('lets async formatting finish before automatically importing the pending draft', async () => {
+  const { editor, source, type } = setup();
+  let resolve!: (value: string) => void;
+  editor.sourceFormatter = () => new Promise<string>(r => { resolve = r; });
+  type('<p>New</p>'); const pending = editor.formatSource();
+  vi.advanceTimersByTime(500); expect(editor.getText()).toBe('Original');
+  resolve('<p>New</p>\n'); expect(await pending).toBe(true);
+  vi.advanceTimersByTime(350); expect(editor.getText()).toBe('New'); expect(source.value).toBe('<p>New</p>\n');
+});
+it('places fallback source actions beside the format selector, outside the content panel', () => {
+  const { editor, type } = setup(); editor.sourceUpdate = 'manual'; type('<p>Draft</p>');
+  const actions = editor.shadowRoot!.querySelector<HTMLElement>('[part="source-actions"]')!;
+  expect(actions.closest('[part="view-switcher"]')).not.toBeNull();
+  expect(editor.shadowRoot!.querySelector('[part="source-panel"] button')).toBeNull();
+});

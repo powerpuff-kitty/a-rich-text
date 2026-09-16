@@ -105,3 +105,27 @@ test('locking, tool changes and form reset close code drafts without applying th
   await expect(dialog).not.toBeVisible();
   expect(await editor.evaluate(node => (node as ARichTextElement).getText())).toBe('');
 });
+
+test('code edit icon stays at the top right and is revealed on hover, focus or touch', async ({ page }) => {
+  const editor = page.locator('#editor');
+  await editor.evaluate(node => (node as ARichTextElement).setHTML('<pre><code>const greeting = "hello";</code></pre>'));
+  const block = editor.locator('pre');
+  const button = block.getByRole('button', { name: 'Edit code block', exact: true });
+  await expect(button.locator('svg')).toHaveCount(1);
+  await expect(button).toHaveText('');
+  if (await page.evaluate(() => matchMedia('(hover: hover)').matches)) {
+    await page.mouse.move(0, 0); await expect(button).toHaveCSS('opacity', '0');
+    await block.hover(); await expect(button).toHaveCSS('opacity', '1');
+    await page.mouse.move(0, 0); await expect(button).toHaveCSS('opacity', '0');
+  } else await expect(button).toHaveCSS('opacity', '1');
+  await button.focus(); await expect(button).toHaveCSS('opacity', '1');
+  const rects = await block.evaluate(node => {
+    const block = node.getBoundingClientRect(), button = node.querySelector('button')!.getBoundingClientRect();
+    return { top: button.top - block.top, right: block.right - button.right };
+  });
+  expect(rects.top).toBeGreaterThanOrEqual(0); expect(rects.top).toBeLessThan(12);
+  expect(rects.right).toBeGreaterThanOrEqual(0); expect(rects.right).toBeLessThan(12);
+  await page.keyboard.press('Enter');
+  await expect(page.getByRole('dialog', { name: 'Code block', exact: true })).toBeVisible();
+  await page.keyboard.press('Escape'); await expect(button).toBeFocused();
+});

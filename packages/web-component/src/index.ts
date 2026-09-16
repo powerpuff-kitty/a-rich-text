@@ -202,8 +202,13 @@ function getTemplate(): HTMLTemplateElement {
         opacity: 0.55;
         pointer-events: none;
       }
-      [part='editor'] pre { overflow-x: auto; padding: 0.6rem; border: 1px solid var(--art-border-color); border-radius: var(--art-radius); }
-      :is([part='code-edit-button'], [part='image-edit-button']) { user-select: none; display: block; margin-block-start: 0.5rem; }
+      [part='editor'] pre { position: relative; overflow: visible; padding: 0.6rem; border: 1px solid var(--art-border-color); border-radius: var(--art-radius); }
+      [part='image-edit-button'] { user-select: none; display: block; margin-block-start: 0.5rem; }
+      [part='code-edit-button'] { position: absolute; inset-block-start: .35rem; inset-inline-end: .35rem; display: grid; place-items: center; width: 2rem; height: 2rem; margin: 0; border: 1px solid var(--art-border-color); border-radius: var(--art-radius); color: var(--art-color); background: var(--art-background); opacity: 0; user-select: none; }
+      [part='editor'] pre [part='code-content'] { display: block; max-width: 100%; overflow-x: auto; box-sizing: border-box; padding-inline-end: 2.25rem; }
+      [part='code-edit-button'] svg { width: 1rem; height: 1rem; }
+      pre:hover [part='code-edit-button'], pre:focus-within [part='code-edit-button'] { opacity: 1; pointer-events: auto; }
+      @media (hover: none) { [part='code-edit-button'] { opacity: 1; pointer-events: auto; } }
       :is([part='code-dialog'], [part='image-dialog']) { box-sizing: border-box; width: min(42rem, calc(100vw - 2rem)); max-height: calc(100dvh - 2rem); overflow: auto;
         color: var(--art-color); background: var(--art-background); border: 1px solid var(--art-border-color); border-radius: var(--art-radius); }
       :is([part='code-dialog'], [part='image-dialog'])::backdrop { background: rgb(0 0 0 / 35%); }
@@ -244,7 +249,7 @@ function getTemplate(): HTMLTemplateElement {
       [part='focus-content'] [part='editor'] { min-height: max(var(--art-editor-min-height, var(--_art-min-height, 8rem)), 50dvh); }
       [part='focus-content'] [part='source'] { min-height: 45dvh; }
       [hidden] { display: none !important; }
-      [part='view-switcher'] { display: flex; flex-wrap: wrap; gap: 0.25rem; margin-block: 0.4rem; }
+      [part='view-switcher'] { display: flex; align-items: center; flex-wrap: wrap; gap: 0.25rem; margin-block: 0.4rem; }
       [part='source-actions'] button {
         font: inherit; color: inherit; padding: 0.4rem 0.7rem; cursor: pointer;
         border: 1px solid var(--art-border-color); border-radius: var(--art-radius); background: var(--art-background);
@@ -252,20 +257,20 @@ function getTemplate(): HTMLTemplateElement {
       [part='source'] { display: block; width: 100%; min-height: 14rem; box-sizing: border-box; resize: vertical;
         padding: 0.75rem; font: 0.9rem/1.6 ui-monospace, monospace; color: inherit;
         border: 0; border-radius: 0; background: var(--art-background); }
-      [part='source-actions'] { display: flex; gap: 0.4rem; margin-block: 0.5rem; }
+      [part='source-actions'] { display: flex; gap: 0.4rem; }
       [part='source-note'], [part='source-error'] { font: 0.85rem/1.5 var(--art-font-family); margin-block: 0.4rem; }
       button:focus-visible, [part='source']:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
     </style>
-    <div part="view-switcher" hidden><a-rich-text-select label="Document format" exportparts="trigger:view-trigger,menu:view-menu"></a-rich-text-select></div>
+    <div part="view-switcher" role="toolbar" aria-label="Document source tools" hidden><a-rich-text-select label="Document format" exportparts="trigger:view-trigger,menu:view-menu"></a-rich-text-select>      <div part="source-actions">
+        <button part="source-format-button" data-source-action="format" type="button" hidden>Format source</button>
+        <button part="source-apply-button" type="button" data-source-action="apply">Apply changes</button>
+        <button part="source-discard-button" type="button" data-source-action="discard">Discard changes</button>
+      </div></div>
     <div part="editor" role="textbox" aria-multiline="true"></div>
     <section part="source-panel" hidden>
       <p part="source-note" id="source-note">Source edits apply only when you choose Apply changes. Applying clears undo history. ART JSON preserves the document model and uses the A Rich Text schema. Other formats may lose unsupported formatting.</p>
       <textarea part="source" aria-label="Document source" aria-describedby="source-note source-error" spellcheck="false"></textarea>
-      <div part="source-actions">
-        <button part="source-format-button" data-source-action="format" type="button" hidden>Format source</button>
-        <button part="source-apply-button" type="button" data-source-action="apply">Apply changes</button>
-        <button part="source-discard-button" type="button" data-source-action="discard">Discard changes</button>
-      </div>
+
       <p part="source-error" id="source-error" role="status" aria-live="polite"></p>
     </section>
   `;
@@ -348,6 +353,7 @@ export class ARichTextElement extends HTMLElementBase {
     shadow.querySelector('[part="view-switcher"] a-rich-text-select')!.addEventListener('change', event => {
       event.stopPropagation(); this.view = (event.target as ARichTextSelectElement).value as ARichTextView;
     });
+    shadow.querySelector('[part="source-actions"]')!.addEventListener('pointerdown', event => event.preventDefault());
     shadow.querySelector('[part="source-actions"]')!.addEventListener('click', (event) => {
       const action = (event.target as Element).closest<HTMLElement>('[data-source-action]')?.dataset.sourceAction;
       if (action === 'format') void this.formatSource();
@@ -451,6 +457,7 @@ export class ARichTextElement extends HTMLElementBase {
     const formatter = this.#sourceFormatter;
     const view = this.view;
     if (!formatter || view === 'visual' || view === 'text' || this.disabled || this.readOnly || this.#sourceComposing) return false;
+    this.#cancelSourceUpdate();
     const source = this.#source.value;
     const revision = this.#sourceRevision;
     const document = this.serializeJSON();
@@ -468,6 +475,8 @@ export class ARichTextElement extends HTMLElementBase {
         this.#syncViews(); this.#syncFormValue();
       }
       return false;
+    } finally {
+      this.#scheduleSourceUpdate();
     }
   }
 
@@ -547,17 +556,22 @@ export class ARichTextElement extends HTMLElementBase {
     this.#source.setAttribute('aria-invalid', String(Boolean(this.#sourceError)));
     this.shadowRoot!.querySelector<HTMLElement>('[part="source-note"]')!.textContent = (this.sourceUpdate === 'auto' ? 'Valid source edits update automatically after a pause or on blur. Invalid drafts stay here. ' : 'Source edits apply only when you choose Apply changes. ') + 'Applying clears visual undo history. ART JSON uses the A Rich Text schema. Other formats may lose unsupported formatting.';
     const actions = this.shadowRoot!.querySelector<HTMLElement>('[part="source-actions"]')!;
+    this.configureSourceActions(actions);
+    this.shadowRoot!.querySelector<HTMLElement>('[part="source-error"]')!.textContent = this.#sourceError;
+    this.dispatchEvent(new CustomEvent('view-state-change'));
+    this.#scheduleSourceUpdate();
+  }
+
+  /** Shared source-action state for bundled and custom toolbars. */
+  configureSourceActions(actions: HTMLElement): void {
     const canFormat = Boolean(this.#sourceFormatter) && this.view !== 'text' && this.view !== 'visual';
-    actions.hidden = !this.#sourceDirty && !canFormat;
+    actions.hidden = this.view === 'visual' || (!this.#sourceDirty && !canFormat);
     const formatButton = actions.querySelector<HTMLButtonElement>('[data-source-action="format"]')!;
     formatButton.hidden = !canFormat; formatButton.disabled = this.disabled || this.readOnly;
     actions.querySelector<HTMLButtonElement>('[data-source-action="discard"]')!.hidden = !this.#sourceDirty;
     actions.querySelector<HTMLButtonElement>('[data-source-action="apply"]')!.hidden = this.sourceUpdate === 'auto' || !this.#sourceDirty;
     actions.querySelector<HTMLButtonElement>('[data-source-action="apply"]')!.disabled = this.disabled || this.readOnly;
     actions.querySelector<HTMLButtonElement>('[data-source-action="discard"]')!.disabled = this.disabled;
-    this.shadowRoot!.querySelector<HTMLElement>('[part="source-error"]')!.textContent = this.#sourceError;
-    this.dispatchEvent(new CustomEvent('view-state-change'));
-    this.#scheduleSourceUpdate();
   }
 
   /** Shared view-control state for bundled and custom toolbars. */

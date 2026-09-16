@@ -16,7 +16,7 @@ for (const directory of (await readdir('packages')).sort()) {
   const tarball = path.join(destination, `${manifest.name.replace('@', '').replace('/', '-')}-${manifest.version}.tgz`);
   const entries = execFileSync('tar', ['-tzf', tarball], { encoding: 'utf8' }).split('\n');
   for (const file of ['package/README.md', 'package/LICENSE']) assert(entries.includes(file), `${manifest.name}: missing ${file}`);
-  if (manifest.name === '@arichtext/ui') assert(entries.includes('package/THIRD_PARTY_NOTICES.txt'), 'UI icons require their Font Awesome notice');
+  if (['@arichtext/ui', '@arichtext/web-component'].includes(manifest.name)) assert(entries.includes('package/THIRD_PARTY_NOTICES.txt'), 'UI icons require their Font Awesome notice');
   for (const value of Object.values(manifest.exports)) {
     for (const file of Object.values(value)) assert(entries.includes(`package/${file.replace(/^\.\//, '')}`), `${manifest.name}: missing export ${file}`);
   }

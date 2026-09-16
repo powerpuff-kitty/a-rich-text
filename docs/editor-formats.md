@@ -71,7 +71,8 @@ dialect. Explicit user/developer selection wins. Clipboard behavior is unchanged
 ## Live source editing and tidy formatting
 
 See [source editing configuration](editor-configuration.md#automatic-source-updates-and-formatting)
-for the implemented automatic-update attribute and optional formatter API.
+for the implemented automatic-update attribute, contextual toolbar actions and
+optional formatter API.
 Prettier formats source layout; it does not repair a foreign document schema,
 validate ART semantics, sanitize HTML, execute embedded code, or provide ESLint's
 JavaScript lint rules. The editor's converters and validation remain separate.

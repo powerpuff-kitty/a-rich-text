@@ -375,6 +375,12 @@ wrapping and HTML whitespace sensitivity, and disables embedded-language
 formatting. Plain text has no Format action. JSON syntax must be strict JSON;
 validating the ART schema still happens when importing it.
 
+Source actions live next to the format dropdown in the toolbar: Format source
+when a formatter is installed, Apply changes for manual drafts, and Discard
+changes for pending drafts. Inline mode keeps these in its persistent toolbar
+header; the base component without a linked toolbar uses its own top toolbar.
+The content panel has no separate action row.
+
 Formatting is an explicit action to avoid caret jumps while typing. Its result
 becomes a draft in manual mode and auto-applies in automatic mode. New input,
 reset, disconnection or a changed document/view invalidates an outstanding async
@@ -384,3 +390,11 @@ Setting `sourceFormatter = undefined` removes the action. The format button is
 styleable through `::part(source-format-button)`.
 
 See the [editor format catalogue and detection API](editor-formats.md).
+
+Existing code blocks expose a Font Awesome edit icon at their top-right corner.
+On hover-capable devices it appears on block hover or keyboard focus; it remains
+visible on touch devices. Its accessible name and tooltip are “Edit code block”.
+The button remains keyboard-focusable and the dialog returns focus on Cancel.
+Readonly/disabled state and the `code-block` tool allowlist still hide it.
+`::part(code-edit-button)` remains the styling hook. Code scrolls inside its own
+area so the edit button stays in place.
