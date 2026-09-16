@@ -23,7 +23,7 @@ const sections = examples.map(({ name, title, url }) => `<section id="${name}" a
 await writeFile(`${root}/index.html`, `<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Component examples — A Rich Text</title><style>${style}
 body { max-width:1440px; } .gallery { display:grid; grid-template-columns:230px minmax(0,1fr); gap:32px; }
 nav { position:sticky; top:16px; align-self:start; max-height:calc(100dvh - 32px); overflow:auto; }
-nav ul { list-style:none; padding:0; margin:0; } nav a { display:block; padding:6px 8px; color:inherit; text-decoration:none; border-radius:4px; } nav a:hover, nav a:focus-visible { background:#e8edf5; }
+nav ul { list-style:none; padding:0; margin:0; } nav a { display:block; padding:6px 8px; color:inherit; text-decoration:none; border-radius:4px; } nav a[aria-current="location"] { background:#e8edf5; color:#174da6; font-weight:600; } nav a:hover, nav a:focus-visible { background:#e8edf5; }
 section { scroll-margin-top:24px; margin-bottom:48px; } section:target h2 { text-decoration:underline; text-underline-offset:6px; }
 iframe { display:block; width:100%; height:320px; border:1px solid #d7dce4; border-radius:8px; background:white; box-sizing:border-box; }
 @media(max-width:760px) { .gallery { grid-template-columns:1fr; } nav { position:static; max-height:none; } nav ul { columns:2; } body { padding:0 12px; } }

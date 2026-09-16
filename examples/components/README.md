@@ -15,7 +15,8 @@ independent. Frames load lazily as you browse the gallery and never take focus
 on initialization. Embedded dialog and inline-toolbar previews open through an
 explicit button; standalone pages still open their previews for screenshots.
 Frames resize to their content as it grows, shrinks, or wraps at a new width.
-Open dialogs retain the frame viewport until they close.
+Open dialogs retain the frame viewport until they close. Navigation highlights
+the section currently in view without changing scroll position or focus.
 
 | Example | Local path |
 | --- | --- |
