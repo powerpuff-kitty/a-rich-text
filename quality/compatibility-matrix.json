@@ -5,41 +5,46 @@
       "target": "Chromium desktop",
       "project": "chromium",
       "status": "verified-local",
-      "verifiedAt": "2026-09-15",
+      "verifiedAt": "2026-09-16",
       "browserVersion": "153.0.8010.12",
-      "evidence": "docs/verification/2026-09-15-local.md"
+      "evidence": "docs/verification/2026-09-16-full-local.md",
+      "verifiedRevision": "fd126f9c51ba3defaf85d9ce8cf4031bb492919b"
     },
     {
       "target": "Firefox desktop",
       "project": "firefox",
       "status": "verified-local",
-      "verifiedAt": "2026-09-15",
+      "verifiedAt": "2026-09-16",
       "browserVersion": "155.0",
-      "evidence": "docs/verification/2026-09-15-local.md"
+      "evidence": "docs/verification/2026-09-16-full-local.md",
+      "verifiedRevision": "fd126f9c51ba3defaf85d9ce8cf4031bb492919b"
     },
     {
       "target": "WebKit desktop",
       "project": "webkit",
       "status": "verified-local",
-      "verifiedAt": "2026-09-15",
+      "verifiedAt": "2026-09-16",
       "browserVersion": "26.6",
-      "evidence": "docs/verification/2026-09-15-local.md"
+      "evidence": "docs/verification/2026-09-16-full-local.md",
+      "verifiedRevision": "fd126f9c51ba3defaf85d9ce8cf4031bb492919b"
     },
     {
       "target": "Android-class Chromium emulation (Pixel 7)",
       "project": "mobile-chromium",
       "status": "verified-local",
-      "verifiedAt": "2026-09-15",
+      "verifiedAt": "2026-09-16",
       "browserVersion": "153.0.8010.12",
-      "evidence": "docs/verification/2026-09-15-local.md"
+      "evidence": "docs/verification/2026-09-16-full-local.md",
+      "verifiedRevision": "fd126f9c51ba3defaf85d9ce8cf4031bb492919b"
     },
     {
       "target": "iOS-class WebKit emulation (iPhone 15)",
       "project": "mobile-webkit",
       "status": "verified-local",
-      "verifiedAt": "2026-09-15",
+      "verifiedAt": "2026-09-16",
       "browserVersion": "26.6",
-      "evidence": "docs/verification/2026-09-15-local.md"
+      "evidence": "docs/verification/2026-09-16-full-local.md",
+      "verifiedRevision": "fd126f9c51ba3defaf85d9ce8cf4031bb492919b"
     }
   ],
   "manual": [
