@@ -62,6 +62,8 @@ shadow tree: the editor recreates content DOM during transactions.
 
 | Editor surface | Parts |
 | --- | --- |
+| Find and replace | `find-panel`, `find-input`, `find-case`, `find-whole-word`, `find-replacement`, `find-status`, `find-note`, `find-highlight` |
+| Find actions | `find-previous-button`, `find-next-button`, `find-close-button`, `find-replace-button`, `find-replace-all-button` |
 | Focus mode | `focus-dialog`, `focus-header`, `focus-exit-button`, `focus-toolbar`, `focus-content` |
 | Editable area | `editor` |
 | Text blocks | `paragraph`, `heading`, `heading-1` through `heading-6`, `blockquote` |
@@ -211,3 +213,8 @@ focus mode, put a child with `slot="focus-toolbar"` inside `<a-rich-text>`. The
 standard toolbar registers automatically. Vue wrappers may register their toolbar
 container on mount and unregister before unmount; do not render a second editor.
 See [focus-mode behavior](editor-configuration.md#focus-mode).
+
+Find highlights use `--art-find-highlight` (translucent fill) and
+`--art-find-outline`. The nonmodal panel and buttons also expose CSS parts; custom
+find interfaces can use the engine search APIs described in
+[configuration](editor-configuration.md#find-and-replace).

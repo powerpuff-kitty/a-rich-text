@@ -65,7 +65,7 @@ export class FocusMode {
     this.#returnFocus = active instanceof HTMLElement && active !== this.#host.ownerDocument.body ? active : null;
     const source = this.#host.shadowRoot!.querySelector<HTMLTextAreaElement>('[part="source"]')!;
     const range = [source.selectionStart, source.selectionEnd, source.selectionDirection] as const;
-    for (const part of ['view-switcher', 'editor', 'source-panel']) {
+    for (const part of ['find-panel', 'view-switcher', 'editor', 'source-panel']) {
       const node = this.#host.shadowRoot!.querySelector<HTMLElement>(`[part="${part}"]`)!;
       const anchor = this.#host.ownerDocument.createComment('focus control position');
       node.before(anchor); this.#controls.push({ node, anchor }); this.#content.append(node);

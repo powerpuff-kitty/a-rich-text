@@ -58,15 +58,17 @@ task checkbox editing honor their corresponding tool switches.
 | `indent`, `outdent` | Only inside a list; indentation needs a preceding sibling |
 | `insert-table` | Single text-block selection outside a table |
 | `add-row`, `remove-row`, `add-column`, `remove-column` | Only inside a supported rectangular table; unavailable dimensions are hidden |
+| `find-replace` | Search and navigate visual body text without a selection; replacement is hidden in readonly mode |
 | `focus-mode` | Expand the editor into a modal writing area; available without a text selection, including source views and readonly inspection |
 | `undo`, `redo` | Only while the corresponding history step exists |
 
 Unavailable controls and empty separators are hidden. Formatting controls are
 hidden in source views and while disabled/readonly. Focus mode remains available
-in source views and readonly mode; disabled editors cannot enter it. Task-list checkboxes remain
+in source views and readonly mode; disabled editors cannot enter it. Find remains
+available in readonly visual mode, with replacement hidden. Task-list checkboxes remain
 visible, with checked state preserved, but become disabled when appropriate.
 An empty, unfocused editor has no selection yet; formatting tools become available
-when a text selection/caret exists. Focus mode does not need a selection.
+when a text selection/caret exists. Focus mode and find do not need a selection.
 
 The element also exposes `toggleBlockquote()`, `insertHorizontalRule()` and
 `clearFormatting()`, returning whether the operation was handled. These methods
@@ -108,6 +110,46 @@ otherwise retain the draft with conflict protection.
 Code and language round-trip through ART JSON and supported HTML/Markdown code
 blocks. Editor buttons are excluded from exported content and native DOM
 reconciliation. Language metadata survives reconciliation.
+
+## Find and replace
+
+The `find-replace` tool opens a nonmodal panel in the visual editor. Ctrl/Command+F
+opens it while the editor or panel has keyboard focus; elsewhere, browser find
+retains its usual behavior. Custom buttons can call `openFindReplace(query?)` and
+`closeFindReplace()`. `findReplaceOpen` reports state; `find-replace-change` emits
+`{ open }`. The opening method returns whether entry was possible.
+
+Search is literal, case-insensitive by default, with **Match case** and **Whole
+words** options. Matches may span differently formatted runs within one paragraph
+or heading, including nested lists, quotes and table cells. They do not cross
+block boundaries or search code blocks, image metadata or extension fallbacks.
+Whole-word boundaries use Unicode letters, numbers, combining marks and underscore;
+they are not locale-specific dictionary segmentation. No regular expressions or
+Unicode normalization are applied to the user's query.
+
+The panel reports the match count and highlights the current match without adding
+content to exports or form values. Next/Previous wrap at the ends. Enter in Find
+moves forward; Shift+Enter moves backward. Escape closes the panel and focuses the
+selected match; another Escape can then exit focus mode. Image/code subdialogs
+close before the find panel. The panel stays usable while editing; document
+changes refresh matches and replacement always searches the latest canonical text.
+
+**Replace match** replaces the current match and advances beyond the inserted
+text; **Replace all** replaces the current non-overlapping match set once, in one
+undo step. New matches inside replacement text are not recursively replaced.
+Replacement inherits the first matched character's marks; other text and block
+structure remain intact. An empty replacement deletes the match. Replacing text
+with identical text preserves its original formatting and creates no history step.
+Enter in Replace with replaces the current match. Query/options/navigation do not
+change form values or create undo steps.
+
+Readonly permits finding but prevents replacement. Disabled state, removing the
+tool or switching to a source view closes the panel. Form reset/disconnection also
+clear the query and replacement. Composition temporarily suppresses highlights
+and replacement. The panel supports focus mode and exposes [CSS parts](customization.md).
+The engine exports `findText(document, query, options)` and
+`replaceSearchMatches(state, query, replacement, options, index?)` for custom UIs;
+these low-level APIs do not enforce component tool/readonly configuration.
 
 ## Focus mode
 
@@ -184,7 +226,6 @@ is configurable because not every application should expose lossy editing paths.
 Image insertion, editing and optional uploads are available through the
 [image dialog](image-authoring.md). Comments, suggestions and AI have optional
 packages but no bundled toolbar UI.
-Find/replace and table merge/split are
-also absent. Text alignment, font/color/highlight choices would require extending
+Table merge/split is also absent. Text alignment, font/color/highlight choices would require extending
 the current schema or defining extensions; hiding/showing toolbar tools does not
 add those capabilities. These are follow-up features, not advertised controls.

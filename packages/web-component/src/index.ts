@@ -1,3 +1,4 @@
+import { FindReplace } from './find-replace.js';
 import { FocusMode } from './focus-mode.js';
 import { ImageEditor, type ARichTextImageUploader } from './image-editor.js';
 export type { ARichTextImageUploader, ARichTextImageUploadContext } from './image-editor.js';
@@ -199,6 +200,19 @@ function getTemplate(): HTMLTemplateElement {
       [part='image-dialog'] .image-choice { display: flex; align-items: center; gap: 0.5rem; }
       [part='image-dialog'] input[type='checkbox'] { display: inline-block; width: auto; }
       .image-actions, .code-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+      [part='find-panel'] { position: sticky; top: 0; z-index: 2; box-sizing: border-box; padding: 0.75rem; margin-block-end: 0.5rem;
+        border: 1px solid var(--art-border-color); border-radius: var(--art-radius); background: var(--art-background); }
+      .find-row, .find-options, .find-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: end; }
+      .find-row + .find-options, .find-options + .find-row { margin-block-start: 0.5rem; }
+      .find-row label { display: grid; gap: 0.2rem; flex: 1 1 12rem; min-width: 0; }
+      .find-options label { display: flex; align-items: center; gap: 0.3rem; }
+      [part='find-panel'] input[type='text'] { box-sizing: border-box; width: 100%; min-width: 0; padding: 0.4rem; font: inherit; color: inherit;
+        background: var(--art-background); border: 1px solid var(--art-border-color); }
+      [part='find-panel'] button { padding: 0.4rem; font: inherit; cursor: pointer; }
+      [part='find-status'], [part='find-note'] { margin-block: 0.5rem 0; }
+      [part='find-note'] { font-size: 0.85em; }
+      [part='find-highlight'] { position: absolute; pointer-events: none; user-select: none; background: var(--art-find-highlight, rgb(255 190 0 / 30%));
+        outline: 1px solid var(--art-find-outline, #b57900); }
       [part='focus-dialog'] { box-sizing: border-box; width: calc(100vw - 2rem); max-width: 80rem; height: calc(100dvh - 2rem); max-height: none;
         padding: 1rem; color: var(--art-color); background: var(--art-background); border: 1px solid var(--art-border-color); border-radius: var(--art-radius); }
       [part='focus-dialog'][open] { display: flex; flex-direction: column; gap: 0.75rem; }
@@ -270,6 +284,7 @@ export class ARichTextElement extends HTMLElementBase {
   #codeEditor: CodeBlockEditor;
   #imageEditor: ImageEditor;
   #focusMode: FocusMode;
+  #findReplace: FindReplace;
 
   constructor() {
     super();
@@ -285,6 +300,7 @@ export class ARichTextElement extends HTMLElementBase {
     this.#engine = this.#createEngine(createTextDocument(''));
     this.#codeEditor = new CodeBlockEditor(this);
     this.#imageEditor = new ImageEditor(this);
+    this.#findReplace = new FindReplace(this);
     this.#focusMode = new FocusMode(this, () => { this.#codeEditor.close(false); this.#imageEditor.close(false); });
     this.#renderFromEngine();
     this.#source.addEventListener('input', (event) => {
@@ -329,6 +345,7 @@ export class ARichTextElement extends HTMLElementBase {
   }
 
   disconnectedCallback(): void {
+    this.#findReplace.close(false, true);
     this.#focusMode.close(false);
     this.#codeEditor.close(false);
     this.#imageEditor.close(false);
@@ -643,6 +660,10 @@ export class ARichTextElement extends HTMLElementBase {
     return true;
   }
 
+  get findReplaceOpen(): boolean { return this.#findReplace.active; }
+  openFindReplace(query?: string): boolean { return this.#findReplace.open(query); }
+  closeFindReplace(): void { this.#findReplace.close(); }
+
   get focusMode(): boolean { return this.#focusMode.active; }
   toggleFocusMode(force = !this.focusMode): boolean {
     if (force) return this.#focusMode.open();
@@ -752,6 +773,7 @@ export class ARichTextElement extends HTMLElementBase {
   }
 
   formResetCallback(): void {
+    this.#findReplace.close(false, true);
     this.#focusMode.close(false);
     this.#codeEditor.close(false);
     this.#imageEditor.close(false);
@@ -1024,6 +1046,7 @@ export class ARichTextElement extends HTMLElementBase {
     }
     this.#codeEditor.sync();
     this.#imageEditor.sync();
+    this.#findReplace.refresh();
     if (state.selection && this.shadowRoot?.activeElement === this.#editor) {
       writeDOMSelection(this.#editor, state.selection);
     }
@@ -1077,6 +1100,7 @@ export class ARichTextElement extends HTMLElementBase {
   }
 
   #syncState(): void {
+    this.#findReplace.refresh();
     this.#focusMode.sync();
     this.#codeEditor.sync();
     this.#imageEditor.sync();
