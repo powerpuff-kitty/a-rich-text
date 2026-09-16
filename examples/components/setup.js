@@ -1,6 +1,7 @@
 import { enableStandardEditing } from '../a-rich-text.js';
 
 const name = document.body.dataset.example;
+const embedded = window.self !== window.top;
 const editor = document.querySelector('a-rich-text, art-editor');
 const toolbar = document.querySelector('a-rich-text-toolbar, art-toolbar');
 const surface = editor.shadowRoot.querySelector('[part="editor"]');
@@ -21,9 +22,12 @@ if (name === 'merged-cells') editor.setHTML('<h2>Project overview</h2><table><tr
 if (name.startsWith('source-')) editor.setHTML('<h2>Portable content</h2><p>Keep <strong>one document</strong> in the format your app needs.</p>');
 const path = name === 'code-highlighting' ? [0] : name === 'table-controls' ? [2, 1, 0, 0] : ['merged-cells', 'vertical-spans'].includes(name) ? [1, 0, 0, 0] : [1];
 const selection = { anchor: { blockPath: path, offset: 0 }, head: { blockPath: path, offset: 0 } };
-surface.focus();
-if (name === 'inline-editor') selection.head.offset = 13;
-editor.dispatch({ operations: [], selection });
+function selectExample() {
+  surface.focus({ preventScroll: true });
+  if (name === 'inline-editor') selection.head.offset = 13;
+  editor.dispatch({ operations: [], selection });
+}
+if (!embedded) selectExample();
 if (name.startsWith('preset-')) surface.blur();
 if (name === 'dropdown') {
   const component = document.querySelector('#component');
@@ -33,7 +37,7 @@ if (name === 'dropdown') {
   const select = document.createElement('a-rich-text-select');
   select.setAttribute('label', 'Text style');
   select.innerHTML = '<option value="paragraph">Paragraph</option><option value="h1">Heading 1</option><option value="h2">Heading 2</option><option value="h3">Heading 3</option>';
-  component.append(select); select.open();
+  component.append(select); if (!embedded) select.open();
 }
 if (name.startsWith('source-')) {
   editor.view = name.slice(7);
@@ -41,6 +45,8 @@ if (name.startsWith('source-')) {
   source.value += '\n';
   source.dispatchEvent(new Event('input', { bubbles: true, composed: true }));
 }
+function openExample() {
+selectExample();
 if (name === 'link-editor') {
   toolbar.shadowRoot.querySelector('[data-action="link"]').click();
   toolbar.shadowRoot.querySelector('[data-role="link-input"]').value = 'https://example.com/guide';
@@ -61,4 +67,13 @@ if (name === 'image-editor') {
   }
 }
 if (name === 'focus-mode') editor.toggleFocusMode(true);
+}
+const previews = { 'inline-editor': 'Show inline toolbar', 'link-editor': 'Open link editor', 'find-replace': 'Open find and replace', 'code-editor': 'Open code editor', 'image-editor': 'Open image editor', 'focus-mode': 'Enter focus mode' };
+if (embedded && previews[name]) {
+  const button = document.createElement('button');
+  button.type = 'button'; button.textContent = previews[name];
+  button.style.cssText = 'font:inherit;margin-bottom:12px;padding:6px 12px;cursor:pointer';
+  button.addEventListener('click', openExample);
+  document.querySelector('#component').prepend(button);
+} else if (!embedded && previews[name]) openExample();
 document.body.dataset.ready = 'true';
