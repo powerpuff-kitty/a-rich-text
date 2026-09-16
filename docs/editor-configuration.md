@@ -17,7 +17,7 @@ configuration and updates when attributes change.
 ```
 
 Import `@arichtext/editor` and call `enableStandardEditing(editor)` to enable the
-optional list/task and table keyboard behaviors. Format switching itself belongs
+optional list/task and table keyboard behaviors and automatic linking. Format switching itself belongs
 to the base Web Component and needs no optional adapter.
 
 ## Attributes and properties
@@ -27,6 +27,7 @@ to the base Web Component and needs no optional adapter.
 | `format` | Serialization used by `value` and native form submission | `html` |
 | `views` | Allowed user-selectable views, separated by spaces or commas | `visual` only |
 | `view` | Requested active view; unavailable values fall back to the visual editor | `visual` |
+| `autolink` | Standard-editing URL/email detection on typed spaces; `false` disables it | Enabled with standard editing |
 | `tools` | Allowlist of toolbar actions and their built-in formatting shortcuts | All supported tools |
 
 `views` supports `visual`, `html`, `markdown` (alias `md`), `json` and `text`.
@@ -229,3 +230,21 @@ packages but no bundled toolbar UI.
 Table merge/split is also absent. Text alignment, font/color/highlight choices would require extending
 the current schema or defining extensions; hiding/showing toolbar tools does not
 add those capabilities. These are follow-up features, not advertised controls.
+
+## Automatic links
+
+`enableStandardEditing(editor)` turns a completed `http://`, `https://`, `www.`
+URL or email token into a link when a space is typed at a collapsed caret.
+The link and whitespace are one undoable change; the whitespace stays outside
+that new link. Detection preserves other marks and supports nested paragraph and
+heading blocks, including lists, quotes and table cells. It skips existing links,
+inline code, composition input, readonly/disabled editors and source views.
+
+Set `autolink="false"` or omit `link` from an explicit `tools` allowlist to disable
+it; both are read live. No toolbar button is added. The base component alone does
+not install this behavior. Enter, paste, imports and programmatic changes do not
+automatically create links; these remain explicit authoring paths.
+
+Custom adapters can use `insertAutoLinkBoundary(state, whitespace, marks?)` from
+`@arichtext/links`. It returns a transaction or `null`; the host enforces editing
+locks and tool configuration. `detectLinks(text)` remains a non-mutating detector.

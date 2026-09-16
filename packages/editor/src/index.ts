@@ -1,6 +1,6 @@
 import { readDOMSelection } from '@arichtext/dom';
 import { enableListEditing } from '@arichtext/lists-editor';
-import { createLinkMark } from '@arichtext/links';
+import { createLinkMark, insertAutoLinkBoundary } from '@arichtext/links';
 import { toggleList, setTaskItemChecked, type ListStyle } from '@arichtext/lists';
 import { insertTable, moveTableCell, type InsertTableOptions } from '@arichtext/tables';
 import type { ARichTextElement } from '@arichtext/web-component';
@@ -50,6 +50,17 @@ export function enableStandardEditing(editor: ARichTextElement): StandardEditing
       }));
     }
   };
+  const beforeInput = (event: InputEvent): void => {
+    if (event.defaultPrevented || !event.cancelable || !editable() || composing || event.isComposing
+      || editor.view !== 'visual' || !editor.isToolEnabled('link')
+      || editor.getAttribute('autolink') === 'false' || event.inputType !== 'insertText' || !event.data) return;
+    const selection = readDOMSelection(surface) ?? editor.getSelection();
+    const command = insertAutoLinkBoundary({ document: editor.getJSON(), selection }, event.data, editor.getActiveMarks());
+    if (!command) return;
+    event.preventDefault();
+    editor.dispatch(command);
+  };
+  surface.addEventListener('beforeinput', beforeInput, true);
   surface.addEventListener('keydown', keydown);
   surface.addEventListener('compositionstart', startComposition);
   surface.addEventListener('compositionend', endComposition);
@@ -62,6 +73,7 @@ export function enableStandardEditing(editor: ARichTextElement): StandardEditing
     destroy() {
       destroyed = true;
       lists.destroy();
+      surface.removeEventListener('beforeinput', beforeInput, true);
       surface.removeEventListener('keydown', keydown);
       surface.removeEventListener('compositionstart', startComposition);
       surface.removeEventListener('compositionend', endComposition);
