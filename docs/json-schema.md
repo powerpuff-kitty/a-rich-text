@@ -63,7 +63,7 @@ A schema pass alone is insufficient to load a document into the editor:
 results for valid and invalid JSON structures and explicitly test semantic cases
 where schema acceptance must still be rejected by the runtime.
 
-This artifact does not add migrations or support for Quill Delta, Editor.js,
-Lexical or other editor schemas. Those require explicit converters; see
-[format profiles](format-profiles.md). Migration APIs and remaining format
-interoperability work remain tracked in issue #2.
+The separate [migration API](migrations.md) runs explicitly registered version
+steps; schema validation itself never migrates data. Quill Delta, Editor.js,
+Lexical and other editor shapes require [format converters](format-profiles.md).
+Remaining dialect conformance and foreign-adapter work stays tracked in issue #2.

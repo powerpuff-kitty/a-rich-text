@@ -52,7 +52,8 @@ but it cannot promise preservation of editor-specific features.
 ART JSON stores document content. It does not bundle the editor's undo stack,
 selection, appearance or separately managed comments/collaboration state.
 `version: 1` identifies the ART format version; unknown versions are rejected.
-The migration API remains open in [issue #2](https://github.com/powerpuff-kitty/a-rich-text/issues/2).
+The [explicit migration API](migrations.md) can run registered forward steps before
+loading saved data. It ships no historical migrations and is never invoked automatically.
 
 For developer defaults and custom converter selection, see the
 [format-profile contract](format-profiles.md). Register converters explicitly,
@@ -69,8 +70,8 @@ interchangeable and does not define a rich-text format itself.
 ART includes a [Draft 2020-12 schema artifact](../packages/core/schema/art-v1.schema.json),
 exported as `@arichtext/core/schema/art-v1.schema.json`. It covers structural
 validation; continue using `isARTDocument()` or `parseDocument()` for runtime
-semantics. See [schema usage and limits](json-schema.md). Migration support
-remains open under #2.
+semantics. See [schema usage and limits](json-schema.md) and the separate
+[opt-in migration API](migrations.md).
 
 ## Packages
 

@@ -21,3 +21,13 @@ runtime nesting limits. The schema permits extra properties like the current
 runtime validator; it does not sanitize URLs or validate extension-specific data.
 The `$id` is an identifier, not a promised hosted download endpoint. No JSON Schema
 validator is added to the editor bundle.
+
+## Explicit migrations
+
+`@arichtext/core/migrations` exports `createARTMigrationRegistry()` for explicit
+migration to current ART, plus `DocumentMigrationRegistry<T>` for a supplied
+version/validator target. Register trusted synchronous JSON-string transformations
+with increasing `fromVersion`/`toVersion`, then call `migrate(savedJSON)`.
+Results contain either a validated document or a structured error, with completed
+step metadata. Paths are checked before callbacks run. No migrations ship by
+default; parsing, editor setters and storage never migrate automatically.
