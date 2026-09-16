@@ -94,6 +94,6 @@ test('format dropdown stays usable in modal focus mode and Escape dismisses only
   await page.keyboard.press('Escape');
   await expect(page.getByRole('listbox', { name: 'Document format' })).toBeHidden();
   await expect(modal).toBeVisible();
-  await chooseView(page, 'JSON');
+  await chooseView(page, 'ART JSON');
   expect(await page.getByRole('textbox', { name: 'JSON document source' }).inputValue()).toContain('Inside the modal');
 });
