@@ -14,6 +14,7 @@ import {
   addTableRow,
   getActiveTable,
   getTableCellActions,
+  getTableRowActions,
   mergeTableCellRight,
   splitTableCell,
   insertTable,
@@ -171,7 +172,7 @@ describe('@arichtext/tables', () => {
     }
   });
 
-  it('refuses merged-cell editing in the v0.1 command layer', () => {
+  it('keeps column editing unavailable for merged cells', () => {
     const merged: ARTTableNode = {
       type: 'table',
       content: [{
@@ -189,7 +190,7 @@ describe('@arichtext/tables', () => {
     );
 
     expect(() => getActiveTable(state)).toThrowError(expect.objectContaining({ code: 'merged-cells' }));
-    expect(() => addTableRow(state)).toThrowError(expect.objectContaining({ code: 'merged-cells' }));
+    expect(addTableRow(state)).not.toBeNull();
     expect(() => addTableColumn(state)).toThrowError(expect.objectContaining({ code: 'merged-cells' }));
   });
 
@@ -290,5 +291,50 @@ describe('horizontal cell authoring', () => {
     expect(mergeTableCellRight(createEditorState(document(grid), state.selection))).toBeNull();
     expect(getTableCellActions(createEditorState(document(paragraph('text')), textSelection(textPoint([0], 0))))).toEqual({ canMergeRight: false, canSplit: false });
     expect(mergeTableCellRight(createEditorState(document(table([['a', 'b']])), textSelection(textPoint([0, 0, 0, 0], 0), textPoint([0, 0, 1, 0], 1))))).toBeNull();
+  });
+});
+
+
+describe('row editing with horizontal spans', () => {
+  it('inserts a full-width row and maps surviving merged-cell anchors', () => {
+    const merged = table([['wide'], ['a', 'b']]);
+    merged.content[0]!.content[0]!.colspan = 2;
+    const doc = document(merged);
+    const state = createEditorState(doc, textSelection(textPoint([0, 0, 0, 0], 1)));
+    const anchor = createAnchoredRange(doc, textSelection(textPoint([0, 1, 1, 0], 0), textPoint([0, 1, 1, 0], 1)));
+    const command = addTableRow(state)!;
+    const mapped = mapAnchoredRangeThroughTransaction(doc, anchor, command);
+    expect(mapped.status).toBe('mapped');
+    if (mapped.status !== 'orphaned') expect(mapped.range.start.blockPath).toEqual([0, 2, 1, 0]);
+    const engine = new EditorEngine(state);
+    engine.dispatch(command);
+    const result = engine.state.document.content[0] as ARTTableNode;
+    expect(result.content[0]).toEqual(merged.content[0]);
+    expect(result.content[1]!.content).toEqual([cell(''), cell('')]);
+    expect(result.content[2]).toEqual(merged.content[1]);
+    expect(engine.state.selection?.anchor.blockPath).toEqual([0, 1, 0, 0]);
+    engine.undo(); expect(engine.state.document).toEqual(doc);
+  });
+
+  it('removes a row and clamps focus to a surviving physical cell', () => {
+    const merged = table([['wide'], ['a', 'b']]);
+    merged.content[0]!.content[0]!.colspan = 2;
+    const doc = document(merged);
+    const engine = new EditorEngine(createEditorState(doc, textSelection(textPoint([0, 1, 1, 0], 0))));
+    engine.dispatch(removeCurrentTableRow(engine.state)!);
+    expect(engine.state.selection?.anchor.blockPath).toEqual([0, 0, 0, 0]);
+    expect((engine.state.document.content[0] as ARTTableNode).content).toEqual([merged.content[0]]);
+    expect(getTableRowActions(engine.state)).toEqual({ canAddRow: true, canRemoveRow: false });
+    engine.undo(); expect(engine.state.document).toEqual(doc);
+  });
+
+  it('suppresses row actions for vertical spans and honors the row limit', () => {
+    const vertical = table([['a']]); vertical.content[0]!.content[0]!.rowspan = 2;
+    const state = createEditorState(document(vertical), textSelection(textPoint([0, 0, 0, 0], 0)));
+    expect(getTableRowActions(state)).toEqual({ canAddRow: false, canRemoveRow: false });
+    expect(() => addTableRow(state)).toThrow(/Vertical/);
+    const full = createEditorState(document(table(Array.from({ length: 50 }, () => ['a']))), state.selection);
+    expect(getTableRowActions(full)).toEqual({ canAddRow: false, canRemoveRow: true });
+    expect(() => addTableRow(full)).toThrow(/limited/);
   });
 });

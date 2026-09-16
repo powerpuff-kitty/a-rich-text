@@ -63,7 +63,8 @@ task checkbox editing honor their corresponding tool switches.
 | `merge-cell-right` | Merge the active cell with its right neighbor in tables with horizontal spans only; retain all content |
 | `split-cell` | Expand the active horizontal span into unit cells; keep content in the left cell |
 | `remove-table` | Remove the containing table at a single text-block selection, including imported merged tables; leaves an editable paragraph and supports Undo |
-| `add-row`, `remove-row`, `add-column`, `remove-column` | Only inside a supported rectangular table; unavailable dimensions are hidden |
+| `add-row`, `remove-row` | Inside supported tables, including horizontal spans; unavailable dimensions are hidden |
+| `add-column`, `remove-column` | Only inside unmerged rectangular tables; unavailable dimensions are hidden |
 | `find-replace` | Search and navigate visual body text without a selection; replacement is hidden in readonly mode |
 | `focus-mode` | Expand the editor into a modal writing area; available without a text selection, including source views and readonly inspection |
 | `undo`, `redo` | Only while the corresponding history step exists |
@@ -277,6 +278,11 @@ adapters can call `mergeTableCellRight(state)`, `splitTableCell(state)` and
 `getTableCellActions(state)` from `@arichtext/tables`.
 
 Vertical spans, grids larger than 50×50 and selections across text blocks expose
-neither action. Row/column insertion/removal remains limited to unmerged grids.
+neither action. Column insertion/removal remains limited to unmerged grids.
+Row insertion/removal supports horizontal spans: new rows contain one empty cell
+per logical column, while existing spans/content remain unchanged. Removing a
+row moves the caret to an existing cell in the nearest surviving row. Each row
+change is one Undo step; the final row cannot be removed (use Remove table).
+`getTableRowActions(state)` reports contextual row-control availability.
 HTML and ART JSON preserve horizontal spans; Markdown/plain text do not preserve
 merged-cell structure. Use HTML or JSON when this structure matters.

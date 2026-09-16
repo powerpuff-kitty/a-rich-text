@@ -18,5 +18,6 @@ and combines their column spans. `splitTableCell(state)` retains content in the
 left cell and adds empty unit cells. Both preserve review-anchor mappings and
 are undoable. `getTableCellActions(state)` reports contextual availability.
 These commands and Tab navigation support horizontal spans; vertical spans and
-row/column changes to merged grids remain unsupported. HTML/JSON preserve spans;
+column changes to merged grids remain unsupported. Row insertion/removal supports
+horizontal spans; `getTableRowActions(state)` reports availability. HTML/JSON preserve spans;
 Markdown/plain text do not.
