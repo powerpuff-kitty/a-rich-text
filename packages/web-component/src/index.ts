@@ -382,6 +382,9 @@ export class ARichTextElement extends HTMLElementBase {
     this.#editor.addEventListener('keydown', this.#handleKeyDown);
     this.#editor.addEventListener('paste', this.#handlePaste);
     this.#editor.addEventListener('blur', () => {
+      // Capture the final DOM selection before an external toolbar takes focus;
+      // the browser may deliver selectionchange only after that focus transfer.
+      if (!this.#composing) this.#syncSelectionFromDOM();
       this.dispatchEvent(new Event('change', { bubbles: true }));
     });
   }

@@ -68,3 +68,21 @@ test('Vue v-model and toolbar slots preserve undo, Tailwind parts, locks and rem
   await expect(page.locator('#bound-value')).toHaveText('<p><em>Loaded externally</em></p>');
   expect(errors).toEqual([]);
 });
+
+test('external keyboard controls retain a selection before selectionchange delivery', async ({ page }) => {
+  await page.goto('/dist/browser/');
+  const html = await page.locator('#editor').evaluate((editor: ARichTextElement) => {
+    editor.setText('Deferred'); editor.focus();
+    editor.dispatch({ operations: [], selection: { anchor: { blockPath: [0], offset: 0 }, head: { blockPath: [0], offset: 0 } } });
+    const button = document.createElement('button'); document.body.append(button);
+    button.onclick = () => editor.toggleMark('italic');
+    const text = editor.shadowRoot!.querySelector('[part=editor] p')!.firstChild!;
+    const root = editor.shadowRoot as ShadowRoot & { getSelection?: () => Selection | null };
+    const selection = root.getSelection?.() ?? document.getSelection();
+    // Keep selection and focus transfer in one task, before selectionchange fires.
+    selection!.setBaseAndExtent(text, 0, text, text.textContent!.length);
+    button.focus(); button.click(); button.remove();
+    return editor.getHTML();
+  });
+  expect(html).toBe('<p><em>Deferred</em></p>');
+});
