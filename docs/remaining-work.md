@@ -45,8 +45,8 @@ separate Vue editing engine is unnecessary; the wrapper is optional.
 
 ## Production release gates
 
-The [latest full local run](verification/2026-09-16-format-profiles.md) passed 453 unit
-tests, all 420 browser cases without retries/skips, and 26 package installation
+The [latest full local run](verification/2026-09-16-commonmark.md) passed 598 unit
+tests, all 440 browser cases without retries/skips, and 27 package installation
 checks. This closes the accumulated automated-regression check at its recorded
 revision; the manual and release prerequisites below remain.
 
@@ -58,7 +58,7 @@ revision; the manual and release prerequisites below remain.
   reconciliation and source import currently reset history.
 - [Distribution #13](https://github.com/powerpuff-kitty/a-rich-text/issues/13):
   release/version policy, npm scope/ownership, publication and public governance
-  prerequisites. The 26 local package tarballs and standalone bundle already
+  prerequisites. The 27 local package tarballs and standalone bundle already
   have reproducible verification. GitHub Actions remains disabled by request.
 
 ## Optional capabilities
