@@ -13,14 +13,16 @@ there is no public npm release yet.
   Enter/paste/import do not trigger detection. Image, quote, rule, code-block and
   clear-formatting controls, focus mode and find/replace are implemented. Whole-table
   removal is undoable, including for imported merged tables. Horizontal cell merge/split
-  and Tab navigation through column spans are implemented. Row and column insertion/removal
+  and Tab navigation through horizontal and vertical spans are implemented.
+  Vertical-grid validation and HTML/JSON round-tripping include fully covered rows. Row and column insertion/removal
   also support horizontal spans.
 - [Media #8](https://github.com/powerpuff-kitty/a-rich-text/issues/8): physical-browser image/orientation checks around
   the optional media adapters. The image dialog now supports local previews,
   host-provided uploads, progress, retry and cancellation.
-- [Component #3](https://github.com/powerpuff-kitty/a-rich-text/issues/3) and
-  [extensions #6](https://github.com/powerpuff-kitty/a-rich-text/issues/6): named
-  component preset attributes, custom inline atomic nodes and public API stability guarantees.
+- [Extensions #6](https://github.com/powerpuff-kitty/a-rich-text/issues/6):
+  custom inline atomic nodes and public API stability guarantees. The component
+  now includes Default, Minimal and Document appearance presets; these are
+  independent of extension feature bundles and tool allowlists.
 - [Schema #2](https://github.com/powerpuff-kitty/a-rich-text/issues/2) and
   [foundation #1](https://github.com/powerpuff-kitty/a-rich-text/issues/1): schema
   migration API, versioning/persistence decisions and stability policy.
@@ -31,8 +33,8 @@ separate Vue editing engine is unnecessary; the wrapper is optional.
 
 ## Production release gates
 
-The [latest full local run](verification/2026-09-16-full-local.md) passed 361 unit
-tests, all 260 browser cases without retries/skips, and 26 package installation
+The [latest full local run](verification/2026-09-16-presets.md) passed 381 unit
+tests, all 280 browser cases without retries/skips, and 26 package installation
 checks. This closes the accumulated automated-regression check at its recorded
 revision; the manual and release prerequisites below remain.
 

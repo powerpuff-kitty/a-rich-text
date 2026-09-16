@@ -13,6 +13,10 @@ Open [the example index](http://localhost:8080/components/).
 | Example | Local path |
 | --- | --- |
 | Standard editor | `/components/standard-editor.html` |
+| Default appearance preset | `/components/preset-default.html` |
+| Minimal appearance preset | `/components/preset-minimal.html` |
+| Document appearance preset | `/components/preset-document.html` |
+| Vertical table spans | `/components/vertical-spans.html` |
 | Base Web Component without toolbar | `/components/base-editor.html` |
 | Formatting toolbar, with an editor to operate on | `/components/toolbar.html` |
 | Table and contextual controls | `/components/table-controls.html` |

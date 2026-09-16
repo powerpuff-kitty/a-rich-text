@@ -125,23 +125,39 @@ function getTemplate(): HTMLTemplateElement {
     <style>
       :host {
         --art-font-family: ui-sans-serif, system-ui, sans-serif;
-        --art-font-size: 1rem;
-        --art-line-height: 1.6;
+        --art-font-size: var(--_art-font-size, 1rem);
+        --art-line-height: var(--_art-line-height, 1.6);
         --art-color: CanvasText;
         --art-background: Canvas;
-        --art-border-color: color-mix(in srgb, CanvasText 18%, transparent);
+        --art-border-color: var(--_art-border-color, color-mix(in srgb, CanvasText 18%, transparent));
         --art-radius: 0.375rem;
         display: block;
+        max-inline-size: var(--art-max-width, var(--_art-max-width, none));
+        margin-inline: auto;
         font-family: var(--art-font-family);
         color: var(--art-color);
+      }
+
+      :host([preset='minimal']) {
+        --_art-border-color: color-mix(in srgb, CanvasText 10%, transparent);
+        --_art-padding: 0.5rem;
+        --_art-min-height: 6rem;
+      }
+      :host([preset='document']) {
+        --_art-font-size: 1.125rem;
+        --_art-line-height: 1.8;
+        --_art-padding: clamp(1rem, 4vw, 2.5rem);
+        --_art-min-height: 22rem;
+        --_art-max-width: 52rem;
+        --_art-paragraph-spacing: 1em;
       }
 
       [part='editor'] {
         position: relative;
         white-space: pre-wrap;
-        min-height: var(--art-editor-min-height, 8rem);
+        min-height: var(--art-editor-min-height, var(--_art-min-height, 8rem));
         box-sizing: border-box;
-        padding: var(--art-editor-padding, 0.75rem);
+        padding: var(--art-editor-padding, var(--_art-padding, 0.75rem));
         border: 1px solid var(--art-border-color);
         border-radius: var(--art-radius);
         background: var(--art-background);
@@ -155,7 +171,7 @@ function getTemplate(): HTMLTemplateElement {
       [part='editor'] > :last-child { margin-bottom: 0; }
       [part='editor'] table { border-collapse: collapse; width: 100%; }
       [part='editor'] td { border: 1px solid var(--art-border-color); padding: 0.4rem; min-width: 2rem; }
-      [part='editor'] p { margin-block: 0 0.6em; }
+      [part='editor'] p { margin-block: 0 var(--art-paragraph-spacing, var(--_art-paragraph-spacing, 0.6em)); }
       [part='editor'] li > :last-child, [part='editor'] td > :last-child { margin-bottom: 0; }
       [data-art-list='task'] { list-style: none; padding-inline-start: 0; }
       [data-art-list='task'] > li { position: relative; padding-inline-start: 1.75em; margin-block: 0.4em; }
@@ -177,8 +193,8 @@ function getTemplate(): HTMLTemplateElement {
 
       [part='editor'][data-empty='true']::before {
         position: absolute;
-        inset-block-start: var(--art-editor-padding, 0.75rem);
-        inset-inline-start: var(--art-editor-padding, 0.75rem);
+        inset-block-start: var(--art-editor-padding, var(--_art-padding, 0.75rem));
+        inset-inline-start: var(--art-editor-padding, var(--_art-padding, 0.75rem));
         content: attr(data-placeholder);
         opacity: 0.55;
         pointer-events: none;
@@ -222,7 +238,7 @@ function getTemplate(): HTMLTemplateElement {
       [part='focus-exit-button'] { font: inherit; padding: 0.5rem; cursor: pointer; }
       [part='focus-toolbar'] { display: block; flex-shrink: 0; max-height: 35dvh; overflow: auto; }
       [part='focus-content'] { flex: 1; min-height: 0; overflow: auto; }
-      [part='focus-content'] [part='editor'] { min-height: max(var(--art-editor-min-height, 8rem), 50dvh); }
+      [part='focus-content'] [part='editor'] { min-height: max(var(--art-editor-min-height, var(--_art-min-height, 8rem)), 50dvh); }
       [part='focus-content'] [part='source'] { min-height: 45dvh; }
       [hidden] { display: none !important; }
       [part='view-switcher'] { display: flex; flex-wrap: wrap; gap: 0.25rem; margin-block: 0.4rem; }
@@ -253,6 +269,8 @@ function getTemplate(): HTMLTemplateElement {
   cachedTemplate = template;
   return template;
 }
+
+export type ARichTextPreset = 'default' | 'minimal' | 'document';
 
 export class ARichTextElement extends HTMLElementBase {
   static readonly formAssociated = true;
@@ -382,6 +400,13 @@ export class ARichTextElement extends HTMLElementBase {
     this.#syncFormValue();
     this.#syncViews();
   }
+
+  /** Appearance only; unknown or missing attributes use the default preset. */
+  get preset(): ARichTextPreset {
+    const value = this.getAttribute('preset');
+    return value === 'minimal' || value === 'document' ? value : 'default';
+  }
+  set preset(value: ARichTextPreset) { this.setAttribute('preset', value); }
 
   get tools(): ARichTextTool[] {
     const value = this.getAttribute('tools');

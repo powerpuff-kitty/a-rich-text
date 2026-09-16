@@ -282,11 +282,12 @@ describe('horizontal cell authoring', () => {
   });
 
   it('rejects vertical spans, oversized grids, non-table and multi-block selections', () => {
-    const grid = table([['a', 'b']]);
+    const grid = table([['a', 'b'], ['below']]);
     grid.content[0]!.content[0]!.rowspan = 2;
     const state = createEditorState(document(grid), textSelection(textPoint([0, 0, 0, 0], 0)));
     expect(mergeTableCellRight(state)).toBeNull(); expect(splitTableCell(state)).toBeNull();
     delete grid.content[0]!.content[0]!.rowspan;
+    grid.content.pop();
     grid.content[0]!.content[0]!.colspan = 50;
     expect(mergeTableCellRight(createEditorState(document(grid), state.selection))).toBeNull();
     expect(getTableCellActions(createEditorState(document(paragraph('text')), textSelection(textPoint([0], 0))))).toEqual({ canMergeRight: false, canSplit: false });
@@ -329,7 +330,7 @@ describe('row editing with horizontal spans', () => {
   });
 
   it('suppresses row actions for vertical spans and honors the row limit', () => {
-    const vertical = table([['a']]); vertical.content[0]!.content[0]!.rowspan = 2;
+    const vertical = table([['a'], []]); vertical.content[0]!.content[0]!.rowspan = 2;
     const state = createEditorState(document(vertical), textSelection(textPoint([0, 0, 0, 0], 0)));
     expect(getTableRowActions(state)).toEqual({ canAddRow: false, canRemoveRow: false });
     expect(() => addTableRow(state)).toThrow(/Vertical/);
@@ -388,6 +389,7 @@ describe('column editing with horizontal spans', () => {
     expect(result.content[0]!.content).toEqual([{ ...cell('wide'), colspan: 2 }]);
     expect(result.content[1]!.content).toEqual([cell('a'), cell('b')]);
     grid.content[0]!.content[0]!.rowspan = 2;
+    grid.content[1]!.content = [cell('remaining')];
     const vertical = createEditorState(document(grid), state.selection);
     expect(() => addTableColumn(vertical)).toThrow(/Vertical/);
     expect(() => removeCurrentTableColumn(vertical)).toThrow(/Vertical/);

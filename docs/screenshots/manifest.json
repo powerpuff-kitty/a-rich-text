@@ -4,6 +4,10 @@
   "scale": 1,
   "captures": [
     "standard-editor",
+    "preset-default",
+    "preset-minimal",
+    "preset-document",
+    "vertical-spans",
     "base-editor",
     "toolbar",
     "table-controls",

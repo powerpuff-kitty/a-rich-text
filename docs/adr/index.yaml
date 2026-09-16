@@ -1,0 +1,9 @@
+decisions:
+  - id: "0001"
+    title: ART-first editing engine
+    status: accepted
+    path: 0001-editing-engine.md
+  - id: "0002"
+    title: Validate occupied table grids
+    status: accepted
+    path: 0002-table-grid-validation.md

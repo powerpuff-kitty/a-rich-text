@@ -1,5 +1,9 @@
 export const componentExamples = [
   ['standard-editor', 'Standard editor'],
+  ['preset-default', 'Default preset'],
+  ['preset-minimal', 'Minimal preset'],
+  ['preset-document', 'Document preset'],
+  ['vertical-spans', 'Vertical table spans'],
   ['base-editor', 'Base Web Component'],
   ['toolbar', 'Formatting toolbar'],
   ['table-controls', 'Table controls'],

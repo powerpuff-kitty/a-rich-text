@@ -1,3 +1,4 @@
+import { getTableLayout } from '@arichtext/core';
 import type {
   ARTBlockNode,
   ARTDocument,
@@ -62,7 +63,8 @@ export function getActiveTable(state: EditorState): ActiveTable | null {
 export function moveTableCell(state: EditorState, direction: 'next' | 'previous' = 'next'): EditorTransaction | null {
   const active = tableLocation(state);
   if (!active) return null;
-  horizontalColumnCount(active.node);
+  const layout = getTableLayout(active.node);
+  if (!layout || layout.rows > MAX_TABLE_ROWS || layout.columns > MAX_TABLE_COLUMNS) return null;
   const cells = active.node.content.flatMap((row, rowIndex) => row.content.map((_, columnIndex) => ({ row: rowIndex, column: columnIndex })));
   const current = cells.findIndex(cell => cell.row === active.rowIndex && cell.column === active.columnIndex);
   const targetCell = cells[current + (direction === 'next' ? 1 : -1)];

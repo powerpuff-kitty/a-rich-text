@@ -1,0 +1,60 @@
+import { expect, test } from '@playwright/test';
+import type { ARichTextElement } from '../../packages/web-component/src/index.js';
+
+test('presets change appearance live without changing content, history, tools or source drafts', async ({ page }) => {
+  await page.goto('/dist/browser/');
+  const editor = page.locator('#editor');
+  const surface = editor.locator('[part="editor"]');
+  const toolbar = page.locator('a-rich-text-toolbar [part="toolbar"]');
+  await editor.evaluate((node: ARichTextElement) => { node.setText('Keep my document'); node.tools = 'bold'; node.views = 'html json'; });
+  await surface.click();
+  const before = await editor.evaluate((node: ARichTextElement) => node.getJSON());
+  const defaultPadding = await surface.evaluate(node => getComputedStyle(node).paddingTop);
+  await editor.evaluate((node: ARichTextElement) => { node.preset = 'minimal'; });
+  await expect(toolbar).toHaveAttribute('data-preset', 'minimal');
+  expect(await surface.evaluate(node => parseFloat(getComputedStyle(node).paddingTop))).toBeLessThan(parseFloat(defaultPadding));
+  await expect(page.getByRole('button', { name: 'Bold', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Italic', exact: true })).toBeHidden();
+  await editor.evaluate((node: ARichTextElement) => { node.view = 'html'; });
+  const source = editor.locator('[part="source"]');
+  await source.fill('<p>Unapplied draft</p>');
+  await editor.evaluate((node: ARichTextElement) => { node.preset = 'document'; });
+  await expect(toolbar).toHaveAttribute('data-preset', 'document');
+  await expect(source).toHaveValue('<p>Unapplied draft</p>');
+  expect(await editor.evaluate((node: ARichTextElement) => ({ json: node.getJSON(), undo: node.canUndo, tools: node.tools, views: node.views })))
+    .toEqual({ json: before, undo: false, tools: ['bold'], views: ['visual', 'html', 'json'] });
+  await editor.evaluate((node: ARichTextElement) => { node.discardSource(); node.view = 'visual'; });
+  await expect(surface).toHaveCSS('font-size', '18px');
+  await editor.evaluate(node => node.setAttribute('preset', 'unknown'));
+  await expect(toolbar).toHaveAttribute('data-preset', 'default');
+  await expect(surface).toHaveCSS('padding-top', defaultPadding);
+  expect(await editor.evaluate((node: ARichTextElement) => node.preset)).toBe('default');
+  await editor.evaluate(node => node.removeAttribute('preset'));
+  await expect(surface).toHaveCSS('padding-top', defaultPadding);
+});
+
+test('document preset respects host overrides and fits mobile, source and focus views', async ({ page }) => {
+  await page.goto('/dist/browser/components/preset-document.html');
+  await page.locator('body[data-ready="true"]').waitFor();
+  const editor = page.locator('#editor');
+  const toolbar = page.locator('a-rich-text-toolbar');
+  const surface = editor.locator('[part="editor"]');
+  const bounds = await editor.boundingBox();
+  const toolbarBounds = await toolbar.locator('[part="toolbar"]').boundingBox();
+  expect(Math.abs(bounds!.width - toolbarBounds!.width)).toBeLessThan(2);
+  await page.addStyleTag({ content: 'a-rich-text { --art-font-size: 20px; --art-editor-padding: 19px; --art-max-width: 600px; } a-rich-text-toolbar { --art-toolbar-max-width: 600px; --art-toolbar-padding: 13px; } a-rich-text::part(editor) { border-radius: 11px; }' });
+  await expect(surface).toHaveCSS('font-size', '20px');
+  await expect(surface).toHaveCSS('padding-top', '19px');
+  await expect(surface).toHaveCSS('border-radius', '11px');
+  await expect(toolbar.locator('[part="toolbar"]')).toHaveCSS('padding-top', '13px');
+  await editor.evaluate((node: ARichTextElement) => { node.views = 'json'; node.view = 'json'; });
+  await expect(editor.locator('[part="source"]')).toBeVisible();
+  await editor.evaluate((node: ARichTextElement) => { node.view = 'visual'; node.toggleFocusMode(true); });
+  await expect(editor.locator('[part="focus-dialog"]')).toBeVisible();
+  await expect(surface).toHaveCSS('padding-top', '19px');
+  await expect(toolbar.locator('[part="toolbar"]')).toHaveAttribute('data-preset', 'document');
+  await editor.evaluate((node: ARichTextElement) => node.toggleFocusMode(false));
+  await page.setViewportSize({ width: 320, height: 720 });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(320);
+  expect((await toolbar.locator('[part="toolbar"]').boundingBox())!.width).toBeLessThanOrEqual(280);
+});

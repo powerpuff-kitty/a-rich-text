@@ -51,7 +51,7 @@ function getTemplate(): HTMLTemplateElement {
         --art-toolbar-font: ui-sans-serif, system-ui, sans-serif;
         --art-toolbar-background: Canvas;
         --art-toolbar-color: CanvasText;
-        --art-toolbar-border: color-mix(in srgb, CanvasText 18%, transparent);
+        --_art-toolbar-border: color-mix(in srgb, CanvasText 18%, transparent);
         --art-toolbar-active: color-mix(in srgb, CanvasText 12%, transparent);
         --art-toolbar-radius: 0.375rem;
         display: block;
@@ -62,16 +62,27 @@ function getTemplate(): HTMLTemplateElement {
       [part='toolbar'] {
         display: flex;
         align-items: center;
-        gap: 0.25rem;
+        gap: var(--art-toolbar-gap, var(--_art-toolbar-gap, 0.25rem));
         box-sizing: border-box;
         width: 100%;
         flex-wrap: wrap;
-        max-width: 100%;
-        padding: 0.25rem;
-        border: 1px solid var(--art-toolbar-border);
+        max-width: min(100%, var(--art-toolbar-max-width, var(--_art-toolbar-max-width, 100%)));
+        margin-inline: auto;
+        padding: var(--art-toolbar-padding, var(--_art-toolbar-padding, 0.25rem));
+        border: 1px solid var(--art-toolbar-border, var(--_art-toolbar-border));
         border-radius: var(--art-toolbar-radius);
         background: var(--art-toolbar-background);
         overflow: visible;
+      }
+
+      [part='toolbar'][data-preset='minimal'] {
+        --_art-toolbar-gap: 0.125rem;
+        --_art-toolbar-padding: 0.125rem;
+        --_art-toolbar-border: color-mix(in srgb, CanvasText 10%, transparent);
+      }
+      [part='toolbar'][data-preset='document'] {
+        --_art-toolbar-max-width: 52rem;
+        --_art-toolbar-padding: 0.5rem;
       }
 
       [part~='button'],
@@ -119,7 +130,7 @@ function getTemplate(): HTMLTemplateElement {
         width: 1px;
         align-self: stretch;
         margin: 0.2rem;
-        background: var(--art-toolbar-border);
+        background: var(--art-toolbar-border, var(--_art-toolbar-border));
       }
 
       [part='block-select'] {
@@ -136,7 +147,7 @@ function getTemplate(): HTMLTemplateElement {
         width: min(100%, 36rem);
         margin-top: 0.25rem;
         padding: 0.25rem;
-        border: 1px solid var(--art-toolbar-border);
+        border: 1px solid var(--art-toolbar-border, var(--_art-toolbar-border));
         border-radius: var(--art-toolbar-radius);
         background: var(--art-toolbar-background);
       }
@@ -146,7 +157,7 @@ function getTemplate(): HTMLTemplateElement {
       [part='link-input'] {
         min-width: 0;
         padding-inline: 0.5rem;
-        border: 1px solid var(--art-toolbar-border);
+        border: 1px solid var(--art-toolbar-border, var(--_art-toolbar-border));
       }
 
       [part='link-error'] {
@@ -325,7 +336,7 @@ export class ARichTextToolbarElement extends HTMLElementBase {
         this.#editorObserver = new MutationObserver(this.#handleEditorStateChange);
         this.#editorObserver.observe(editor, {
           attributes: true,
-          attributeFilter: ['disabled', 'readonly', 'tools', 'view', 'views'],
+          attributeFilter: ['disabled', 'readonly', 'tools', 'view', 'views', 'preset'],
         });
       }
       if (editor.id) this.#toolbar.setAttribute('aria-controls', editor.id);
@@ -524,6 +535,7 @@ export class ARichTextToolbarElement extends HTMLElementBase {
 
   #refresh(): void {
     const editor = this.#editor;
+    this.#toolbar.dataset.preset = editor?.preset ?? 'default';
     const locked = !editor || editor.disabled || editor.readOnly;
     const activeMarks = new Set(editor?.getActiveMarks().map((mark) => mark.type) ?? []);
     const state = editor ? editorState(editor) : null;

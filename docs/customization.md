@@ -16,6 +16,52 @@ Sources: [plain HTML example](../examples/custom-toolbar/index.html),
 [Vue application](../examples/vue/App.vue) and
 [Tailwind stylesheet](../examples/vue/styles.css).
 
+## Appearance presets
+
+Set `preset="default"`, `preset="minimal"` or `preset="document"` on the editor.
+The optional linked toolbar follows it automatically, including live changes.
+No framework wrapper, extra stylesheet or runtime dependency is required.
+
+```html
+<a-rich-text-toolbar for="notes"></a-rich-text-toolbar>
+<a-rich-text id="notes" preset="document" aria-label="Notes"
+  tools="paragraph heading bold italic link undo redo"
+  views="html json"></a-rich-text>
+```
+
+| Preset | Appearance |
+| --- | --- |
+| `default` | Existing bordered editor, full-width layout and standard toolbar spacing |
+| `minimal` | Quieter borders, smaller padding and tighter toolbar gaps; button sizes are retained |
+| `document` | Centered 52rem maximum width, 18px text at a 16px root size, 1.8 line height, responsive padding and a taller writing area |
+
+Presets change appearance only. They do not select tools, enable formats, create
+content, alter exports, reset history or discard source drafts. The toolbar remains
+optional. Omitted and unknown preset values use `default`; names are case-sensitive.
+The typed `editor.preset` property reads the effective preset and accepts the same
+three names. No preset attribute is added when it is omitted.
+
+CSS variables on the host and `::part()` rules override preset defaults. Existing
+Tailwind utilities and custom buttons work with every preset. For example:
+
+```css
+a-rich-text {
+  --art-max-width: 60rem;
+  --art-font-size: 1rem;
+  --art-editor-padding: 1rem;
+  --art-paragraph-spacing: 0.8em;
+}
+a-rich-text-toolbar {
+  --art-toolbar-max-width: 60rem;
+  --art-toolbar-padding: 0.4rem;
+  --art-toolbar-gap: 0.25rem;
+}
+```
+
+Set width overrides on both hosts to align a standard toolbar with its editor.
+The `--_art-*` properties are private implementation details. See the
+[three preset examples and screenshots](component-gallery.md#appearance-presets).
+
 ## Choose the customization surface
 
 | Need | Integration |
@@ -82,7 +128,9 @@ The toolbar exposes `toolbar`, `button`, `separator`, `block-select`, per-mark
 parts such as `bold-button`, and `link-editor`, `link-input`, `link-error`.
 Its variables are `--art-toolbar-font`, `--art-toolbar-background`,
 `--art-toolbar-color`, `--art-toolbar-border`, `--art-toolbar-active` and
-`--art-toolbar-radius`. Host/editor and toolbar themes are configured separately.
+`--art-toolbar-radius`, `--art-toolbar-padding`, `--art-toolbar-gap` and
+`--art-toolbar-max-width`. Presets synchronize automatically; explicit color and
+spacing overrides belong on the corresponding editor or toolbar host.
 Part names are styling hooks; they do not appear in canonical HTML/JSON exports.
 
 ## Tailwind
