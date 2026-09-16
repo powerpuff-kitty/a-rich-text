@@ -4,7 +4,7 @@ const manifest = JSON.parse(await readFile('node_modules/@fortawesome/free-solid
 const names = {
   bold: 'faBold', italic: 'faItalic', underline: 'faUnderline', strike: 'faStrikethrough', code: 'faCode',
   link: 'faLink', 'bullet-list': 'faListUl', 'ordered-list': 'faListOl', 'task-list': 'faListCheck',
-  'find-replace': 'faMagnifyingGlass', 'remove-table': 'faTrashCan',
+  'find-replace': 'faMagnifyingGlass', 'remove-table': 'faTrashCan', 'merge-cell-right': 'faObjectGroup', 'split-cell': 'faObjectUngroup',
   'focus-mode': 'faExpand', 'focus-mode-exit': 'faCompress',
   image: 'faImage', 'code-block': 'faTerminal', blockquote: 'faQuoteLeft', 'horizontal-rule': 'faMinus', 'clear-formatting': 'faEraser',
   indent: 'faIndent', outdent: 'faOutdent', 'insert-table': 'faTable',
