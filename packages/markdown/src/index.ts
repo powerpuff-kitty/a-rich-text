@@ -186,7 +186,7 @@ function matchOpeningFence(line: string): { marker: string; indent: number; lang
   const match = line.match(/^( {0,3})(`{3,}|~{3,})(.*)$/);
   if (!match || (match[2]!.startsWith('`') && match[3]!.includes('`'))) return null;
   // ART stores the first info-string word as language; extra metadata has no field.
-  const language = match[3]!.replace(/^[ \t]+|[ \t]+$/g, '').split(/[ \t]+/)[0] || undefined;
+  const language = unescapeMarkdown(match[3]!.replace(/^[ \t]+|[ \t]+$/g, '').split(/[ \t]+/)[0] ?? '') || undefined;
   return { marker: match[2]!, indent: match[1]!.length, language };
 }
 
@@ -336,10 +336,12 @@ function parseImage(line: string): ARTBlockNode | null {
 
 function joinParagraphLines(lines: readonly string[]): string {
   return lines.map((line, index) => {
-    const hardBreak = / {2}$/.test(line);
-    const value = (hardBreak ? line.slice(0, -2) : line).trim();
-    const separator = index === lines.length - 1 ? '' : hardBreak ? '\n' : ' ';
-    return value + separator;
+    const hasNext = index < lines.length - 1;
+    const slashRun = line.match(/\\+$/)?.[0].length ?? 0;
+    const slashBreak = hasNext && slashRun % 2 === 1;
+    const hardBreak = hasNext && (/ {2}$/.test(line) || slashBreak);
+    const value = (slashBreak ? line.slice(0, -1) : line).trim();
+    return value + (hasNext ? hardBreak ? '\n' : ' ' : '');
   }).join('');
 }
 
@@ -400,7 +402,7 @@ function parseInline(text: string, inherited: readonly ARTTextMark[] = [], prote
         index = end + protectedCode.prefix.length; continue;
       }
     }
-    if (text[index] === '\\' && index + 1 < text.length) { appendText(output, text[index + 1] ?? '', inherited); index += 2; continue; }
+    if (text[index] === '\\' && isEscapable(text[index + 1])) { appendText(output, text[index + 1] ?? '', inherited); index += 2; continue; }
     const strong = text.startsWith('**', index) ? '**' : text.startsWith('__', index) ? '__' : null;
     if (strong) {
       const end = text.indexOf(strong, index + 2);
@@ -506,7 +508,7 @@ function serializeBlock(block: ARTBlockNode): string {
     case 'paragraph': return serializeInline(block.content ?? []);
     case 'heading': return `${'#'.repeat(block.level)} ${serializeInline(block.content ?? [])}`;
     case 'blockquote': return serializeBlocks(block.content).split('\n').map((line) => `> ${line}`).join('\n');
-    case 'codeBlock': { const fence = createFence(block.text, block.language); return `${fence}${block.language ?? ''}\n${block.text}\n${fence}`; }
+    case 'codeBlock': { const fence = createFence(block.text, block.language); return `${fence}${block.language?.replaceAll('\\', '\\\\') ?? ''}\n${block.text}\n${fence}`; }
     case 'horizontalRule': return '---';
     case 'list': return serializeList(block);
     case 'image': {
@@ -523,7 +525,7 @@ function serializeBlock(block: ARTBlockNode): string {
 function serializeInline(nodes: readonly ARTTextNode[]): string {
   return nodes.map((node) => {
     const marks = normalizeMarks(node.marks ?? []);
-    let value = marks.some((mark) => mark.type === 'code') ? codeSpan(node.text) : escapeMarkdown(node.text);
+    let value = marks.some((mark) => mark.type === 'code') ? codeSpan(node.text) : escapeMarkdown(node.text).replaceAll('\n', '  \n');
     for (const mark of marks) {
       switch (mark.type) {
         case 'bold': value = `**${value}**`; break;
@@ -609,5 +611,6 @@ function removeIndent(line: string, width: number): string {
 }
 function countRun(value: string, start: number, character: string): number { let index = start; while (value[index] === character) index += 1; return index - start; }
 function escapeMarkdown(value: string): string { return value.replace(/([\\`*_[\]<>#])/g, '\\$1'); }
-function unescapeMarkdown(value: string): string { return value.replace(/\\([\\`*_[\]<>#])/g, '$1'); }
+function isEscapable(value: string | undefined): boolean { return value !== undefined && /^[!-/:-@\[-`{-~]$/.test(value); }
+function unescapeMarkdown(value: string): string { return value.replace(/\\([!-/:-@\[-`{-~])/g, '$1'); }
 function escapeRegExp(value: string): string { return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }

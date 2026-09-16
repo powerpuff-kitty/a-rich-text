@@ -163,6 +163,7 @@ repair or schema version bump. See [ADR 0002](adr/0002-table-grid-validation.md)
 ## Scoped CommonMark checks
 
 The reference target is CommonMark 0.31.2. Vendored examples cover code spans,
-ATX/setext headings and indented/fenced code, with explicit remaining mismatches.
+ATX/setext headings, indented/fenced code, escapes and line breaks, with explicit
+remaining mismatches.
 The full dialect is not implemented.
 See [compatibility scope and fixtures](markdown-compatibility.md).
