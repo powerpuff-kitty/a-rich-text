@@ -1,6 +1,6 @@
 import type { ARTBlockNode, ARTHeadingNode, ARTTextMark } from '@arichtext/core';
 import { nextGraphemeBoundary, previousGraphemeBoundary } from './grapheme.js';
-import { getInlineBlock, getNodeAtPath, inlineLength, samePath } from './tree.js';
+import { getInlineBlock, getNodeAtPath, inlineLength, listInlineBlocks, samePath } from './tree.js';
 import { transaction } from './transaction.js';
 import type { ARTPath, EditorState, EditorTransaction } from './types.js';
 
@@ -120,4 +120,43 @@ function adjacentSiblingPath(document: EditorState['document'], path: ARTPath, d
   const type = (sibling as { type?: unknown }).type;
   if (type !== 'paragraph' && type !== 'heading') return null;
   return [...parentPath, siblingIndex];
+}
+
+/** Toggle the immediate quote container around a single selected text block. */
+export function toggleBlockquote(state: EditorState): EditorTransaction | null {
+  const selection = state.selection;
+  if (!selection || !samePath(selection.anchor.blockPath, selection.head.blockPath)) return null;
+  const path = selection.anchor.blockPath;
+  const parentPath = path.slice(0, -1);
+  const parent = getNodeAtPath(state.document, parentPath) as ARTBlockNode | undefined;
+  if (parent && 'type' in parent && parent.type === 'blockquote') {
+    const index = parentPath[parentPath.length - 1]!;
+    const outer = parentPath.slice(0, -1);
+    const mapPath = (value: readonly number[]) => [...outer, index + value[parentPath.length]!, ...value.slice(parentPath.length + 1)];
+    const mappings = listInlineBlocks(state.document)
+      .filter(entry => parentPath.every((value, i) => entry.path[i] === value))
+      .map(entry => ({ from: entry.path, to: mapPath(entry.path) }));
+    return transaction().replaceBlock(parentPath, parent.content, mappings)
+      .setSelection({ anchor: { ...selection.anchor, blockPath: mapPath(path) }, head: { ...selection.head, blockPath: mapPath(path) } })
+      .setMeta('command', 'toggleBlockquote:unwrap').build();
+  }
+  const mappedPath = [...path, 0];
+  return transaction().replaceBlock(path, [{ type: 'blockquote', content: [getInlineBlock(state.document, path)] }], [{ from: path, to: mappedPath }])
+    .setSelection({ anchor: { ...selection.anchor, blockPath: mappedPath }, head: { ...selection.head, blockPath: mappedPath } })
+    .setMeta('command', 'toggleBlockquote:wrap').build();
+}
+
+export function insertHorizontalRule(state: EditorState): EditorTransaction | null {
+  return insertFragment(state, [{ type: 'horizontalRule' }]);
+}
+
+/** Clear inline marks in one undoable transaction, preserving block structure. */
+export function clearSelectionFormatting(state: EditorState): EditorTransaction | null {
+  const selection = state.selection;
+  if (!selection || isCollapsed(state)) return null;
+  const builder = transaction();
+  for (const type of ['bold', 'italic', 'underline', 'strike', 'code', 'link', 'extensionMark'] as const) {
+    builder.removeMark(selection.anchor, selection.head, type);
+  }
+  return builder.setMeta('command', 'clearFormatting').build();
 }

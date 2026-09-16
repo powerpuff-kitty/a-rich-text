@@ -181,6 +181,7 @@ function getTemplate(): HTMLTemplateElement {
         >${toolbarIcon(action)}</button>
       `).join('')}
       <span part="separator" aria-hidden="true"></span>
+      ${[['blockquote', 'Toggle blockquote'], ['horizontal-rule', 'Insert horizontal rule'], ['clear-formatting', 'Clear inline formatting']].map(([action, label]) => `<button part="button" type="button" data-action="${action}" aria-label="${label}" title="${label}">${toolbarIcon(action!)}</button>`).join('')}
       <button part="button indent-button" type="button" data-action="indent" aria-label="Indent list item" title="Indent list item (Tab)">${toolbarIcon('indent')}</button>
       <button part="button outdent-button" type="button" data-action="outdent" aria-label="Outdent list item" title="Outdent list item (Shift+Tab)">${toolbarIcon('outdent')}</button>
       <button part="button insert-table-button" type="button" data-action="insert-table" aria-label="Insert table" title="Insert 2 × 2 table">${toolbarIcon('insert-table')}</button>
@@ -370,6 +371,11 @@ export class ARichTextToolbarElement extends HTMLElementBase {
       this.#dispatchCommand(toggleList(editorState(this.#editor), spec.style));
       return;
     }
+    if (action === 'blockquote' || action === 'horizontal-rule' || action === 'clear-formatting') {
+      this.#finishEditorAction(action === 'blockquote' ? this.#editor.toggleBlockquote()
+        : action === 'horizontal-rule' ? this.#editor.insertHorizontalRule() : this.#editor.clearFormatting());
+      return;
+    }
     if (action === 'indent' || action === 'outdent') {
       this.#dispatchCommand((action === 'indent' ? indentListItem : outdentListItem)(editorState(this.#editor)));
       return;
@@ -508,6 +514,11 @@ export class ARichTextToolbarElement extends HTMLElementBase {
         button.disabled = locked;
         button.setAttribute('aria-pressed', String(activeList?.style === spec.style));
         available = singleBlock && inline;
+      } else if (action === 'blockquote' || action === 'horizontal-rule') {
+        available = singleBlock && inline;
+        button.disabled = locked || !available;
+      } else if (action === 'clear-formatting') {
+        button.disabled = locked;
       } else if (action === 'indent' || action === 'outdent') {
         available = singleBlock && activeList !== null && (action === 'outdent' || activeList.itemIndex > 0);
         button.disabled = locked || !available;

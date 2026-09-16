@@ -50,6 +50,9 @@ task checkbox editing honor their corresponding tool switches.
 | `bold`, `italic`, `underline`, `strike`, `code` | Apply marks to selected text or subsequent caret typing |
 | `link` | Link entry/removal and Ctrl/Command+K |
 | `bullet-list`, `ordered-list`, `task-list` | Toggle or convert the current list at a single-block selection |
+| `blockquote` | Wrap the selected paragraph/heading; toggle again to unwrap its immediate quote container, preserving all child blocks |
+| `horizontal-rule` | Insert a rule at a single text-block selection; continue typing in the following paragraph |
+| `clear-formatting` | Remove all inline marks from selected text, or clear marks for subsequent typing at a caret; retain headings/lists |
 | `indent`, `outdent` | Only inside a list; indentation needs a preceding sibling |
 | `insert-table` | Single text-block selection outside a table |
 | `add-row`, `remove-row`, `add-column`, `remove-column` | Only inside a supported rectangular table; unavailable dimensions are hidden |
@@ -60,6 +63,13 @@ hidden in source views and while disabled/readonly. Task-list checkboxes remain
 visible, with checked state preserved, but become disabled when appropriate.
 An empty, unfocused editor has no selection yet; its toolbar becomes available
 when a text selection/caret exists.
+
+The element also exposes `toggleBlockquote()`, `insertHorizontalRule()` and
+`clearFormatting()`, returning whether the operation was handled. These methods
+respect disabled/readonly state. Quote and rule commands require a single-block
+selection. Structural edits and selected-text clearing are undoable; clearing
+caret marks only changes subsequent typing. Use the quote button again to leave
+a quote; Enter currently adds another paragraph inside it.
 
 Toolbar graphics are selected, bundled **Font Awesome Free 7.3.1** SVG paths;
 there is no font download, CDN, kit or runtime icon framework. Controls retain
@@ -106,10 +116,12 @@ is configurable because not every application should expose lossy editing paths.
 
 ## Tools still missing from the bundled toolbar
 
-The model/converters support blockquotes, fenced code blocks, horizontal rules
-and images, but they do not yet have standard authoring controls. Media/upload,
+The model/converters support fenced code blocks and images, but they do not yet
+have dedicated standard authoring controls. Code blocks can be edited through
+the configured source views; the engine text-selection model currently covers
+paragraphs and headings. Media/upload,
 comments, suggestions and AI have optional packages but no bundled toolbar UI.
-Clear formatting, find/replace, fullscreen/focus mode, and table merge/split are
+Find/replace, fullscreen/focus mode, and table merge/split are
 also absent. Text alignment, font/color/highlight choices would require extending
 the current schema or defining extensions; hiding/showing toolbar tools does not
 add those capabilities. These are follow-up features, not advertised controls.
