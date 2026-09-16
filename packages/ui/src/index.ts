@@ -294,7 +294,7 @@ export class ARichTextToolbarElement extends HTMLElementBase {
     for (const type of ['input', 'change']) shadow.addEventListener(type, event => event.stopPropagation());
     this.#viewSelect = shadow.querySelector<ARichTextSelectElement>('[data-role="view"]')!;
     this.#viewSelect.addEventListener('change', () => {
-      if (this.#editor) this.#editor.view = this.#viewSelect.value as ARichTextElement['view'];
+      if (this.#editor) this.#editor.selectView(this.#viewSelect.value);
     });
     this.#blockSelect.addEventListener('change', this.#handleBlockChange);
     this.#linkEditor.addEventListener('submit', this.#handleLinkSubmit);
@@ -474,7 +474,7 @@ export class ARichTextToolbarElement extends HTMLElementBase {
     if (sourceButton && !sourceButton.hidden && !sourceButton.disabled && this.#editor) {
       const action = sourceButton.dataset.sourceAction;
       if (action === 'format') void this.#editor.formatSource();
-      if (action === 'apply') this.#editor.applySource();
+      if (action === 'apply') this.#editor.applySource(this.#editor.sourceDiagnostics.some(note => note.severity === 'loss'));
       if (action === 'discard') this.#editor.discardSource();
       return;
     }

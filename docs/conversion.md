@@ -55,8 +55,9 @@ selection, appearance or separately managed comments/collaboration state.
 The migration API remains open in [issue #2](https://github.com/powerpuff-kitty/a-rich-text/issues/2).
 
 For developer defaults and custom converter selection, see the
-[format-profile proposal](proposals/format-profiles.md). That registry is not
-implemented; the existing format/view attributes retain their current behavior.
+[format-profile contract](format-profiles.md). Register converters explicitly,
+then select output/source defaults and an allowed source-profile list. Omitting
+profile settings preserves the existing format/view behavior.
 
 ### What about JSON Schema?
 

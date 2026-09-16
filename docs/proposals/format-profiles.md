@@ -1,6 +1,9 @@
 # Proposed format profiles
 
-Status: proposal, not implemented or a committed public API. Follow-up to
+Status: original design proposal. The registry and component configuration are
+now implemented as described in [the current contract](../format-profiles.md).
+The illustrative API below is historical; use the namespaced IDs and attributes
+in the current contract. External-editor adapters remain future work. Follow-up to
 [the conversion contract](../conversion.md) and [issue #77](https://github.com/powerpuff-kitty/a-rich-text/issues/77), with schema work in issue #2. This separates
 recommendations from the editor's current `format`, `view` and `views` API.
 
@@ -47,7 +50,7 @@ the same JSON ecosystem may enable different nodes or plugins.
 
 ## Illustrative API shape
 
-These names are illustrative and **do not work in the current release**:
+This original illustration is historical; it is **not a copyable current example**:
 
 ```html
 <a-rich-text

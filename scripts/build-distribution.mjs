@@ -10,6 +10,7 @@ await copyFile('LICENSE', 'dist/browser/LICENSE');
 await copyFile('packages/ui/THIRD_PARTY_NOTICES.txt', 'dist/browser/THIRD_PARTY_NOTICES.txt');
 await copyFile('examples/showcase/index.html', 'dist/browser/index.html');
 await copyFile('examples/showcase/app.js', 'dist/browser/showcase.js');
+await copyFile('examples/format-profiles/index.html', 'dist/browser/format-profiles.html');
 await build({ entryPoints: ['packages/editor/dist/highlight.js'], outfile: 'dist/browser/highlight.js', bundle: true, minify: true, format: 'esm', platform: 'browser', target: 'es2022' });
 await build({ entryPoints: ['packages/editor/dist/format.js'], outdir: 'dist/browser', chunkNames: 'formatter/[name]-[hash]', splitting: true, bundle: true, minify: true, format: 'esm', platform: 'browser', target: 'es2022' });
 await copyFile('docs/editor-formats.md', 'dist/browser/editor-formats.md');

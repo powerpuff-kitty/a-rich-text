@@ -1,0 +1,48 @@
+{
+  "revision": "ea0fbbe066abcd32008b565e00e6fa8c3589f6f5",
+  "commands": [
+    "pnpm verify",
+    "node scripts/build-distribution.mjs",
+    "pnpm verify:distribution",
+    "node scripts/capture-docs.mjs",
+    "pnpm exec playwright test --workers=4 --retries=0"
+  ],
+  "exitCode": 0,
+  "unit": {
+    "passed": 453,
+    "files": 71,
+    "maxWorkers": 4
+  },
+  "browser": {
+    "stats": {
+      "startTime": "2026-09-16T17:43:41.686Z",
+      "duration": 243898.967,
+      "expected": 420,
+      "skipped": 0,
+      "unexpected": 0,
+      "flaky": 0
+    },
+    "projects": {
+      "chromium": 84,
+      "firefox": 84,
+      "webkit": 84,
+      "mobile-chromium": 84,
+      "mobile-webkit": 84
+    },
+    "workers": 4,
+    "retries": 0,
+    "testTimeoutMs": 30000,
+    "assertionTimeoutMs": 5000,
+    "reportSHA256": "6062d26584cfc20f8df2902245eb208fe300c1f66b5e024e805c53e0f4d5c9e4"
+  },
+  "packages": {
+    "tarballsPassed": 26,
+    "allExportsSSRImported": true,
+    "isolatedTypeScriptConsumer": true
+  },
+  "gzipBytes": {
+    "minimal": 38215,
+    "standard": 57077
+  },
+  "componentCaptures": 25
+}

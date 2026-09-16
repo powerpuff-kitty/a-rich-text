@@ -50,7 +50,7 @@ export class ARichTextSelectElement extends Base {
   get opened(): boolean { return this.#open; }
   connectedCallback(): void {
     this.#observer = new MutationObserver(() => this.#render());
-    this.#observer.observe(this, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ['hidden', 'disabled', 'value'] });
+    this.#observer.observe(this, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ['hidden', 'disabled', 'value', 'label'] });
     this.#render();
   }
   disconnectedCallback(): void { this.close(false); this.#observer?.disconnect(); }
@@ -62,13 +62,24 @@ export class ARichTextSelectElement extends Base {
     this.#button.disabled = this.disabled;
     this.#button.querySelector('span')!.textContent = this.options.find(option => option.value === this.value)?.textContent ?? this.value;
     const focused = this.#open ? this.shadowRoot?.activeElement?.getAttribute('data-value') : null;
-    this.#menu.replaceChildren(...this.options.filter(option => !option.hidden).map(option => {
+    const renderOption = (option: HTMLOptionElement) => {
       const button = this.ownerDocument.createElement('button');
       button.type = 'button'; button.setAttribute('role', 'option'); button.dataset.value = option.value;
-      button.textContent = option.textContent; button.disabled = option.disabled;
+      button.textContent = option.textContent; button.disabled = option.disabled || (option.parentElement?.tagName === 'OPTGROUP' && (option.parentElement as HTMLOptGroupElement).disabled);
       button.setAttribute('aria-selected', String(option.value === this.value));
       button.tabIndex = -1; return button;
-    }));
+    };
+    this.#menu.replaceChildren();
+    for (const child of Array.from(this.children)) {
+      if (child instanceof HTMLOptionElement && !child.hidden) this.#menu.append(renderOption(child));
+      else if (child instanceof HTMLOptGroupElement && !child.hidden) {
+        const group = this.ownerDocument.createElement('div'); group.setAttribute('role', 'group'); group.setAttribute('aria-label', child.label);
+        const heading = this.ownerDocument.createElement('div'); heading.setAttribute('aria-hidden', 'true'); heading.textContent = child.label; heading.style.cssText = 'padding:6px 10px;font-size:.8em;font-weight:600;opacity:.7';
+        group.append(heading);
+        for (const option of Array.from(child.querySelectorAll('option'))) if (!option.hidden) group.append(renderOption(option));
+        if (group.children.length > 1) this.#menu.append(group);
+      }
+    }
     if (this.disabled || this.hidden) this.close(false);
     if (this.#open) {
       this.#place();

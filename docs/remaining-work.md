@@ -33,7 +33,7 @@ and the [editor format catalogue](editor-formats.md).
   custom inline atomic nodes and public API stability guarantees. The component
   now includes Default, Minimal and Document appearance presets; these are
   independent of extension feature bundles and tool allowlists.
-- [Format profiles #77](https://github.com/powerpuff-kitty/a-rich-text/issues/77): optional converter registry, developer-selected defaults/allowlists and foreign-JSON adapters with loss diagnostics remain a proposal. Detection hints do not implement those converters.
+- [Format profiles #77](https://github.com/powerpuff-kitty/a-rich-text/issues/77): the registry, developer-selected defaults/allowlists and diagnostic review are implemented; see [the contract](format-profiles.md). Foreign-editor adapters are not bundled, and detection hints do not implement those converters.
 - [Schema #2](https://github.com/powerpuff-kitty/a-rich-text/issues/2) and
   [foundation #1](https://github.com/powerpuff-kitty/a-rich-text/issues/1): schema
   migration API, versioning/persistence decisions and stability policy.
@@ -44,8 +44,8 @@ separate Vue editing engine is unnecessary; the wrapper is optional.
 
 ## Production release gates
 
-The [latest full local run](verification/2026-09-16-live-source.md) passed 428 unit
-tests, all 365 browser cases without retries/skips, and 26 package installation
+The [latest full local run](verification/2026-09-16-format-profiles.md) passed 453 unit
+tests, all 420 browser cases without retries/skips, and 26 package installation
 checks. This closes the accumulated automated-regression check at its recorded
 revision; the manual and release prerequisites below remain.
 
