@@ -1,0 +1,38 @@
+{
+  "revision": "0dbcac87731e2138f96da807140eb11c4d9dd195",
+  "unit": {
+    "passed": 626,
+    "files": 77
+  },
+  "browser": {
+    "scope": [
+      "markdown-compatibility",
+      "live-source",
+      "profiles"
+    ],
+    "stats": {
+      "startTime": "2026-09-16T18:53:17.471Z",
+      "duration": 96918.221,
+      "expected": 65,
+      "skipped": 0,
+      "unexpected": 0,
+      "flaky": 0
+    },
+    "workers": 4,
+    "retries": 0,
+    "reportSHA256": "090c29940ba2ac9af090989530c01274fa6d54260eb7298b7e864df83adacdd9"
+  },
+  "packages": 27,
+  "gzipBytes": {
+    "minimal": 38621,
+    "standard": 57506
+  },
+  "commonmark": {
+    "reference": "0.31.2",
+    "section": "ATX headings",
+    "supportedExamples": 17,
+    "knownMismatches": [
+      69
+    ]
+  }
+}

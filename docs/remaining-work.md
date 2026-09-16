@@ -48,7 +48,9 @@ separate Vue editing engine is unnecessary; the wrapper is optional.
 The [latest full local run](verification/2026-09-16-commonmark.md) passed 598 unit
 tests, all 440 browser cases without retries/skips, and 27 package installation
 checks. This closes the accumulated automated-regression check at its recorded
-revision; the manual and release prerequisites below remain.
+revision; the manual and release prerequisites below remain. The subsequent
+[heading increment](verification/2026-09-16-headings.md) passed 626 unit tests,
+65 targeted browser cases and 27 package checks.
 
 - [Quality #11](https://github.com/powerpuff-kitty/a-rich-text/issues/11) and
   [local gates #46](https://github.com/powerpuff-kitty/a-rich-text/issues/46): real
