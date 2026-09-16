@@ -19,8 +19,7 @@ there is no public npm release yet.
 - [Media #8](https://github.com/powerpuff-kitty/a-rich-text/issues/8): physical-browser image/orientation checks around
   the optional media adapters. The image dialog now supports local previews,
   host-provided uploads, progress, retry and cancellation.
-- [Component #3](https://github.com/powerpuff-kitty/a-rich-text/issues/3) and
-  [extensions #6](https://github.com/powerpuff-kitty/a-rich-text/issues/6): named
+- [Extensions #6](https://github.com/powerpuff-kitty/a-rich-text/issues/6):
   custom inline atomic nodes and public API stability guarantees. The component
   now includes Default, Minimal and Document appearance presets; these are
   independent of extension feature bundles and tool allowlists.
