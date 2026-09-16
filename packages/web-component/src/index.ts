@@ -1,3 +1,4 @@
+import { CodeBlockEditor } from './code-editor.js';
 import { clipboardToDocument } from '@arichtext/clipboard';
 import {
   createTextDocument,
@@ -177,6 +178,18 @@ function getTemplate(): HTMLTemplateElement {
         opacity: 0.55;
         pointer-events: none;
       }
+      [part='editor'] pre { overflow-x: auto; padding: 0.6rem; border: 1px solid var(--art-border-color); border-radius: var(--art-radius); }
+      [part='code-edit-button'] { user-select: none; display: block; margin-block-start: 0.5rem; }
+      [part='code-dialog'] { box-sizing: border-box; width: min(42rem, calc(100vw - 2rem)); max-height: calc(100dvh - 2rem); overflow: auto;
+        color: var(--art-color); background: var(--art-background); border: 1px solid var(--art-border-color); border-radius: var(--art-radius); }
+      [part='code-dialog']::backdrop { background: rgb(0 0 0 / 35%); }
+      [part='code-dialog'] h2 { font-size: 1.1rem; margin-block: 0 1rem; }
+      [part='code-dialog'] label { display: block; margin-block: 0.6rem; }
+      [part='code-dialog'] input, [part='code-dialog'] textarea { display: block; box-sizing: border-box; width: 100%; padding: 0.5rem;
+        font: 1rem/1.5 ui-monospace, monospace; color: inherit; background: var(--art-background); border: 1px solid var(--art-border-color); }
+      [part='code-dialog'] textarea { resize: vertical; }
+      [part='code-dialog'] button, [part='code-edit-button'] { font: inherit; padding: 0.35rem 0.6rem; cursor: pointer; }
+      .code-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; }
       [hidden] { display: none !important; }
       [part='view-switcher'] { display: flex; flex-wrap: wrap; gap: 0.25rem; margin-block: 0.4rem; }
       [part='view-switcher'] button, [part='source-actions'] button {
@@ -235,6 +248,7 @@ export class ARichTextElement extends HTMLElementBase {
   #sourceDirty = false;
   #sourceError = '';
   #sourceDocument = '';
+  #codeEditor: CodeBlockEditor;
 
   constructor() {
     super();
@@ -248,6 +262,7 @@ export class ARichTextElement extends HTMLElementBase {
     this.#source = shadow.querySelector<HTMLTextAreaElement>('[part="source"]')!;
     this.#internals = typeof this.attachInternals === 'function' ? this.attachInternals() : null;
     this.#engine = this.#createEngine(createTextDocument(''));
+    this.#codeEditor = new CodeBlockEditor(this);
     this.#renderFromEngine();
     this.#source.addEventListener('input', (event) => {
       event.stopPropagation();
@@ -291,6 +306,7 @@ export class ARichTextElement extends HTMLElementBase {
   }
 
   disconnectedCallback(): void {
+    this.#codeEditor.close(false);
     this.#selectionDocument?.removeEventListener('selectionchange', this.#handleDocumentSelectionChange);
     this.#selectionDocument = undefined;
   }
@@ -600,6 +616,11 @@ export class ARichTextElement extends HTMLElementBase {
     return true;
   }
 
+  /** Open a code draft at the selection, or edit a code block at its ART path. */
+  openCodeEditor(path: readonly number[] | null = null): boolean {
+    return this.#codeEditor.open(path);
+  }
+
   toggleBlockquote(): boolean {
     if (this.disabled || this.readOnly) return false;
     const command = toggleBlockquote(this.#engine.state);
@@ -688,6 +709,7 @@ export class ARichTextElement extends HTMLElementBase {
   }
 
   formResetCallback(): void {
+    this.#codeEditor.close(false);
     this.#sourceDirty = false;
     this.#sourceError = '';
     this.value = this.getAttribute('value') ?? '';
@@ -921,7 +943,7 @@ export class ARichTextElement extends HTMLElementBase {
     try {
       const selection = readDOMSelection(this.#editor);
       const copy = this.#editor.cloneNode(true) as HTMLElement;
-      copy.querySelectorAll('[data-art-placeholder]').forEach((node) => node.remove());
+      copy.querySelectorAll('[data-art-placeholder], [data-art-editor-ui]').forEach((node) => node.remove());
       const document = fromHTML(
         copy.innerHTML,
         this.#extensions ? { extensions: this.#extensions } : {},
@@ -954,6 +976,7 @@ export class ARichTextElement extends HTMLElementBase {
         block.append(placeholder);
       }
     }
+    this.#codeEditor.sync();
     if (state.selection && this.shadowRoot?.activeElement === this.#editor) {
       writeDOMSelection(this.#editor, state.selection);
     }
@@ -1007,6 +1030,7 @@ export class ARichTextElement extends HTMLElementBase {
   }
 
   #syncState(): void {
+    this.#codeEditor.sync();
     const editable = !this.disabled && !this.readOnly;
     this.#editor.contentEditable = editable ? 'true' : 'false';
     this.#editor.setAttribute('aria-disabled', String(this.disabled));

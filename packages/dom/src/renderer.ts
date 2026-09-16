@@ -89,8 +89,12 @@ function renderBlock(
     }
     case 'codeBlock': {
       const pre = owner.createElement('pre');
+      pre.setAttribute('data-art-code-path', encodeARTPath(path));
       const code = owner.createElement('code');
-      if (block.language) code.dataset.language = block.language;
+      if (block.language) {
+        code.dataset.language = block.language;
+        code.className = `language-${block.language}`;
+      }
       code.textContent = block.text;
       pre.append(code);
       return pre;

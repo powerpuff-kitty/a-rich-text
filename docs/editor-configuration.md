@@ -50,6 +50,7 @@ task checkbox editing honor their corresponding tool switches.
 | `bold`, `italic`, `underline`, `strike`, `code` | Apply marks to selected text or subsequent caret typing |
 | `link` | Link entry/removal and Ctrl/Command+K |
 | `bullet-list`, `ordered-list`, `task-list` | Toggle or convert the current list at a single-block selection |
+| `code-block` | Insert a code block at a single text-block selection; existing code blocks expose an Edit code block button |
 | `blockquote` | Wrap the selected paragraph/heading; toggle again to unwrap its immediate quote container, preserving all child blocks |
 | `horizontal-rule` | Insert a rule at a single text-block selection; continue typing in the following paragraph |
 | `clear-formatting` | Remove all inline marks from selected text, or clear marks for subsequent typing at a caret; retain headings/lists |
@@ -76,6 +77,34 @@ there is no font download, CDN, kit or runtime icon framework. Controls retain
 accessible names and native tooltips. Icons are decorative to assistive
 technology. Provenance and licensing ship in the UI package and standalone
 distribution as `THIRD_PARTY_NOTICES.txt`.
+
+## Code blocks
+
+`code` applies an inline mark. `code-block` enables the toolbar insertion button
+and the **Edit code block** button on existing blocks, including imported blocks
+inside quotes, lists and tables. The base element exposes
+`openCodeEditor(path?: readonly number[] | null): boolean`: omit the path to
+insert at the current single-block selection, or provide an ART block path to
+edit an existing code block.
+
+The dialog edits code as plain text and accepts an optional language identifier
+such as `javascript`, `c++` or `c#`. It does not execute code or provide syntax
+highlighting. Apply creates one undoable transaction and preserves existing
+undo history. Remove replaces the code block with an editable paragraph. Cancel
+or Escape discards the draft; Escape restores focus to the edit button when it
+still exists. Tab follows normal dialog focus navigation.
+
+Code is an atomic block in the visual editor; edit its text through this dialog
+or a configured source view. Draft typing does not emit canonical editor input
+or alter form data. A concurrent document update prevents Apply/Remove and
+retains the draft for copying. Disabling the element, enabling readonly,
+removing `code-block`, switching view, resetting the form or disconnecting the
+element closes the dialog and discards its draft. Programmatic document updates
+otherwise retain the draft with conflict protection.
+
+Code and language round-trip through ART JSON and supported HTML/Markdown code
+blocks. Editor buttons are excluded from exported content and native DOM
+reconciliation. Language metadata survives reconciliation.
 
 ## Source editing and recovery
 
@@ -116,10 +145,8 @@ is configurable because not every application should expose lossy editing paths.
 
 ## Tools still missing from the bundled toolbar
 
-The model/converters support fenced code blocks and images, but they do not yet
-have dedicated standard authoring controls. Code blocks can be edited through
-the configured source views; the engine text-selection model currently covers
-paragraphs and headings. Media/upload,
+The model/converters support images, but a dedicated standard image authoring
+control is still missing. Media/upload,
 comments, suggestions and AI have optional packages but no bundled toolbar UI.
 Find/replace, fullscreen/focus mode, and table merge/split are
 also absent. Text alignment, font/color/highlight choices would require extending

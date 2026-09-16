@@ -160,3 +160,21 @@ export function clearSelectionFormatting(state: EditorState): EditorTransaction 
   }
   return builder.setMeta('command', 'clearFormatting').build();
 }
+
+/** Insert a code block at a text selection, or replace an existing code block. */
+export function setCodeBlock(state: EditorState, path: ARTPath | null, text: string, language = ''): EditorTransaction | null {
+  const block: ARTBlockNode = { type: 'codeBlock', text, ...(language ? { language } : {}) };
+  if (path === null) return insertFragment(state, [block]);
+  const existing = getNodeAtPath(state.document, path) as ARTBlockNode | undefined;
+  if (existing?.type !== 'codeBlock') return null;
+  return transaction().replaceBlock(path, [block]).setMeta('command', 'setCodeBlock').build();
+}
+
+/** Replace a code block with a paragraph and place the caret there. */
+export function removeCodeBlock(state: EditorState, path: ARTPath): EditorTransaction | null {
+  const existing = getNodeAtPath(state.document, path) as ARTBlockNode | undefined;
+  if (existing?.type !== 'codeBlock') return null;
+  const point = { blockPath: [...path], offset: 0 };
+  return transaction().replaceBlock(path, [{ type: 'paragraph' }])
+    .setSelection({ anchor: point, head: point }).setMeta('command', 'removeCodeBlock').build();
+}
