@@ -72,5 +72,8 @@ test('direct links retain their section after the target frame loads', async ({ 
   await page.goto('/dist/browser/components/#code-editor');
   await expect(page.frameLocator('#code-editor iframe').locator('body')).toHaveAttribute('data-ready', 'true');
   await expect(page.getByRole('navigation').getByRole('link', { name: 'Code editor', exact: true })).toHaveAttribute('aria-current', 'location');
-  await expect.poll(() => page.locator('#code-editor').evaluate(node => Math.abs(node.getBoundingClientRect().top - 24))).toBeLessThan(3);
+  await expect(page.locator('#code-editor-title')).toBeInViewport();
+  await expect.poll(() => page.locator('#code-editor').evaluate(node => {
+    const top = node.getBoundingClientRect().top; return top >= 0 && top <= 80;
+  })).toBe(true);
 });

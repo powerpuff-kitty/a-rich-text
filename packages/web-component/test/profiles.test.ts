@@ -114,3 +114,9 @@ it('reports invalid value attributes without replacing canonical content and rec
   editor.setAttribute('value', '{"body":"Recovered"}'); expect(editor.getText()).toBe('Recovered');
   expect(editor.shadowRoot!.querySelector<HTMLElement>('[part="profile-error"]')!.hidden).toBe(true);
 });
+it('rejects an explicitly empty output profile instead of silently using HTML', () => {
+  const { editor } = setup(); editor.profile = '';
+  expect(() => editor.value).toThrow('Unknown format profile');
+  expect(() => { editor.value = '<p>Wrong</p>'; }).toThrow('Unknown format profile');
+  expect(editor.getText()).toBe('Original');
+});

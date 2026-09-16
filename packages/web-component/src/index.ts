@@ -389,7 +389,7 @@ export class ARichTextElement extends HTMLElementBase {
 
   connectedCallback(): void {
     if (this.hasAttribute('value') && this.getText().length === 0) {
-      if (this.getAttribute('profile')) this.#pendingProfileValue = this.getAttribute('value') ?? '';
+      if (this.hasAttribute('profile')) this.#pendingProfileValue = this.getAttribute('value') ?? '';
       else this.value = this.getAttribute('value') ?? '';
     }
     this.#selectionDocument = this.ownerDocument;
@@ -452,7 +452,7 @@ export class ARichTextElement extends HTMLElementBase {
       }
     }
     if (name === 'value' && oldValue !== newValue && this.isConnected && !this.#editor.matches(':focus')) {
-      if (this.getAttribute('profile')) {
+      if (this.hasAttribute('profile')) {
         if (!this.#profiles.list().some(profile => profile.id === this.profile)) {
           this.#pendingProfileValue = newValue ?? ''; this.#refreshProfiles(false); return;
         }
@@ -757,7 +757,7 @@ export class ARichTextElement extends HTMLElementBase {
 
   /** Serialized form value using the selected `format`. */
   get value(): string {
-    if (this.getAttribute('profile')) {
+    if (this.hasAttribute('profile')) {
       const result = this.#profiles.export(this.profile, this.getJSON(), this.format);
       if (!result.ok || (this.getAttribute('profile-loss') !== 'allow' && result.diagnostics.some(note => note.severity === 'loss'))) throw new TypeError(result.diagnostics.map(note => note.message).join(' '));
       return result.value;
@@ -776,7 +776,7 @@ export class ARichTextElement extends HTMLElementBase {
   }
 
   set value(value: string) {
-    if (this.getAttribute('profile')) {
+    if (this.hasAttribute('profile')) {
       const result = this.#profiles.import(this.profile, value, this.format);
       if (!result.ok || (this.getAttribute('profile-loss') !== 'allow' && result.diagnostics.some(note => note.severity === 'loss'))) throw new TypeError(result.diagnostics.map(note => note.message).join(' '));
       this.setJSON(result.value); return;
