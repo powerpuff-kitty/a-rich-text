@@ -1,0 +1,23 @@
+{
+  "browser": "Chromium 153.0.8010.12",
+  "viewport": "1180×900; mobile 390×844",
+  "scale": 1,
+  "captures": [
+    "standard-editor",
+    "toolbar",
+    "base-editor",
+    "table-controls",
+    "link-editor",
+    "source-html",
+    "source-markdown",
+    "source-json",
+    "source-text",
+    "find-replace",
+    "code-editor",
+    "image-editor",
+    "focus-mode",
+    "mobile-editor",
+    "custom-toolbar",
+    "vue-tailwind"
+  ]
+}

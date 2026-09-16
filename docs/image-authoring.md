@@ -1,5 +1,7 @@
 # Images and optional uploads
 
+[Browse screenshots of these components](component-gallery.md).
+
 The `image` tool enables **Insert image** at a paragraph/heading selection and
 **Edit image** on existing images, including nested imported images. Omit `tools`
 to enable all tools, or include `image` in your allowlist. Custom buttons can call

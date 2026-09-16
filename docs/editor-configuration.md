@@ -1,5 +1,7 @@
 # Tools and document views
 
+[Browse screenshots of these components](component-gallery.md).
+
 Configure the Web Component itself; an attached `<a-rich-text-toolbar>` reads its
 configuration and updates when attributes change.
 
