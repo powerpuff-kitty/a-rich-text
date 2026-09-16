@@ -37,6 +37,8 @@ test('source drafts, readonly inspection and keyboard return survive focus mode'
   await source.fill('<p>Pending draft</p>');
   const enter = page.getByRole('button', { name: 'Enter focus mode', exact: true });
   await enter.focus();
+  await page.locator('a-rich-text-toolbar').evaluate(node => (node as HTMLElement & { refresh(): void }).refresh());
+  await expect(enter).toBeFocused();
   await page.keyboard.press('Enter');
   await expect(source).toHaveValue('<p>Pending draft</p>');
   await page.keyboard.press('Escape');

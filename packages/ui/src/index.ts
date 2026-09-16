@@ -309,7 +309,7 @@ export class ARichTextToolbarElement extends HTMLElementBase {
     this.ownerDocument.defaultView?.visualViewport?.addEventListener('scroll', this.#positionInline);
     this.#resolveEditor();
     // A toolbar can connect before its editor sibling is upgraded/connected.
-    queueMicrotask(() => { if (this.isConnected) this.#resolveEditor(); });
+    queueMicrotask(() => { if (this.isConnected && !this.#editor) this.#resolveEditor(); });
     this.#refresh();
   }
 
@@ -711,7 +711,9 @@ export class ARichTextToolbarElement extends HTMLElementBase {
         button.disabled = locked || !editor?.canRedo;
         available = Boolean(editor?.canRedo);
       }
-      button.hidden = !visual || locked || !editor?.isToolEnabled(action ?? '') || !available;
+      if (action !== 'find-replace' && action !== 'focus-mode') {
+        button.hidden = !visual || locked || !editor?.isToolEnabled(action ?? '') || !available;
+      }
       if (action === 'find-replace') {
         button.hidden = !visual || !editor || editor.disabled || !editor.isToolEnabled('find-replace');
         button.disabled = !editor || editor.disabled;
