@@ -9,7 +9,7 @@ const fixtures: Fixture[] = JSON.parse(readFileSync(new URL('./fixtures/commonma
 // Normalize HTML block separators and paragraph soft breaks, never code spaces.
 const expectedHTML = (html: string) => html.trimEnd().replace(/\n<\/code>/g, '</code>').replace(/>\n</g, '><').replaceAll('Foo\nbar', 'Foo bar').replaceAll('<hr />', '<hr>');
 
-const unsupported = new Map([[109, 'tight-list paragraph rendering'], [115, 'setext headings']]);
+const unsupported = new Map([[109, 'tight-list paragraph rendering']]);
 
 describe('CommonMark indented code blocks', () => {
   it('accounts for every upstream example', () => {

@@ -41,9 +41,9 @@ See [heading tests](../packages/markdown/test/headings.test.ts).
 
 ## Verified scope: indented code blocks
 
-All 12 upstream indented-code examples (107–118) are vendored unchanged. Ten
-match; examples 109 and 115 remain explicit mismatches for tight-list paragraph
-rendering and setext headings. The runner normalizes block-separating HTML
+All 12 upstream indented-code examples (107–118) are vendored unchanged. Eleven
+match; example 109 remains an explicit mismatch for tight-list paragraph
+rendering. The runner normalizes block-separating HTML
 newlines, paragraph soft breaks and the final code line terminator. ART stores
 code text without that terminal separator, consistently with fenced-code import;
 internal blank lines, extra indentation, tabs and trailing spaces are preserved.
@@ -54,17 +54,33 @@ trailing blank lines are excluded; blank lines between code chunks remain.
 Export uses fenced code and preserves the canonical code text on reimport.
 See [indented-code tests](../packages/markdown/test/indented-code.test.ts).
 
+## Verified scope: setext headings
+
+All 27 upstream setext heading examples (80–106) are vendored unchanged.
+Twenty-four match; examples 93, 94 and 99 retain explicit mismatches for lazy
+blockquote continuation and tight-list paragraph rendering. The runner normalizes
+block separators, soft breaks outside code, equivalent text quote escaping and
+ART's omitted final code line terminator.
+
+An underline of `=` or `-`, with up to three leading spaces and optional trailing
+spaces/tabs, converts the preceding paragraph to H1 or H2. Multiline headings,
+inline marks, escaped markers and thematic-break precedence are covered. Export
+uses canonical ATX (`#`/`##`) syntax, preserving the document rather than the input
+heading spelling. Source edits update the visual editor automatically.
+See [setext tests](../packages/markdown/test/setext-headings.test.ts).
+
 ### Known exclusions
 
 | Upstream example | Remaining behavior |
 | --- | --- |
 | 109 | Tight-list HTML rendering retains ART paragraph wrappers |
-| 115 | Setext (underline-style) headings are not implemented |
+| 93 | Lazy blockquote continuation is not implemented |
+| 94, 99 | Tight-list HTML rendering retains ART paragraph wrappers |
 | 344 | Raw HTML tag precedence over backticks is not implemented; HTML remains literal text |
 | 346 | CommonMark autolink precedence and URL encoding are not implemented |
 
 Other unverified/incomplete areas include the complete emphasis delimiter
-algorithm, reference links, setext headings, raw HTML, autolinks,
+algorithm, reference links, raw HTML, autolinks,
 list/container edge cases and full GFM extensions. Existing tasks, pipe tables,
 strike and underline are ART subset features, not evidence of full GFM conformance.
 
