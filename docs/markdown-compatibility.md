@@ -25,10 +25,25 @@ The serializer adds delimiter padding when needed so literal backticks and
 leading/trailing spaces round-trip. Backtick fence openers with backticks in their
 info string are not interpreted as fenced code blocks.
 
+## Verified scope: ATX headings
+
+All 18 upstream ATX heading examples (62–79) are vendored unchanged. Seventeen
+match after normalizing block-separating HTML newlines, the equivalent `<hr>`
+spelling, and the paragraph soft break in example 70. Example 69 remains an
+explicit known mismatch because indented code blocks are not implemented.
+
+The parser recognizes empty headings and H1–H6, requires ASCII space/tab or
+end-of-line after opening hashes, and permits up to three leading spaces.
+Closing hashes require preceding space/tab; literal and escaped hashes are
+preserved. Export escapes literal hashes to prevent their interpretation as
+heading markers. Round-trip and source/visual editor regressions cover this.
+See [heading tests](../packages/markdown/test/headings.test.ts).
+
 ### Known exclusions
 
 | Upstream example | Remaining behavior |
 | --- | --- |
+| 69 | Indented code blocks are not implemented |
 | 344 | Raw HTML tag precedence over backticks is not implemented; HTML remains literal text |
 | 346 | CommonMark autolink precedence and URL encoding are not implemented |
 

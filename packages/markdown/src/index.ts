@@ -63,12 +63,12 @@ function parseBlocks(lines: readonly string[]): ARTBlockNode[] {
       continue;
     }
 
-    const heading = line.match(/^\s{0,3}(#{1,6})\s+(.+?)\s*#*\s*$/);
+    const heading = matchHeading(line);
     if (heading) {
       blocks.push({
         type: 'heading',
-        level: heading[1]!.length as 1 | 2 | 3 | 4 | 5 | 6,
-        content: parseInline(heading[2] ?? ''),
+        level: heading.level,
+        content: parseInline(heading.text),
       });
       index += 1;
       continue;
@@ -124,12 +124,21 @@ function isBlockStart(lines: readonly string[], index: number): boolean {
   const line = lines[index] ?? '';
   const fence = line.match(/^\s{0,3}(`{3,}|~{3,})(.*)$/);
   return Boolean(fence && !(fence[1]!.startsWith('`') && fence[2]!.includes('`')))
-    || /^\s{0,3}#{1,6}\s+/.test(line)
+    || matchHeading(line) !== null
     || isHorizontalRule(line)
     || /^\s{0,3}>/.test(line)
     || matchListItem(line) !== null
     || parseImage(line) !== null
     || isTableStart(lines, index);
+}
+
+// ATX markers require an ASCII space/tab or end of line. Only a trailing
+// hash run preceded by space/tab is a closing marker; escaped hashes stay text.
+function matchHeading(line: string): { level: 1 | 2 | 3 | 4 | 5 | 6; text: string } | null {
+  const match = line.match(/^ {0,3}(#{1,6})(?=[ \t]|$)(.*)$/);
+  if (!match) return null;
+  const text = match[2]!.replace(/[ \t]+#+[ \t]*$/, '').replace(/^[ \t]+|[ \t]+$/g, '');
+  return { level: match[1]!.length as 1 | 2 | 3 | 4 | 5 | 6, text };
 }
 
 function isClosingFence(line: string, opening: string): boolean {
@@ -537,6 +546,6 @@ function removeIndent(line: string, width: number): string {
   return line.slice(index);
 }
 function countRun(value: string, start: number, character: string): number { let index = start; while (value[index] === character) index += 1; return index - start; }
-function escapeMarkdown(value: string): string { return value.replace(/([\\`*_[\]<>])/g, '\\$1'); }
-function unescapeMarkdown(value: string): string { return value.replace(/\\([\\`*_[\]<>])/g, '$1'); }
+function escapeMarkdown(value: string): string { return value.replace(/([\\`*_[\]<>#])/g, '\\$1'); }
+function unescapeMarkdown(value: string): string { return value.replace(/\\([\\`*_[\]<>#])/g, '$1'); }
 function escapeRegExp(value: string): string { return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
