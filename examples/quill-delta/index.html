@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Quill Delta profile — A Rich Text</title>
+<style>body { max-width:900px; margin:40px auto; padding:0 20px; font:16px/1.5 system-ui,sans-serif; } button { font:inherit; margin-top:20px; } output { display:block; white-space:pre-wrap; margin-top:16px; }</style>
+<h1>Quill Delta profile</h1>
+<p>Edit a complete text-block Delta or switch to the visual editor. Unsupported formatting pauses import for review. The form submits ART JSON. Embeds and change operations are rejected.</p>
+<form><art-shell><art-toolbar for="document"></art-toolbar><art-editor id="document" name="document" format="json" views="visual html json" profiles="art:html-v1 art:json-v1 quill:delta-v2" source-profile="quill:delta-v2" source-update="auto" aria-label="Document" value='{"type":"doc","version":1,"content":[{"type":"paragraph","content":[{"type":"text","text":"Portable text"}]}]}'></art-editor></art-shell><button>Submit ART JSON</button></form>
+<output aria-live="polite"></output>
+<script type="module">
+import { enableStandardEditing } from './a-rich-text.js';
+import { quillDeltaProfile } from './quill-delta.js';
+const editor = document.querySelector('#document');
+editor.registerFormatProfile(quillDeltaProfile);
+enableStandardEditing(editor);
+document.querySelector('form').addEventListener('submit', event => { event.preventDefault(); document.querySelector('output').textContent = new FormData(event.target).get('document'); });
+</script></html>

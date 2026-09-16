@@ -33,7 +33,7 @@ and the [editor format catalogue](editor-formats.md).
   custom inline atomic nodes and public API stability guarantees. The component
   now includes Default, Minimal and Document appearance presets; these are
   independent of extension feature bundles and tool allowlists.
-- [Format profiles #77](https://github.com/powerpuff-kitty/a-rich-text/issues/77): the registry, developer-selected defaults/allowlists and diagnostic review are implemented; see [the contract](format-profiles.md). Foreign-editor adapters are not bundled, and detection hints do not implement those converters.
+- [Format profiles #77](https://github.com/powerpuff-kitty/a-rich-text/issues/77): the registry, developer-selected defaults/allowlists and diagnostic review are implemented; see [the contract](format-profiles.md). An optional [Quill text-block adapter](quill-delta.md) is implemented. Other adapters and broader Quill fidelity remain open; detection hints do not implement converters.
 - [Schema #2](https://github.com/powerpuff-kitty/a-rich-text/issues/2) and
   [foundation #1](https://github.com/powerpuff-kitty/a-rich-text/issues/1): named Markdown dialect conformance, foreign-editor adapters, versioning/persistence decisions and stability policy. The
   [ART v1 JSON Schema artifact](json-schema.md), structural parity checks and

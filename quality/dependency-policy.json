@@ -18,7 +18,8 @@
     "@arichtext/clipboard",
     "@arichtext/extensions",
     "@arichtext/web-component",
-    "@arichtext/ui"
+    "@arichtext/ui",
+    "@arichtext/quill-delta"
   ],
   "baseEditorForbiddenDependencies": [
     "@arichtext/media",
@@ -31,6 +32,7 @@
     "@arichtext/comments",
     "@arichtext/comments-editor",
     "@arichtext/suggestions",
-    "@arichtext/suggestions-editor"
+    "@arichtext/suggestions-editor",
+    "@arichtext/quill-delta"
   ]
 }

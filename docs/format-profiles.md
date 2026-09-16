@@ -126,8 +126,8 @@ an optional expected family and reject mismatches. No DOM or framework is needed
 
 ## Compatibility limits
 
-This registry does not include Quill Delta, Editor.js, ProseMirror, Lexical or Slate
-adapters. Format detection remains a suggestion and never selects a converter.
+The optional [Quill Delta adapter](quill-delta.md) can be registered explicitly.
+Editor.js, ProseMirror, Lexical and Slate adapters are not supplied. Format detection remains a suggestion and never selects a converter.
 See [the editor format catalogue](editor-formats.md). The [ART JSON Schema](json-schema.md) ships separately from the converter registry;
 [document migration](migrations.md) is a separate opt-in API. Applying source still resets visual
 Undo history. The package remains a development snapshot at version 0.0.0.
