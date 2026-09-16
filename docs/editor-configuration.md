@@ -64,7 +64,7 @@ task checkbox editing honor their corresponding tool switches.
 | `split-cell` | Expand the active horizontal span into unit cells; keep content in the left cell |
 | `remove-table` | Remove the containing table at a single text-block selection, including imported merged tables; leaves an editable paragraph and supports Undo |
 | `add-row`, `remove-row` | Inside supported tables, including horizontal spans; unavailable dimensions are hidden |
-| `add-column`, `remove-column` | Only inside unmerged rectangular tables; unavailable dimensions are hidden |
+| `add-column`, `remove-column` | Inside supported tables, including horizontal spans; unavailable dimensions are hidden |
 | `find-replace` | Search and navigate visual body text without a selection; replacement is hidden in readonly mode |
 | `focus-mode` | Expand the editor into a modal writing area; available without a text selection, including source views and readonly inspection |
 | `undo`, `redo` | Only while the corresponding history step exists |
@@ -278,7 +278,7 @@ adapters can call `mergeTableCellRight(state)`, `splitTableCell(state)` and
 `getTableCellActions(state)` from `@arichtext/tables`.
 
 Vertical spans, grids larger than 50×50 and selections across text blocks expose
-neither action. Column insertion/removal remains limited to unmerged grids.
+neither action. Row and column insertion/removal support horizontal spans.
 Row insertion/removal supports horizontal spans: new rows contain one empty cell
 per logical column, while existing spans/content remain unchanged. Removing a
 row moves the caret to an existing cell in the nearest surviving row. Each row
@@ -286,3 +286,12 @@ change is one Undo step; the final row cannot be removed (use Remove table).
 `getTableRowActions(state)` reports contextual row-control availability.
 HTML and ART JSON preserve horizontal spans; Markdown/plain text do not preserve
 merged-cell structure. Use HTML or JSON when this structure matters.
+
+Column insertion uses the boundary before/after the entire active cell; the
+standard toolbar inserts after it. Other rows get an empty cell at that boundary,
+or widen an existing span if it crosses the boundary. Column removal deletes the
+active cell's leftmost logical column: single-column cells in that column are
+removed, while wider cells shrink and keep their content. The final logical
+column cannot be removed. Each change is one Undo step and maps surviving review
+anchors. `getActiveTable()` reports logical table width while `columnIndex` remains
+the physical cell index within its row.

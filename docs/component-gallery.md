@@ -46,7 +46,7 @@ leaves a paragraph ready for typing and can be undone.
 
 [Open this example locally](http://localhost:8080/components/merged-cells.html).
 
-Merge with the cell on the right, split a horizontal span, or insert/remove rows.
+Merge with the cell on the right, split a horizontal span, or insert/remove rows and columns.
 Content remains in the left cell when splitting; inserted rows use the full
 logical width. Undo restores the previous arrangement.
 
