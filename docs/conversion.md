@@ -158,3 +158,9 @@ This corrects the development snapshot's former per-row width check. Some
 malformed tables accepted previously are now rejected by ART validation and
 editor setters. Repair those documents before loading them; there is no automatic
 repair or schema version bump. See [ADR 0002](adr/0002-table-grid-validation.md).
+
+## Scoped CommonMark checks
+
+The reference target is CommonMark 0.31.2, with 20 code-span examples verified
+and two documented unsupported interactions. The full dialect is not implemented.
+See [compatibility scope and fixtures](markdown-compatibility.md).
