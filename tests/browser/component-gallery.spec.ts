@@ -53,3 +53,15 @@ test('example frames fit content and shrink again after content is removed', asy
   await expect.poll(difference).toBeLessThan(2);
   expect(errors).toEqual([]);
 });
+
+test('navigation follows the visible section without taking focus', async ({ page }) => {
+  await page.goto('/dist/browser/components/');
+  const navigation = page.getByRole('navigation', { name: 'Component examples' });
+  const link = navigation.getByRole('link', { name: 'Short tag aliases', exact: true });
+  await link.click();
+  await expect(link).toHaveAttribute('aria-current', 'location');
+  await page.locator('#standard-editor').evaluate(node => node.scrollIntoView({ block: 'start' }));
+  await expect(navigation.getByRole('link', { name: 'Standard editor', exact: true })).toHaveAttribute('aria-current', 'location');
+  await expect(navigation.locator('[aria-current]')).toHaveCount(1);
+  expect(await page.evaluate(() => document.activeElement?.tagName)).not.toBe('IFRAME');
+});

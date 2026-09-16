@@ -29,3 +29,28 @@ for (const frame of document.querySelectorAll('iframe')) {
   frame.addEventListener('load', connect);
   if (frame.contentDocument?.readyState === 'complete') connect();
 }
+
+const navigation = document.querySelector('nav[aria-label="Component examples"]');
+const sections = Array.from(document.querySelectorAll('.gallery > div > section[id]'));
+const links = Array.from(navigation.querySelectorAll('a[href^="#"]'));
+let navigationFrame;
+const updateNavigation = () => {
+  cancelAnimationFrame(navigationFrame);
+  navigationFrame = requestAnimationFrame(() => {
+    const active = sections.find(section => {
+      const box = section.getBoundingClientRect();
+      return box.top <= 80 && box.bottom > 80;
+    }) ?? sections.find(section => section.getBoundingClientRect().top > 80) ?? sections.at(-1);
+    for (const link of links) {
+      if (link.hash === `#${active?.id}`) link.setAttribute('aria-current', 'location');
+      else link.removeAttribute('aria-current');
+    }
+  });
+};
+window.addEventListener('scroll', updateNavigation, { passive: true });
+window.addEventListener('resize', updateNavigation);
+window.addEventListener('hashchange', updateNavigation);
+// A lazy frame changing height can move section boundaries without scrolling.
+const sectionObserver = new ResizeObserver(updateNavigation);
+for (const section of sections) sectionObserver.observe(section);
+updateNavigation();
