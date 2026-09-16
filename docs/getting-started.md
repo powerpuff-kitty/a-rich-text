@@ -15,7 +15,7 @@ python3 -m http.server 8080 --directory dist/browser
 ```
 
 Open `http://localhost:8080`. The demo has a working form, toolbar and serialized
-output. Copy `dist/browser/a-rich-text.js` and `LICENSE` into your application's
+output. Copy `dist/browser/a-rich-text.js`, `LICENSE` and `THIRD_PARTY_NOTICES.txt` into your application's
 static assets; no import map, framework or runtime dependencies are needed.
 
 ```html
@@ -67,7 +67,7 @@ Importing registers `<a-rich-text>` and `<a-rich-text-toolbar>` in a browser.
 Module imports are safe during server rendering; construct elements and install
 controllers on the client. For smaller integrations, use `@arichtext/web-component`
 and opt into individual adapters. Styles are encapsulated in Shadow DOM and can
-be customized with the documented CSS properties and `::part(editor)`.
+be customized with [CSS properties, parts, custom buttons and Vue/Tailwind examples](customization.md).
 
 ## Editing contract
 
@@ -92,11 +92,13 @@ the toolbar and source editors. `format` continues to control form serialization
   and `getText()` provide interchange formats; conversion can lose unsupported
   features. `value` follows `format`; it does not change the canonical model.
 
+See the [remaining-work summary](remaining-work.md) for tracked follow-ups.
+
 ## Current limits
 
 Version `0.0.0` is an unstable development snapshot. Paste replacement currently
 requires a selection in one text block. Multi-block list selections, merged-cell
-editing, code-block authoring controls, and physical-device/real-IME validation
+editing and physical-device/real-IME validation
 remain outside the verified integration surface. Native composition fallback
 reconciles the document and resets undo history. Mobile browser emulation is not
 physical-device evidence. See [quality gates](quality.md) before production use.

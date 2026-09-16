@@ -71,26 +71,26 @@ function renderBlock(
 ): Node {
   switch (block.type) {
     case 'paragraph': {
-      const element = owner.createElement('p');
+      const element = partElement(owner, 'p', 'paragraph');
       markTextBlock(element, path);
       renderInline(owner, element, block.content ?? [], options);
       return element;
     }
     case 'heading': {
-      const element = owner.createElement(`h${block.level}`);
+      const element = partElement(owner, `h${block.level}`, `heading heading-${block.level}`);
       markTextBlock(element, path);
       renderInline(owner, element, block.content ?? [], options);
       return element;
     }
     case 'blockquote': {
-      const element = owner.createElement('blockquote');
+      const element = partElement(owner, 'blockquote', 'blockquote');
       block.content.forEach((child, index) => element.append(renderBlock(owner, child, [...path, index], options)));
       return element;
     }
     case 'codeBlock': {
-      const pre = owner.createElement('pre');
+      const pre = partElement(owner, 'pre', 'code-block');
       pre.setAttribute('data-art-code-path', encodeARTPath(path));
-      const code = owner.createElement('code');
+      const code = partElement(owner, 'code', 'code-content');
       if (block.language) {
         code.dataset.language = block.language;
         code.className = `language-${block.language}`;
@@ -100,16 +100,16 @@ function renderBlock(
       return pre;
     }
     case 'horizontalRule':
-      return owner.createElement('hr');
+      return partElement(owner, 'hr', 'horizontal-rule');
     case 'list': {
-      const list = owner.createElement(block.style === 'ordered' ? 'ol' : 'ul');
+      const list = partElement(owner, block.style === 'ordered' ? 'ol' : 'ul', `list ${block.style}-list`);
       list.dataset.artList = block.style;
       if (block.style === 'ordered' && block.start && block.start !== 1) list.setAttribute('start', String(block.start));
       block.content.forEach((item, itemIndex) => {
-        const li = owner.createElement('li');
+        const li = partElement(owner, 'li', 'list-item');
         if (block.style === 'task') {
           li.dataset.checked = String(item.checked === true);
-          const checkbox = owner.createElement('input');
+          const checkbox = partElement(owner, 'input', 'task-checkbox');
           checkbox.type = 'checkbox';
           checkbox.checked = item.checked === true;
           checkbox.disabled = true;
@@ -125,7 +125,7 @@ function renderBlock(
       return list;
     }
     case 'image': {
-      const image = owner.createElement('img');
+      const image = partElement(owner, 'img', 'image');
       const src = safeUrl(block.src, true);
       if (src) image.src = src;
       if (block.alt !== undefined) image.alt = block.alt;
@@ -136,12 +136,12 @@ function renderBlock(
       return image;
     }
     case 'table': {
-      const table = owner.createElement('table');
-      const tbody = owner.createElement('tbody');
+      const table = partElement(owner, 'table', 'table');
+      const tbody = partElement(owner, 'tbody', 'table-body');
       block.content.forEach((row, rowIndex) => {
-        const tr = owner.createElement('tr');
+        const tr = partElement(owner, 'tr', 'table-row');
         row.content.forEach((cell, cellIndex) => {
-          const td = owner.createElement('td');
+          const td = partElement(owner, 'td', 'table-cell');
           if (cell.colspan && cell.colspan > 1) td.colSpan = cell.colspan;
           if (cell.rowspan && cell.rowspan > 1) td.rowSpan = cell.rowspan;
           cell.content.forEach((child, childIndex) => {
@@ -155,7 +155,7 @@ function renderBlock(
       return table;
     }
     case 'extensionBlock': {
-      const element = owner.createElement('div');
+      const element = partElement(owner, 'div', 'extension-block');
       writeExtensionEnvelope(element, block.name, block.attrs, block.fallbackText);
       element.contentEditable = 'false';
 
@@ -228,19 +228,19 @@ function markElement(
 ): HTMLElement | null {
   switch (mark.type) {
     case 'bold':
-      return owner.createElement('strong');
+      return partElement(owner, 'strong', 'bold');
     case 'italic':
-      return owner.createElement('em');
+      return partElement(owner, 'em', 'italic');
     case 'underline':
-      return owner.createElement('u');
+      return partElement(owner, 'u', 'underline');
     case 'strike':
-      return owner.createElement('s');
+      return partElement(owner, 's', 'strike');
     case 'code':
-      return owner.createElement('code');
+      return partElement(owner, 'code', 'inline-code');
     case 'link': {
       const href = safeUrl(mark.href, false);
       if (!href) return null;
-      const anchor = owner.createElement('a');
+      const anchor = partElement(owner, 'a', 'link');
       anchor.setAttribute('href', href);
       return anchor;
     }
@@ -294,4 +294,13 @@ function safeUrl(value: string, image: boolean): string | null {
   } catch {
     return null;
   }
+}
+
+/** Public styling hooks; canonical serialization is independent of DOM attributes. */
+function partElement<K extends keyof HTMLElementTagNameMap>(owner: Document, tag: K, parts: string): HTMLElementTagNameMap[K];
+function partElement(owner: Document, tag: string, parts: string): HTMLElement;
+function partElement(owner: Document, tag: string, parts: string): HTMLElement {
+  const element = owner.createElement(tag);
+  element.setAttribute('part', parts);
+  return element;
 }

@@ -134,9 +134,9 @@ function getTemplate(): HTMLTemplateElement {
       [part='editor'] {
         position: relative;
         white-space: pre-wrap;
-        min-height: 8rem;
+        min-height: var(--art-editor-min-height, 8rem);
         box-sizing: border-box;
-        padding: 0.75rem;
+        padding: var(--art-editor-padding, 0.75rem);
         border: 1px solid var(--art-border-color);
         border-radius: var(--art-radius);
         background: var(--art-background);
@@ -172,8 +172,8 @@ function getTemplate(): HTMLTemplateElement {
 
       [part='editor'][data-empty='true']::before {
         position: absolute;
-        inset-block-start: 0.75rem;
-        inset-inline-start: 0.75rem;
+        inset-block-start: var(--art-editor-padding, 0.75rem);
+        inset-inline-start: var(--art-editor-padding, 0.75rem);
         content: attr(data-placeholder);
         opacity: 0.55;
         pointer-events: none;
@@ -210,8 +210,8 @@ function getTemplate(): HTMLTemplateElement {
       <p part="source-note" id="source-note">Source edits apply only when you choose Apply changes. Applying clears undo history. JSON preserves the full document; other formats may lose unsupported formatting.</p>
       <textarea part="source" aria-label="Document source" aria-describedby="source-note source-error" spellcheck="false"></textarea>
       <div part="source-actions">
-        <button type="button" data-source-action="apply">Apply changes</button>
-        <button type="button" data-source-action="discard">Discard changes</button>
+        <button part="source-apply-button" type="button" data-source-action="apply">Apply changes</button>
+        <button part="source-discard-button" type="button" data-source-action="discard">Discard changes</button>
       </div>
       <p part="source-error" id="source-error" role="status" aria-live="polite"></p>
     </section>
@@ -402,6 +402,7 @@ export class ARichTextElement extends HTMLElementBase {
       switcher.replaceChildren(...this.views.map((view) => {
         const button = this.ownerDocument.createElement('button');
         button.type = 'button'; button.dataset.view = view;
+        button.setAttribute('part', 'view-button');
         button.textContent = { visual: 'Editor', html: 'HTML', markdown: 'Markdown', json: 'JSON', text: 'Text' }[view];
         return button;
       }));
@@ -409,6 +410,7 @@ export class ARichTextElement extends HTMLElementBase {
     }
     switcher.hidden = this.views.length < 2;
     for (const button of switcher.querySelectorAll('button')) {
+      button.setAttribute('part', button.dataset.view === this.#activeView ? 'view-button active-view-button' : 'view-button');
       button.setAttribute('aria-pressed', String(button.dataset.view === this.#activeView));
       button.disabled = this.disabled || (this.#sourceDirty && button.dataset.view !== this.#activeView);
     }

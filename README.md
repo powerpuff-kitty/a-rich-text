@@ -31,8 +31,13 @@ locally. GitHub Actions is disabled.
 - pluggable extensions, persistence, uploads, collaboration, review and AI
 - accessibility, IME correctness, security and performance as release gates
 
+Integration examples: `/custom-toolbar.html` (plain HTML/CSS) and `/vue.html`
+(Vue + Tailwind) in the same local preview.
+
 Core architecture docs:
 
+- [`docs/customization.md`](docs/customization.md) — CSS parts, Tailwind, custom buttons and optional Vue wrapper
+- [`docs/remaining-work.md`](docs/remaining-work.md) — core, release and optional follow-ups
 - [`docs/editor-configuration.md`](docs/editor-configuration.md) — available tools, source views and format fidelity
 - [`docs/architecture.md`](docs/architecture.md)
 - [`docs/engine.md`](docs/engine.md)
