@@ -63,3 +63,18 @@ test('source actions stay in traditional and inline toolbars with no content act
   expect(await page.locator('#editor').evaluate(node => (node as ARichTextElement).getText())).toBe('Applied in toolbar');
   await expect(toolbar.locator('[part="toolbar-header"] [part="source-actions"]')).toBeHidden();
 });
+
+test('dropdown chevron is centered and rotates with open state', async ({ page }) => {
+  const select = page.locator('a-rich-text-toolbar a-rich-text-select').filter({ has: page.getByRole('combobox', { name: 'Document format' }) });
+  const trigger = select.getByRole('combobox', { name: 'Document format' });
+  const chevron = select.locator('[part="chevron"]');
+  await expect(chevron.locator('svg')).toHaveCount(1);
+  const buttonBox = await trigger.boundingBox(); const iconBox = await chevron.boundingBox();
+  expect(Math.abs(buttonBox!.y + buttonBox!.height / 2 - iconBox!.y - iconBox!.height / 2)).toBeLessThan(1);
+  await trigger.click();
+  await expect(trigger).toHaveAttribute('aria-expanded', 'true');
+  await expect(chevron).toHaveCSS('transform', 'matrix(-1, 0, 0, -1, 0, 0)');
+  await page.keyboard.press('Escape');
+  await expect(trigger).toHaveAttribute('aria-expanded', 'false');
+  await expect(chevron).toHaveCSS('transform', 'none');
+});

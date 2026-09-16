@@ -116,3 +116,15 @@ it('places fallback source actions beside the format selector, outside the conte
   expect(actions.closest('[part="view-switcher"]')).not.toBeNull();
   expect(editor.shadowRoot!.querySelector('[part="source-panel"] button')).toBeNull();
 });
+
+it('keeps automatic discard in place through formatting and disables it after saving', async () => {
+  const { editor } = setup();
+  const discard = editor.shadowRoot!.querySelector<HTMLButtonElement>('[data-source-action="discard"]')!;
+  expect(editor.shadowRoot!.querySelector('[part="source-note"]')).toBeNull();
+  expect(discard.hidden).toBe(false); expect(discard.disabled).toBe(true);
+  editor.sourceFormatter = source => source + '\n';
+  await editor.formatSource();
+  expect(discard.hidden).toBe(false); expect(discard.disabled).toBe(false);
+  vi.advanceTimersByTime(350);
+  expect(discard.hidden).toBe(false); expect(discard.disabled).toBe(true);
+});
