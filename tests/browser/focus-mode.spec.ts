@@ -2,7 +2,7 @@ import { chooseView } from './controls.js';
 import { expect, test } from '@playwright/test';
 import type { ARichTextElement } from '../../packages/web-component/src/index.js';
 
-test.beforeEach(async ({ page }) => { await page.goto('/dist/browser/'); });
+test.beforeEach(async ({ page }) => { await page.goto('/dist/browser/'); await page.locator('#editor').evaluate(node => node.setAttribute('source-update', 'manual')); });
 
 test('focus mode keeps toolbar, editing, undo and native form association', async ({ page }) => {
   const editor = page.locator('#editor');

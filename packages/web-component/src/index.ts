@@ -60,6 +60,9 @@ import { fromMarkdown, toMarkdown } from '@arichtext/markdown';
 import { EDITOR_TOOLS, EDITOR_VIEWS, tokens, type ARichTextTool, type ARichTextView } from './configuration.js';
 export { EDITOR_TOOLS, EDITOR_VIEWS, type ARichTextTool, type ARichTextView } from './configuration.js';
 
+export type ARichTextSourceFormatter = (source: string, format: Exclude<ARichTextView, 'visual'>) => string | Promise<string>;
+export { detectInputFormat, type InputFormatDetection } from './detect-format.js';
+
 export type ARichTextFormat = 'html' | 'json' | 'markdown' | 'text';
 export type ARichTextReconcileSource = 'native-input' | 'composition';
 export type ARichTextSimpleMark = 'bold' | 'italic' | 'underline' | 'strike' | 'code';
@@ -259,6 +262,7 @@ function getTemplate(): HTMLTemplateElement {
       <p part="source-note" id="source-note">Source edits apply only when you choose Apply changes. Applying clears undo history. ART JSON preserves the document model and uses the A Rich Text schema. Other formats may lose unsupported formatting.</p>
       <textarea part="source" aria-label="Document source" aria-describedby="source-note source-error" spellcheck="false"></textarea>
       <div part="source-actions">
+        <button part="source-format-button" data-source-action="format" type="button" hidden>Format source</button>
         <button part="source-apply-button" type="button" data-source-action="apply">Apply changes</button>
         <button part="source-discard-button" type="button" data-source-action="discard">Discard changes</button>
       </div>
@@ -280,7 +284,7 @@ export class ARichTextElement extends HTMLElementBase {
     'value',
     'format',
     'required',
-    'tools', 'views', 'view',
+    'tools', 'views', 'view', 'source-update',
     ...ARIA_FORWARD_ATTRIBUTES,
   ];
 
@@ -300,6 +304,11 @@ export class ARichTextElement extends HTMLElementBase {
   #viewToolbars = 0;
   #sourceError = '';
   #sourceDocument = '';
+  #sourceAccepted = '';
+  #sourceTimer?: ReturnType<typeof setTimeout>;
+  #sourceComposing = false;
+  #sourceFormatter?: ARichTextSourceFormatter;
+  #sourceRevision = 0;
   #codeEditor: CodeBlockEditor;
   #imageEditor: ImageEditor;
   #focusMode: FocusMode;
@@ -325,17 +334,23 @@ export class ARichTextElement extends HTMLElementBase {
     this.#renderFromEngine();
     this.#source.addEventListener('input', (event) => {
       event.stopPropagation();
-      this.#sourceDirty = this.#source.value !== this.#serializeView();
+      this.#sourceRevision++;
+      this.#sourceDirty = this.#source.value !== this.#sourceAccepted || this.#sourceDocument !== this.serializeJSON();
       this.#sourceError = '';
       this.#syncViews();
       this.#syncFormValue();
+      this.#scheduleSourceUpdate();
     });
+    this.#source.addEventListener('compositionstart', () => { this.#sourceComposing = true; this.#cancelSourceUpdate(); });
+    this.#source.addEventListener('compositionend', () => { this.#sourceComposing = false; this.#scheduleSourceUpdate(); });
+    this.#source.addEventListener('blur', () => { if (this.sourceUpdate === 'auto' && !this.#sourceComposing) this.#applySource(true); });
     this.#source.addEventListener('change', (event) => event.stopPropagation());
     shadow.querySelector('[part="view-switcher"] a-rich-text-select')!.addEventListener('change', event => {
       event.stopPropagation(); this.view = (event.target as ARichTextSelectElement).value as ARichTextView;
     });
     shadow.querySelector('[part="source-actions"]')!.addEventListener('click', (event) => {
       const action = (event.target as Element).closest<HTMLElement>('[data-source-action]')?.dataset.sourceAction;
+      if (action === 'format') void this.formatSource();
       if (action === 'apply') this.applySource();
       if (action === 'discard') this.discardSource();
     });
@@ -364,6 +379,9 @@ export class ARichTextElement extends HTMLElementBase {
   }
 
   disconnectedCallback(): void {
+    this.#sourceComposing = false;
+    this.#sourceRevision++;
+    this.#cancelSourceUpdate();
     this.#findReplace.close(false, true);
     this.#focusMode.close(false);
     this.#codeEditor.close(false);
@@ -374,6 +392,7 @@ export class ARichTextElement extends HTMLElementBase {
 
   attributeChangedCallback(name: string, oldValue: string | null, newValue: string | null): void {
     if (oldValue === newValue) return;
+    if ((name === 'view' || name === 'views') && this.sourceUpdate === 'auto' && !this.#sourceComposing) this.#applySource(true);
     if (name === 'view' || name === 'views') {
       const requested = this.getAttribute('view')?.toLowerCase() === 'md' ? 'markdown' : this.getAttribute('view');
       const next = this.views.includes(requested as ARichTextView) ? requested as ARichTextView : 'visual';
@@ -384,8 +403,10 @@ export class ARichTextElement extends HTMLElementBase {
         }
         this.setAttribute('view', this.#activeView);
       } else if (next !== this.#activeView) {
+        this.#sourceRevision++;
         this.#activeView = next;
         this.#source.value = this.#serializeView();
+        this.#sourceAccepted = this.#source.value;
         this.#sourceDocument = this.serializeJSON();
         this.#sourceError = '';
         this.dispatchEvent(new CustomEvent('view-change', { bubbles: true, composed: true, detail: { view: next } }));
@@ -422,8 +443,51 @@ export class ARichTextElement extends HTMLElementBase {
   set view(value: ARichTextView) { this.setAttribute('view', value); }
   get sourceDirty(): boolean { return this.#sourceDirty; }
 
-  applySource(): boolean {
-    if (this.disabled || this.readOnly || this.#activeView === 'visual') return false;
+  /** Optional formatter; kept outside the base bundle. Plain text is never formatted. */
+  get sourceFormatter(): ARichTextSourceFormatter | undefined { return this.#sourceFormatter; }
+  set sourceFormatter(formatter: ARichTextSourceFormatter | undefined) { this.#sourceFormatter = formatter; this.#sourceRevision++; this.#syncViews(); }
+
+  async formatSource(): Promise<boolean> {
+    const formatter = this.#sourceFormatter;
+    const view = this.view;
+    if (!formatter || view === 'visual' || view === 'text' || this.disabled || this.readOnly || this.#sourceComposing) return false;
+    const source = this.#source.value;
+    const revision = this.#sourceRevision;
+    const document = this.serializeJSON();
+    const current = () => this.isConnected && revision === this.#sourceRevision && this.view === view && this.#source.value === source && this.serializeJSON() === document && !this.disabled && !this.readOnly && !this.#sourceComposing;
+    try {
+      const formatted = await formatter(source, view);
+      if (!current()) return false;
+      if (typeof formatted !== 'string') throw new TypeError('Formatter must return a string');
+      this.#source.value = formatted;
+      this.#source.dispatchEvent(new Event('input'));
+      return true;
+    } catch (error) {
+      if (current()) {
+        this.#sourceError = `Cannot format source: ${error instanceof Error ? error.message : 'Formatting failed'}`;
+        this.#syncViews(); this.#syncFormValue();
+      }
+      return false;
+    }
+  }
+
+  /** Manual remains the default. Automatic source updates settle after 350 ms or blur. */
+  get sourceUpdate(): 'manual' | 'auto' { return this.getAttribute('source-update') === 'auto' ? 'auto' : 'manual'; }
+  set sourceUpdate(value: 'manual' | 'auto') { this.setAttribute('source-update', value); }
+
+  #cancelSourceUpdate(): void { clearTimeout(this.#sourceTimer); this.#sourceTimer = undefined; }
+  #scheduleSourceUpdate(): void {
+    this.#cancelSourceUpdate();
+    if (this.isConnected && this.sourceUpdate === 'auto' && this.#sourceDirty && !this.#sourceError && !this.#sourceComposing && !this.disabled && !this.readOnly) {
+      this.#sourceTimer = setTimeout(() => this.#applySource(true), 350);
+    }
+  }
+
+  applySource(): boolean { return this.#applySource(this.sourceUpdate === 'auto'); }
+
+  #applySource(preserveSource: boolean): boolean {
+    this.#cancelSourceUpdate();
+    if (this.disabled || this.readOnly || this.#sourceComposing || this.#activeView === 'visual') return false;
     if (!this.#sourceDirty) return true;
     try {
       if (this.#sourceDocument && this.#sourceDocument !== this.serializeJSON()) throw new Error('The document changed while you were editing source. Discard this draft and try again.');
@@ -431,12 +495,16 @@ export class ARichTextElement extends HTMLElementBase {
       const document = this.#activeView === 'json' ? parseDocument(value)
         : this.#activeView === 'html' ? fromHTML(value, this.#extensions ? { extensions: this.#extensions } : {})
           : this.#activeView === 'markdown' ? fromMarkdown(value) : createTextDocument(value);
-      this.#sourceDirty = false;
+      const changed = serializeDocument(document) !== this.serializeJSON();
       this.#sourceError = '';
-      this.setJSON(document);
-      this.#source.value = this.#serializeView();
+      if (changed) this.setJSON(document);
+      this.#sourceDirty = false;
+      if (!preserveSource) this.#source.value = this.#serializeView();
+      this.#sourceAccepted = this.#source.value;
+      this.#sourceDocument = this.serializeJSON();
       this.#syncViews();
-      this.#emitInput();
+      this.#syncFormValue();
+      if (changed) this.#emitInput();
       return true;
     } catch (error) {
       this.#sourceError = `Cannot apply ${this.#activeView.toUpperCase()}: ${error instanceof Error ? error.message : 'Invalid document'}`;
@@ -447,9 +515,12 @@ export class ARichTextElement extends HTMLElementBase {
   }
 
   discardSource(): void {
+    this.#sourceRevision++;
+    this.#cancelSourceUpdate();
     this.#sourceDirty = false;
     this.#sourceError = '';
     this.#source.value = this.#serializeView();
+    this.#sourceAccepted = this.#source.value;
     this.#sourceDocument = this.serializeJSON();
     this.#syncViews();
     this.#syncFormValue();
@@ -474,12 +545,19 @@ export class ARichTextElement extends HTMLElementBase {
     this.#source.readOnly = this.readOnly;
     this.#source.setAttribute('aria-label', `${this.#activeView.toUpperCase()} document source`);
     this.#source.setAttribute('aria-invalid', String(Boolean(this.#sourceError)));
+    this.shadowRoot!.querySelector<HTMLElement>('[part="source-note"]')!.textContent = (this.sourceUpdate === 'auto' ? 'Valid source edits update automatically after a pause or on blur. Invalid drafts stay here. ' : 'Source edits apply only when you choose Apply changes. ') + 'Applying clears visual undo history. ART JSON uses the A Rich Text schema. Other formats may lose unsupported formatting.';
     const actions = this.shadowRoot!.querySelector<HTMLElement>('[part="source-actions"]')!;
-    actions.hidden = !this.#sourceDirty;
+    const canFormat = Boolean(this.#sourceFormatter) && this.view !== 'text' && this.view !== 'visual';
+    actions.hidden = !this.#sourceDirty && !canFormat;
+    const formatButton = actions.querySelector<HTMLButtonElement>('[data-source-action="format"]')!;
+    formatButton.hidden = !canFormat; formatButton.disabled = this.disabled || this.readOnly;
+    actions.querySelector<HTMLButtonElement>('[data-source-action="discard"]')!.hidden = !this.#sourceDirty;
+    actions.querySelector<HTMLButtonElement>('[data-source-action="apply"]')!.hidden = this.sourceUpdate === 'auto' || !this.#sourceDirty;
     actions.querySelector<HTMLButtonElement>('[data-source-action="apply"]')!.disabled = this.disabled || this.readOnly;
     actions.querySelector<HTMLButtonElement>('[data-source-action="discard"]')!.disabled = this.disabled;
     this.shadowRoot!.querySelector<HTMLElement>('[part="source-error"]')!.textContent = this.#sourceError;
     this.dispatchEvent(new CustomEvent('view-state-change'));
+    this.#scheduleSourceUpdate();
   }
 
   /** Shared view-control state for bundled and custom toolbars. */
@@ -812,6 +890,9 @@ export class ARichTextElement extends HTMLElementBase {
   }
 
   formResetCallback(): void {
+    this.#sourceComposing = false;
+    this.#sourceRevision++;
+    this.#cancelSourceUpdate();
     this.#findReplace.close(false, true);
     this.#focusMode.close(false);
     this.#codeEditor.close(false);
@@ -856,6 +937,7 @@ export class ARichTextElement extends HTMLElementBase {
     this.#emitFormatState();
     if (!this.#sourceDirty) {
       this.#source.value = this.#serializeView();
+      this.#sourceAccepted = this.#source.value;
       this.#sourceDocument = this.serializeJSON();
     }
     this.#syncViews();
@@ -868,6 +950,7 @@ export class ARichTextElement extends HTMLElementBase {
       this.#syncFormValue();
       if (!this.#sourceDirty) {
         this.#source.value = this.#serializeView();
+        this.#sourceAccepted = this.#source.value;
         this.#sourceDocument = this.serializeJSON();
       }
     } else if (result.selectionChanged && result.state.selection && this.shadowRoot?.activeElement === this.#editor) {
@@ -1187,7 +1270,7 @@ export class ARichTextElement extends HTMLElementBase {
     const missing = this.required && !this.readOnly && !this.disabled && this.getText().trim().length === 0;
     const draft = this.#sourceDirty && !this.disabled && !this.readOnly;
     this.#internals?.setValidity?.(draft ? { customError: true } : missing ? { valueMissing: true } : {},
-      draft ? 'Apply or discard your source changes before submitting.' : missing ? 'Please enter some text.' : '',
+      draft ? (this.sourceUpdate === 'auto' ? 'Source changes are pending or invalid. Wait for updates, correct the source or discard changes.' : 'Apply or discard your source changes before submitting.') : missing ? 'Please enter some text.' : '',
       this.#activeView === 'visual' ? this.#editor : this.#source);
   }
 }

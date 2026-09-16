@@ -26,6 +26,10 @@
     "./highlight": {
       "types": "./dist/highlight.d.ts",
       "import": "./dist/highlight.js"
+    },
+    "./format": {
+      "types": "./dist/format.d.ts",
+      "import": "./dist/format.js"
     }
   },
   "files": [
@@ -38,12 +42,13 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@arichtext/web-component": "workspace:*",
-    "@arichtext/ui": "workspace:*",
-    "@arichtext/lists-editor": "workspace:*",
     "@arichtext/dom": "workspace:*",
-    "@arichtext/tables": "workspace:*",
     "@arichtext/links": "workspace:*",
-    "@arichtext/lists": "workspace:*"
+    "@arichtext/lists": "workspace:*",
+    "@arichtext/lists-editor": "workspace:*",
+    "@arichtext/tables": "workspace:*",
+    "@arichtext/ui": "workspace:*",
+    "@arichtext/web-component": "workspace:*",
+    "prettier": "3.9.7"
   }
 }

@@ -2,7 +2,7 @@ import { chooseView } from './controls.js';
 import { expect, test } from '@playwright/test';
 import type { ARichTextElement } from '../../packages/web-component/src/index.js';
 
-test.beforeEach(async ({ page }) => { await page.goto('/dist/browser/'); });
+test.beforeEach(async ({ page }) => { await page.goto('/dist/browser/'); await page.locator('#editor').evaluate(node => node.setAttribute('source-update', 'manual')); });
 
 test('placeholder overlays the first caret line without adding document content', async ({ page }) => {
   const surface = page.locator('#editor [part="editor"]');

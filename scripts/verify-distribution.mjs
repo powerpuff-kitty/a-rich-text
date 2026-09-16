@@ -29,15 +29,24 @@ for (const directory of (await readdir('packages')).sort()) {
 const consumer = await mkdtemp(path.join(tmpdir(), 'art-consumer-'));
 try {
   await writeFile(path.join(consumer, 'package.json'), JSON.stringify({ name: 'art-consumer', private: true, type: 'module' }));
-  execFileSync('npm', ['install', '--offline', '--ignore-scripts', '--no-audit', '--no-fund', ...tarballs], { cwd: consumer, stdio: 'pipe' });
+  // Supply the optional formatter from the locked local installation: this smoke
+  // check must not depend on npm's separate registry cache or network access.
+  const prettierPack = JSON.parse(execFileSync('npm', ['pack', path.join(root, 'packages/editor/node_modules/prettier'), '--offline', '--ignore-scripts', '--json', '--pack-destination', consumer], { cwd: consumer, encoding: 'utf8' }));
+  const formatterTarball = path.join(consumer, prettierPack[0].filename);
+  execFileSync('npm', ['install', '--offline', '--ignore-scripts', '--no-audit', '--no-fund', formatterTarball, ...tarballs], { cwd: consumer, stdio: 'pipe' });
   const imports = manifests.flatMap(manifest => Object.keys(manifest.exports).map(subpath =>
     `await import('${manifest.name}${subpath === '.' ? '' : subpath.slice(1)}');`)).join('\n');
-  await writeFile(path.join(consumer, 'smoke.mjs'), imports);
+  await writeFile(path.join(consumer, 'smoke.mjs'), imports + `\nconst {formatSource} = await import('@arichtext/editor/format');\nconst result = await formatSource('{"ok":true}', 'json');\nif (!JSON.parse(result).ok) throw new Error('Installed formatter failed');\n`);
   execFileSync(process.execPath, ['smoke.mjs'], { cwd: consumer, stdio: 'pipe' });
   await writeFile(path.join(consumer, 'consumer.ts'), `
-import { ARichTextElement, enableStandardEditing } from '@arichtext/editor';
+import { formatSource } from '@arichtext/editor/format';
+import { ARichTextElement, enableStandardEditing, detectInputFormat } from '@arichtext/editor';
 const editor = document.createElement('a-rich-text') as ARichTextElement;
 editor.required = true;
+editor.sourceUpdate = 'auto';
+editor.sourceFormatter = formatSource;
+void editor.formatSource();
+detectInputFormat('{\"ops\":[]}');
 editor.views = ['visual', 'html', 'markdown', 'json'];
 editor.tools = ['bold', 'link'];
 editor.view = 'json';

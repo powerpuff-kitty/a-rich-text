@@ -61,6 +61,7 @@ Core architecture docs:
 - [`docs/web-component-runtime.md`](docs/web-component-runtime.md)
 - [`docs/extensions.md`](docs/extensions.md)
 - [`docs/conversion.md`](docs/conversion.md)
+- [Editor formats, profiles and detection](docs/editor-formats.md)
 - [`docs/forms.md`](docs/forms.md)
 - [`docs/local-first.md`](docs/local-first.md)
 - [`docs/clipboard.md`](docs/clipboard.md)
