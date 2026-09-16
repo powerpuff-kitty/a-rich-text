@@ -79,3 +79,9 @@ Prettier formats source layout; it does not repair a foreign document schema,
 validate ART semantics, sanitize HTML, execute embedded code, or provide ESLint's
 JavaScript lint rules. The editor's converters and validation remain separate.
 [Prettier browser documentation](https://prettier.io/docs/browser).
+
+## Scoped CommonMark checks
+
+The reference target is CommonMark 0.31.2, with 20 code-span examples verified
+and two documented unsupported interactions. The full dialect is not implemented.
+See [compatibility scope and fixtures](markdown-compatibility.md).

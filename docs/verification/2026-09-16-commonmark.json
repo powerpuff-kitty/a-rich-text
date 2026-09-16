@@ -1,0 +1,42 @@
+{
+  "revision": "fd270d2748c6dc597c5d32bb7165a249402189f3",
+  "unit": {
+    "passed": 598,
+    "files": 76
+  },
+  "browser": {
+    "stats": {
+      "startTime": "2026-09-16T18:42:01.283Z",
+      "duration": 376355.636,
+      "expected": 440,
+      "skipped": 0,
+      "unexpected": 0,
+      "flaky": 0
+    },
+    "projects": {
+      "chromium": 88,
+      "firefox": 88,
+      "webkit": 88,
+      "mobile-chromium": 88,
+      "mobile-webkit": 88
+    },
+    "workers": 4,
+    "retries": 0,
+    "reportSHA256": "328a4c57e16fd3b160a843721f542c2532664beea41b99cd6f40ce1ff6d86f89"
+  },
+  "packages": 27,
+  "gzipBytes": {
+    "minimal": 38584,
+    "standard": 57470
+  },
+  "commonmark": {
+    "reference": "0.31.2",
+    "section": "Code spans",
+    "supportedExamples": 20,
+    "knownMismatches": [
+      344,
+      346
+    ],
+    "fixtureSHA256": "c9a124d737ecefdc51dfd927bfb032c7305b657349b482f3b3285175fad436f5"
+  }
+}

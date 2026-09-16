@@ -49,7 +49,7 @@ function parseBlocks(lines: readonly string[]): ARTBlockNode[] {
     if (line.trim() === '') { index += 1; continue; }
 
     const fence = line.match(/^\s{0,3}(`{3,}|~{3,})(.*)$/);
-    if (fence) {
+    if (fence && !(fence[1]!.startsWith('`') && fence[2]!.includes('`'))) {
       const marker = fence[1]!;
       const info = fence[2]?.trim() || undefined;
       const code: string[] = [];
@@ -113,7 +113,8 @@ function parseBlocks(lines: readonly string[]): ARTBlockNode[] {
       paragraph.push(current);
       index += 1;
     }
-    blocks.push({ type: 'paragraph', content: parseInline(joinParagraphLines(paragraph)) });
+    const protectedCode = protectCodeSpans(paragraph.join('\n'));
+    blocks.push({ type: 'paragraph', content: parseInline(joinParagraphLines(protectedCode.text.split('\n')), [], protectedCode) });
   }
 
   return blocks;
@@ -121,7 +122,8 @@ function parseBlocks(lines: readonly string[]): ARTBlockNode[] {
 
 function isBlockStart(lines: readonly string[], index: number): boolean {
   const line = lines[index] ?? '';
-  return /^\s{0,3}(`{3,}|~{3,})/.test(line)
+  const fence = line.match(/^\s{0,3}(`{3,}|~{3,})(.*)$/);
+  return Boolean(fence && !(fence[1]!.startsWith('`') && fence[2]!.includes('`')))
     || /^\s{0,3}#{1,6}\s+/.test(line)
     || isHorizontalRule(line)
     || /^\s{0,3}>/.test(line)
@@ -271,29 +273,76 @@ function joinParagraphLines(lines: readonly string[]): string {
   }).join('');
 }
 
-function parseInline(text: string, inherited: readonly ARTTextMark[] = []): ARTTextNode[] {
+interface ProtectedCode {
+  text: string;
+  prefix: string;
+  values: string[];
+  raw: string[];
+}
+
+// Hide complete code spans before parsing links/emphasis or folding paragraph
+// whitespace. Backticks within a code span are literal unless the whole run matches.
+function protectCodeSpans(text: string): ProtectedCode {
+  let prefix = '\uE000';
+  while (text.includes(prefix)) prefix += '\uE000';
+  const values: string[] = [];
+  const raw: string[] = [];
+  let output = '';
+  let index = 0;
+  while (index < text.length) {
+    if (text[index] === '\\' && index + 1 < text.length) {
+      output += text.slice(index, index + 2); index += 2; continue;
+    }
+    if (text[index] !== '`') { output += text[index++]; continue; }
+    const length = countRun(text, index, '`');
+    let end = index + length;
+    while (end < text.length) {
+      end = text.indexOf('`', end);
+      if (end === -1) break;
+      const closingLength = countRun(text, end, '`');
+      if (closingLength === length) break;
+      end += closingLength;
+    }
+    if (end < 0 || end >= text.length) {
+      output += text.slice(index, index + length); index += length; continue;
+    }
+    let value = text.slice(index + length, end).replaceAll('\n', ' ');
+    if (value.startsWith(' ') && value.endsWith(' ') && /[^ ]/.test(value)) value = value.slice(1, -1);
+    output += prefix + values.length + prefix;
+    values.push(value);
+    raw.push(text.slice(index, end + length));
+    index = end + length;
+  }
+  return { text: output, prefix, values, raw };
+}
+
+function parseInline(text: string, inherited: readonly ARTTextMark[] = [], protectedCode?: ProtectedCode): ARTTextNode[] {
+  if (!protectedCode) { protectedCode = protectCodeSpans(text); text = protectedCode.text; }
   const output: ARTTextNode[] = [];
   let index = 0;
   while (index < text.length) {
-    if (text[index] === '\\' && index + 1 < text.length) { appendText(output, text[index + 1] ?? '', inherited); index += 2; continue; }
-    if (text[index] === '`') {
-      const length = countRun(text, index, '`');
-      const delimiter = '`'.repeat(length);
-      const end = text.indexOf(delimiter, index + length);
-      if (end !== -1) { appendText(output, text.slice(index + length, end), [...inherited, { type: 'code' }]); index = end + length; continue; }
+    if (text.startsWith(protectedCode.prefix, index)) {
+      const start = index + protectedCode.prefix.length;
+      const end = text.indexOf(protectedCode.prefix, start);
+      const value = protectedCode.values[Number(text.slice(start, end))];
+      if (end !== -1 && value !== undefined) {
+        appendText(output, value, [...inherited, { type: 'code' }]);
+        index = end + protectedCode.prefix.length; continue;
+      }
     }
+    if (text[index] === '\\' && index + 1 < text.length) { appendText(output, text[index + 1] ?? '', inherited); index += 2; continue; }
     const strong = text.startsWith('**', index) ? '**' : text.startsWith('__', index) ? '__' : null;
     if (strong) {
       const end = text.indexOf(strong, index + 2);
-      if (end !== -1) { appendParsed(output, text.slice(index + 2, end), [...inherited, { type: 'bold' }]); index = end + 2; continue; }
+      if (end !== -1) { appendParsed(output, text.slice(index + 2, end), [...inherited, { type: 'bold' }], protectedCode); index = end + 2; continue; }
     }
     if (text.startsWith('~~', index)) {
       const end = text.indexOf('~~', index + 2);
-      if (end !== -1) { appendParsed(output, text.slice(index + 2, end), [...inherited, { type: 'strike' }]); index = end + 2; continue; }
+      if (end !== -1) { appendParsed(output, text.slice(index + 2, end), [...inherited, { type: 'strike' }], protectedCode); index = end + 2; continue; }
     }
     if (text.startsWith('<u>', index)) {
       const end = text.indexOf('</u>', index + 3);
-      if (end !== -1) { appendParsed(output, text.slice(index + 3, end), [...inherited, { type: 'underline' }]); index = end + 4; continue; }
+      if (end !== -1) { appendParsed(output, text.slice(index + 3, end), [...inherited, { type: 'underline' }], protectedCode); index = end + 4; continue; }
     }
     if (text[index] === '[') {
       const labelEnd = text.indexOf('](', index + 1);
@@ -301,11 +350,15 @@ function parseInline(text: string, inherited: readonly ARTTextMark[] = []): ARTT
         const openParen = labelEnd + 1;
         const targetEnd = findMatchingParen(text, openParen);
         if (targetEnd !== -1) {
-          const target = text.slice(openParen + 1, targetEnd).trim();
+          let target = text.slice(openParen + 1, targetEnd).trim();
+          // Backticks in a link destination are URL characters, not code markup.
+          protectedCode.raw.forEach((raw, token) => {
+            target = target.replaceAll(protectedCode.prefix + token + protectedCode.prefix, () => raw);
+          });
           const href = target.match(/^(\S+?)(?:\s+["'][^"']*["'])?$/)?.[1];
           const safe = href ? safeUrl(href, false) : null;
           const label = text.slice(index + 1, labelEnd);
-          appendParsed(output, label, safe ? [...inherited, { type: 'link', href: safe }] : inherited);
+          appendParsed(output, label, safe ? [...inherited, { type: 'link', href: safe }] : inherited, protectedCode);
           index = targetEnd + 1;
           continue;
         }
@@ -314,7 +367,7 @@ function parseInline(text: string, inherited: readonly ARTTextMark[] = []): ARTT
     if (text[index] === '*' || text[index] === '_') {
       const delimiter = text[index]!;
       const end = text.indexOf(delimiter, index + 1);
-      if (end > index + 1) { appendParsed(output, text.slice(index + 1, end), [...inherited, { type: 'italic' }]); index = end + 1; continue; }
+      if (end > index + 1) { appendParsed(output, text.slice(index + 1, end), [...inherited, { type: 'italic' }], protectedCode); index = end + 1; continue; }
     }
     appendText(output, text[index] ?? '', inherited);
     index += 1;
@@ -335,8 +388,8 @@ function findMatchingParen(text: string, openIndex: number): number {
   return -1;
 }
 
-function appendParsed(output: ARTTextNode[], value: string, marks: readonly ARTTextMark[]): void {
-  for (const node of parseInline(value, marks)) appendText(output, node.text, node.marks ?? []);
+function appendParsed(output: ARTTextNode[], value: string, marks: readonly ARTTextMark[], protectedCode: ProtectedCode): void {
+  for (const node of parseInline(value, marks, protectedCode)) appendText(output, node.text, node.marks ?? []);
 }
 
 function appendText(output: ARTTextNode[], text: string, marks: readonly ARTTextMark[]): void {
@@ -449,7 +502,7 @@ function createFence(text: string): string {
 function codeSpan(text: string): string {
   const longest = (text.match(/`+/g) ?? []).reduce((max, run) => Math.max(max, run.length), 0);
   const delimiter = '`'.repeat(Math.max(1, longest + 1));
-  const padding = text.startsWith('`') || text.endsWith('`') ? ' ' : '';
+  const padding = text.startsWith('`') || text.endsWith('`') || (text.startsWith(' ') && text.endsWith(' ') && /[^ ]/.test(text)) ? ' ' : '';
   return `${delimiter}${padding}${text}${padding}${delimiter}`;
 }
 

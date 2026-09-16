@@ -438,7 +438,14 @@ export class ARichTextToolbarElement extends HTMLElementBase {
   };
 
   #handleEditorStateChange = (event?: Event | MutationRecord[]): void => {
-    if (event instanceof Event && event.type === 'selection-change') { this.#inlineDismissed = false; this.#inlineRequested = false; }
+    if (event instanceof Event && event.type === 'selection-change') {
+      this.#inlineDismissed = false;
+      // A delayed DOM selection event must not close a keyboard-opened toolbar
+      // after Alt+F10 has moved focus into its controls.
+      const root = this.getRootNode() as Document | ShadowRoot;
+      const toolbarFocused = root.activeElement === this && this.#toolbar.contains(this.shadowRoot?.activeElement ?? null);
+      if (!toolbarFocused) this.#inlineRequested = false;
+    }
     this.#refresh();
   };
 

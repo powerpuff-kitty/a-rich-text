@@ -67,6 +67,7 @@ test('inline mode formats selections and retains format access without selection
   await chooseView(page, 'Editor');
   await editor.locator('[part=editor]').click();
   await page.keyboard.press('Alt+F10');
+  await editor.evaluate(node => node.dispatchEvent(new CustomEvent('selection-change', { bubbles: true, composed: true })));
   await expect(page.getByRole('toolbar', { name: 'Text formatting' })).toBeVisible();
 });
 
