@@ -265,7 +265,7 @@ Recommended rules:
 - preserve `fallbackText` for content that should remain readable without the extension;
 - do not store derived UI state in ART attributes.
 
-A future ART document-version migration mechanism can coordinate wider schema changes, but extension-local compatibility remains the responsibility of the extension package.
+The [explicit document migration API](migrations.md) can coordinate root-version changes. Extension-local compatibility, including payload changes within the same ART version, remains the responsibility of the extension package.
 
 ## Current boundaries
 

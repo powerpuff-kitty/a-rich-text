@@ -30,6 +30,10 @@
     "./schema/art-v1.schema.json": {
       "import": "./schema/art-v1.schema.json",
       "default": "./schema/art-v1.schema.json"
+    },
+    "./migrations": {
+      "types": "./dist/migrations.d.ts",
+      "import": "./dist/migrations.js"
     }
   },
   "files": [
