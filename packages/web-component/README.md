@@ -20,3 +20,8 @@ See [presets and styling overrides](https://github.com/powerpuff-kitty/a-rich-te
 ![Base Web Component](../../docs/screenshots/base-editor.png)
 
 [Complete component gallery](../../docs/component-gallery.md).
+
+The base package also registers `<a-rich-text-select>`, a small keyboard-operated
+viewport-aware dropdown. `value`, `disabled` and `label` attributes, light-DOM
+`option` elements and bubbling `change` events form its API. The optional UI
+package provides `<a-rich-text-shell>` for a shared toolbar/content frame.

@@ -23,17 +23,19 @@ The optional linked toolbar follows it automatically, including live changes.
 No framework wrapper, extra stylesheet or runtime dependency is required.
 
 ```html
+<a-rich-text-shell>
 <a-rich-text-toolbar for="notes"></a-rich-text-toolbar>
 <a-rich-text id="notes" preset="document" aria-label="Notes"
   tools="paragraph heading bold italic link undo redo"
   views="html json"></a-rich-text>
+</a-rich-text-shell>
 ```
 
 | Preset | Appearance |
 | --- | --- |
-| `default` | Existing bordered editor, full-width layout and standard toolbar spacing |
-| `minimal` | Quieter borders, smaller padding and tighter toolbar gaps; button sizes are retained |
-| `document` | Centered 52rem maximum width, 18px text at a 16px root size, 1.8 line height, responsive padding and a taller writing area |
+| `default` | One rounded frame, tinted toolbar and comfortable sans-serif content |
+| `minimal` | Open surface with a bottom rule, transparent toolbar and compact spacing |
+| `document` | Centered paper frame and shadow, serif font, 52rem maximum width, 18px text at a 16px root size, 1.8 line height, responsive padding and a taller writing area |
 
 Presets change appearance only. They do not select tools, enable formats, create
 content, alter exports, reset history or discard source drafts. The toolbar remains
@@ -58,7 +60,9 @@ a-rich-text-toolbar {
 }
 ```
 
-Set width overrides on both hosts to align a standard toolbar with its editor.
+Use `--art-shell-max-width` on the shared shell to align toolbar and content.
+The content has no default border; set `--art-shell-border`, `--art-shell-radius`,
+`--art-shell-background` and `--art-shell-shadow` on the shell to customize its frame.
 The `--_art-*` properties are private implementation details. See the
 [three preset examples and screenshots](component-gallery.md#appearance-presets).
 
@@ -93,7 +97,7 @@ a-rich-text {
   --art-editor-min-height: 16rem;
   --art-editor-padding: 1rem;
 }
-a-rich-text::part(editor) { border-width: 2px; }
+a-rich-text-shell { --art-shell-border: 2px solid #6366f1; }
 a-rich-text::part(blockquote) {
   border-inline-start: 3px solid #6366f1;
   padding-inline-start: 1rem;
@@ -119,7 +123,7 @@ shadow tree: the editor recreates content DOM during transactions.
 | Lists | `list`, `bullet-list`, `ordered-list`, `task-list`, `list-item`, `task-checkbox` |
 | Table | `table`, `table-body`, `table-row`, `table-cell` |
 | Other blocks | `code-block`, `code-content`, `horizontal-rule`, `image`, `extension-block` |
-| Source views | `view-switcher`, `view-button`, `active-view-button`, `source-panel`, `source`, `source-actions`, `source-apply-button`, `source-discard-button`, `source-note`, `source-error` |
+| Source views | `view-switcher`, `view-trigger`, `view-menu`, `source-panel`, `source`, `source-actions`, `source-apply-button`, `source-discard-button`, `source-note`, `source-error` |
 | Image dialog | `image-dialog`, `image-form`, `image-source`, `image-alt`, `image-decorative`, `image-title`, `image-width`, `image-height`, `image-preview`, `image-error` |
 | Image actions and uploads | `image-container`, `image-edit-button`, `image-file`, `image-progress`, `image-upload-button`, `image-upload-cancel-button`, `image-preview-button`, `image-apply-button`, `image-remove-button`, `image-cancel-button` |
 | Code dialog | `code-dialog`, `code-form`, `code-language`, `code-input`, `code-error`, `code-edit-button`, `code-apply-button`, `code-remove-button`, `code-cancel-button` |
@@ -127,7 +131,7 @@ shadow tree: the editor recreates content DOM during transactions.
 The toolbar exposes `toolbar`, `button`, `separator`, `block-select`, per-mark
 parts such as `bold-button`, and `link-editor`, `link-input`, `link-error`.
 Its variables are `--art-toolbar-font`, `--art-toolbar-background`,
-`--art-toolbar-color`, `--art-toolbar-border`, `--art-toolbar-active` and
+`--art-toolbar-color`, `--art-toolbar-active` and
 `--art-toolbar-radius`, `--art-toolbar-padding`, `--art-toolbar-gap` and
 `--art-toolbar-max-width`. Presets synchronize automatically; explicit color and
 spacing overrides belong on the corresponding editor or toolbar host.
@@ -268,3 +272,10 @@ Find highlights use `--art-find-highlight` (translucent fill) and
 `--art-find-outline`. The nonmodal panel and buttons also expose CSS parts; custom
 find interfaces can use the engine search APIs described in
 [configuration](editor-configuration.md#find-and-replace).
+
+## Toolbar modes and dropdowns
+
+See [editor modes, dropdown API, optional highlighting and roadmap](editor-modes.md).
+Source views now use a toolbar dropdown. The old `view-button` and
+`active-view-button` parts have been replaced by `view-trigger` and `view-menu`.
+Without a registered toolbar, the editor exposes the same menu above its content.

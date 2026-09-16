@@ -20,7 +20,7 @@ The standard editor combines the optional toolbar with the native-form Web Compo
 ## Appearance presets
 
 Presets use the same document and available tools. These examples omit source
-view buttons by setting `views=""`; presets themselves do not change formats.
+view menus by setting `views=""`; presets themselves do not change formats.
 See [configuration and overrides](customization.md#appearance-presets).
 
 ### Default
@@ -60,7 +60,7 @@ Design spans rows elsewhere in the table. Matching rowspans can also merge right
 
 [Open this example locally](http://localhost:8080/components/base-editor.html).
 
-The same document without the optional toolbar. Source-view buttons are enabled by the fixture’s `views` attribute.
+The same document without the optional toolbar. Source-view menus are enabled by the fixture’s `views` attribute.
 
 ![Base Web Component — The same document without the optional toolbar](screenshots/base-editor.png)
 
@@ -212,3 +212,21 @@ pixel-diff test. No GitHub CI, credentials or external services are needed.
 
 Integration: [configuration](editor-configuration.md) ·
 [customization](customization.md) · [image authoring](image-authoring.md).
+
+## Inline toolbar
+
+[Open locally](http://localhost:8080/components/inline-editor.html). Select text to format it.
+
+![Contextual inline toolbar](screenshots/inline-editor.png)
+
+## Optional code highlighting
+
+[Open locally](http://localhost:8080/components/code-highlighting.html). Loaded independently of the editor bundle.
+
+![Optional code highlighting](screenshots/code-highlighting.png)
+
+## Dropdown
+
+[Open locally](http://localhost:8080/components/dropdown.html). Shared by toolbar and showcase controls.
+
+![Viewport-aware dropdown](screenshots/dropdown.png)

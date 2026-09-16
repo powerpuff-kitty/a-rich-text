@@ -17,7 +17,7 @@ const mounted = ref(true);
     </div>
     <RichText v-if="mounted" id="vue-editor" v-model="body" label="Article" name="article"
       :read-only="locked" tools="bold italic undo" views="visual html markdown json"
-      class="w-full [--art-radius:0.75rem] [&::part(editor)]:border-indigo-500">
+      class="w-full">
       <template #toolbar="{ state, run }">
         <div class="mb-2 flex gap-2" role="group" aria-label="Custom formatting">
           <button v-if="state.hasSelection && !state.locked && state.tools.includes('bold')" class="demo-button"

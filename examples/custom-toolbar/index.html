@@ -10,7 +10,7 @@
   button[aria-pressed="true"] { background: #e0e7ff; }
   [hidden] { display: none !important; }
   a-rich-text { --art-font-family: Georgia, serif; --art-color: #172554; --art-border-color: #6366f1; --art-radius: 0.75rem; --art-editor-min-height: 12rem; --art-editor-padding: 1rem; }
-  a-rich-text::part(editor) { border-width: 2px; }
+  a-rich-text-shell { --art-shell-border: 2px solid #6366f1; --art-shell-radius: .75rem; padding: 1rem; }
   a-rich-text::part(paragraph) { line-height: 1.8; }
   a-rich-text::part(blockquote) { border-inline-start: 4px solid #6366f1; margin-inline: 0; padding-inline-start: 1rem; }
   a-rich-text::part(link) { color: #4338ca; text-decoration-thickness: 2px; }
@@ -20,12 +20,12 @@
   <h1>Bring your own toolbar and styles</h1>
   <form>
     <span id="custom-label">Article</span>
-    <div class="actions" role="group" aria-label="Custom formatting">
+    <a-rich-text-shell><div class="actions" role="group" aria-label="Custom formatting">
       <button type="button" data-action="bold" aria-pressed="false">My bold button</button>
       <button type="button" data-action="blockquote">My quote button</button>
       <button type="button" data-action="undo">My undo button</button>
     </div>
-    <a-rich-text id="custom-editor" name="article" tools="bold blockquote undo" views="visual html json" aria-labelledby="custom-label"></a-rich-text>
+    <a-rich-text id="custom-editor" name="article" tools="bold blockquote undo" views="visual html json" aria-labelledby="custom-label"></a-rich-text></a-rich-text-shell>
     <button>Save</button>
   </form>
   <output id="custom-output" aria-live="polite"></output>

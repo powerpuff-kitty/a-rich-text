@@ -7,6 +7,9 @@ there is no public npm release yet.
 
 ## Core editor and integration
 
+- [Block interaction #74](https://github.com/powerpuff-kitty/a-rich-text/issues/74): slash insertion, block menus, keyboard movement and drag handles. Contextual inline formatting is implemented separately.
+- [Additional formatting #75](https://github.com/powerpuff-kitty/a-rich-text/issues/75): color/background, font/size, sub/superscript, alignment/direction, formula/video contracts and an optional full-grammar highlighting adapter. See [reference review and current modes](editor-modes.md).
+
 - [Authoring #4](https://github.com/powerpuff-kitty/a-rich-text/issues/4): broader selection editing beyond paragraph/heading formatting. Block-style commands now
   apply across selections in one Undo step. The toolbar and API/model support H1–H6. Standard editing detects URL/email tokens on typed spaces;
   Enter/paste/import do not trigger detection. Image, quote, rule, code-block and

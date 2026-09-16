@@ -1,3 +1,4 @@
+import { chooseView } from './controls.js';
 import { expect, test } from '@playwright/test';
 import type { ARichTextElement } from '../../packages/web-component/src/index.js';
 
@@ -70,11 +71,11 @@ test('whole-word options, readonly inspection, source views and tool locks are r
   await expect(panel.getByRole('textbox', { name: 'Replace with', exact: true })).toBeHidden();
   await editor.evaluate(node => node.removeAttribute('readonly'));
   await expect(panel.getByRole('textbox', { name: 'Replace with', exact: true })).toBeVisible();
-  await page.getByRole('button', { name: 'JSON', exact: true }).click();
+  await chooseView(page, 'JSON');
   await expect(panel).not.toBeVisible();
   await expect(page.getByRole('button', panelName)).toBeHidden();
   expect(await editor.evaluate(node => (node as ARichTextElement).openFindReplace())).toBe(false);
-  await page.getByRole('button', { name: 'Editor', exact: true }).click();
+  await chooseView(page, 'Editor');
   await editor.evaluate(node => { (node as ARichTextElement).openFindReplace(); node.setAttribute('tools', 'bold'); });
   await expect(panel).not.toBeVisible();
   expect(await editor.evaluate(node => (node as ARichTextElement).openFindReplace())).toBe(false);

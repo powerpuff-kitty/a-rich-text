@@ -7,16 +7,34 @@ const surface = editor.shadowRoot.querySelector('[part="editor"]');
 enableStandardEditing(editor);
 const normal = '<h2>A better place to write</h2><p>Write <strong>clearly</strong>, share ideas, and keep your content portable.</p><p>One document. <em>Your interface.</em> <a href="https://example.com/docs">Your workflow.</a></p><ul data-art-list="task"><li><input type="checkbox" checked><p>Choose your tools</p></li><li><input type="checkbox"><p>Make it your own</p></li></ul>';
 editor.setHTML(normal);
+if (name === 'inline-editor') toolbar.setAttribute('mode', 'inline');
+if (name === 'code-highlighting') {
+  editor.setHTML('<h2>Optional code highlighting</h2><pre><code class="language-javascript">// View-only decoration\nconst editor = document.querySelector("a-rich-text");\nconst data = editor.getJSON();</code></pre>');
+  const { enableCodeHighlighting } = await import('../highlight.js');
+  enableCodeHighlighting(editor);
+}
 if (name.startsWith('preset-')) { editor.preset = name.slice(7); editor.views = ''; }
 if (name === 'vertical-spans') editor.setHTML('<h2>Shared milestones</h2><table><tr><td rowspan="2"><p><strong>Design</strong></p></td><td><p>Research</p></td></tr><tr><td><p>Prototype</p></td></tr><tr><td><p>Build</p></td><td><p>Deliver</p></td></tr></table>');
 if (name === 'base-editor') toolbar.remove();
 if (name === 'table-controls') editor.setHTML('<h2>Release checklist</h2><p>Plan the next release together.</p><table><tr><th><p>Task</p></th><th><p>Owner</p></th><th><p>Status</p></th></tr><tr><td><p>Review the draft</p></td><td><p>Alex</p></td><td><p>Ready</p></td></tr><tr><td><p>Publish the guide</p></td><td><p>Sam</p></td><td><p>In progress</p></td></tr></table>');
 if (name === 'merged-cells') editor.setHTML('<h2>Project overview</h2><table><tr><td colspan="2"><p><strong>Research and design</strong></p><p>Two workstreams, one shared direction.</p></td><td><p>Build</p></td></tr><tr><td><p>Discover</p></td><td><p>Prototype</p></td><td><p>Deliver</p></td></tr></table>');
 if (name.startsWith('source-')) editor.setHTML('<h2>Portable content</h2><p>Keep <strong>one document</strong> in the format your app needs.</p>');
-const path = name === 'table-controls' ? [2, 1, 0, 0] : ['merged-cells', 'vertical-spans'].includes(name) ? [1, 0, 0, 0] : [1];
+const path = name === 'code-highlighting' ? [0] : name === 'table-controls' ? [2, 1, 0, 0] : ['merged-cells', 'vertical-spans'].includes(name) ? [1, 0, 0, 0] : [1];
 const selection = { anchor: { blockPath: path, offset: 0 }, head: { blockPath: path, offset: 0 } };
 surface.focus();
+if (name === 'inline-editor') selection.head.offset = 13;
 editor.dispatch({ operations: [], selection });
+if (name.startsWith('preset-')) surface.blur();
+if (name === 'dropdown') {
+  const component = document.querySelector('#component');
+  component.style.minHeight = '240px';
+  component.style.width = 'min(100%,250px)';
+  component.replaceChildren();
+  const select = document.createElement('a-rich-text-select');
+  select.setAttribute('label', 'Text style');
+  select.innerHTML = '<option value="paragraph">Paragraph</option><option value="h1">Heading 1</option><option value="h2">Heading 2</option><option value="h3">Heading 3</option>';
+  component.append(select); select.open();
+}
 if (name.startsWith('source-')) {
   editor.view = name.slice(7);
   const source = editor.shadowRoot.querySelector('[part="source"]');

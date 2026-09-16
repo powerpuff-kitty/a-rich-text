@@ -59,7 +59,7 @@ defineExpose({ editor, controller });
 <template>
   <div class="rich-text-field">
     <label :for="id" :id="`${id}-label`" class="mb-2 block font-medium">{{ label }}</label>
-    <slot name="toolbar" :editor="editor" :controller="controller" :state="state" :run="run">
+    <a-rich-text-shell><slot name="toolbar" :editor="editor" :controller="controller" :state="state" :run="run">
       <a-rich-text-toolbar :for="id" />
     </slot>
     <a-rich-text
@@ -81,5 +81,6 @@ defineExpose({ editor, controller });
       @transaction="refresh"
       @view-change="refresh"
     />
+    </a-rich-text-shell>
   </div>
 </template>

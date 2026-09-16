@@ -1,3 +1,4 @@
+import { chooseView } from './controls.js';
 import { expect, test } from '@playwright/test';
 import type { ARichTextElement } from '../../packages/web-component/src/index.js';
 
@@ -31,7 +32,7 @@ test('focus mode keeps toolbar, editing, undo and native form association', asyn
 
 test('source drafts, readonly inspection and keyboard return survive focus mode', async ({ page }) => {
   const editor = page.locator('#editor');
-  await page.getByRole('button', { name: 'HTML', exact: true }).click();
+  await chooseView(page, 'HTML');
   const source = page.getByRole('textbox', { name: 'HTML document source' });
   await source.fill('<p>Pending draft</p>');
   const enter = page.getByRole('button', { name: 'Enter focus mode', exact: true });

@@ -204,8 +204,10 @@ HTML import is allowlist-based: executable/embed nodes and unsafe URL protocols 
 The base editor stays usable without a toolbar. `@arichtext/ui` supplies an optional framework-independent toolbar:
 
 ```html
-<a-rich-text-toolbar for="editor"></a-rich-text-toolbar>
-<a-rich-text id="editor"></a-rich-text>
+<a-rich-text-shell>
+  <a-rich-text-toolbar for="editor"></a-rich-text-toolbar>
+  <a-rich-text id="editor" aria-label="Document"></a-rich-text>
+</a-rich-text-shell>
 ```
 
 Formatting/history actions use engine commands rather than `document.execCommand`.
@@ -332,3 +334,7 @@ The regression suite covers ART validation, conversion/sanitization, SSR imports
 **Free software, paid infrastructure.**
 
 Features that can reasonably execute on the user's device should stay client-side. Future managed services may include realtime relay/sync, durable storage, high-fidelity document conversion, managed AI routing, backups, enterprise audit/SSO and support.
+
+### Explore the editor
+
+The [local showcase](http://127.0.0.1:8080/) lets you switch appearance, traditional/inline toolbars, tool sets and sample documents. See [editor modes and upcoming tools](docs/editor-modes.md) for the shared shell, reusable dropdown and optional lightweight code highlighter.

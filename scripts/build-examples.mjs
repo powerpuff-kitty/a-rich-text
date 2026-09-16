@@ -17,7 +17,7 @@ await build({
       if (errors.length) throw errors[0];
       const script = compileScript(descriptor, {
         id: args.path, inlineTemplate: true,
-        templateOptions: { compilerOptions: { isCustomElement: tag => tag === 'a-rich-text' || tag === 'a-rich-text-toolbar' } },
+        templateOptions: { compilerOptions: { isCustomElement: tag => tag.startsWith('a-rich-text') } },
       });
       return { contents: script.content, loader: 'ts', resolveDir: dirname(args.path) };
     });

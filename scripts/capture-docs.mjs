@@ -48,13 +48,7 @@ try {
     // actions and bound-value output belong to the surrounding example.
     const controls = page.getByRole('group', { name: 'Custom formatting' });
     await controls.getByRole('button').first().waitFor();
-    const boxes = await Promise.all([controls.boundingBox(), page.locator(`#${id}`).boundingBox()]);
-    if (boxes.some(box => !box)) throw new Error(`Missing component bounds: ${name}`);
-    const x = Math.min(...boxes.map(box => box.x)) - 4;
-    const y = Math.min(...boxes.map(box => box.y)) - 4;
-    const right = Math.max(...boxes.map(box => box.x + box.width)) + 4;
-    const bottom = Math.max(...boxes.map(box => box.y + box.height)) + 4;
-    await page.screenshot({ path: `${output}/${name}.png`, clip: { x: Math.max(0, x), y: Math.max(0, y), width: right - Math.max(0, x), height: bottom - Math.max(0, y) }, animations: 'disabled', caret: 'hide' });
+    await page.locator('a-rich-text-shell').screenshot({ path: `${output}/${name}.png`, animations: 'disabled', caret: 'hide' });
     captures.push(name);
     console.log(`Captured ${name}`);
   }

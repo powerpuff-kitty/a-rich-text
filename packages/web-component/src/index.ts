@@ -1,3 +1,5 @@
+import { ARichTextSelectElement } from './select.js';
+export { ARichTextSelectElement, defineARichTextSelect } from './select.js';
 import { FindReplace } from './find-replace.js';
 import { FocusMode } from './focus-mode.js';
 import { ImageEditor, type ARichTextImageUploader } from './image-editor.js';
@@ -140,13 +142,14 @@ function getTemplate(): HTMLTemplateElement {
 
       :host([preset='minimal']) {
         --_art-border-color: color-mix(in srgb, CanvasText 10%, transparent);
-        --_art-padding: 0.5rem;
+        --_art-padding: 0.75rem;
         --_art-min-height: 6rem;
       }
       :host([preset='document']) {
         --_art-font-size: 1.125rem;
         --_art-line-height: 1.8;
-        --_art-padding: clamp(1rem, 4vw, 2.5rem);
+        --_art-padding: clamp(1.25rem, 5vw, 3.5rem);
+        --art-font-family: Georgia, Cambria, serif;
         --_art-min-height: 22rem;
         --_art-max-width: 52rem;
         --_art-paragraph-spacing: 1em;
@@ -157,9 +160,9 @@ function getTemplate(): HTMLTemplateElement {
         white-space: pre-wrap;
         min-height: var(--art-editor-min-height, var(--_art-min-height, 8rem));
         box-sizing: border-box;
-        padding: var(--art-editor-padding, var(--_art-padding, 0.75rem));
-        border: 1px solid var(--art-border-color);
-        border-radius: var(--art-radius);
+        padding: var(--art-editor-padding, var(--_art-padding, 1.25rem));
+        border: 0;
+        border-radius: 0;
         background: var(--art-background);
         font-size: var(--art-font-size);
         line-height: var(--art-line-height);
@@ -181,10 +184,7 @@ function getTemplate(): HTMLTemplateElement {
       }
       [data-art-list='task'] > li > :not(input):first-of-type { margin-top: 0; }
 
-      [part='editor']:focus-visible {
-        outline: 2px solid currentColor;
-        outline-offset: 2px;
-      }
+      [part='editor']:focus-visible { outline: var(--art-editor-focus-outline, 2px solid color-mix(in srgb,Highlight 35%,transparent)); outline-offset: -2px; }
 
       :host([disabled]) [part='editor'] {
         cursor: not-allowed;
@@ -193,8 +193,8 @@ function getTemplate(): HTMLTemplateElement {
 
       [part='editor'][data-empty='true']::before {
         position: absolute;
-        inset-block-start: var(--art-editor-padding, var(--_art-padding, 0.75rem));
-        inset-inline-start: var(--art-editor-padding, var(--_art-padding, 0.75rem));
+        inset-block-start: var(--art-editor-padding, var(--_art-padding, 1.25rem));
+        inset-inline-start: var(--art-editor-padding, var(--_art-padding, 1.25rem));
         content: attr(data-placeholder);
         opacity: 0.55;
         pointer-events: none;
@@ -242,19 +242,18 @@ function getTemplate(): HTMLTemplateElement {
       [part='focus-content'] [part='source'] { min-height: 45dvh; }
       [hidden] { display: none !important; }
       [part='view-switcher'] { display: flex; flex-wrap: wrap; gap: 0.25rem; margin-block: 0.4rem; }
-      [part='view-switcher'] button, [part='source-actions'] button {
+      [part='source-actions'] button {
         font: inherit; color: inherit; padding: 0.4rem 0.7rem; cursor: pointer;
         border: 1px solid var(--art-border-color); border-radius: var(--art-radius); background: var(--art-background);
       }
-      [part='view-switcher'] [aria-pressed='true'] { background: color-mix(in srgb, var(--art-color) 12%, var(--art-background)); }
       [part='source'] { display: block; width: 100%; min-height: 14rem; box-sizing: border-box; resize: vertical;
         padding: 0.75rem; font: 0.9rem/1.6 ui-monospace, monospace; color: inherit;
-        border: 1px solid var(--art-border-color); border-radius: var(--art-radius); background: var(--art-background); }
+        border: 0; border-radius: 0; background: var(--art-background); }
       [part='source-actions'] { display: flex; gap: 0.4rem; margin-block: 0.5rem; }
       [part='source-note'], [part='source-error'] { font: 0.85rem/1.5 var(--art-font-family); margin-block: 0.4rem; }
       button:focus-visible, [part='source']:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
     </style>
-    <div part="view-switcher" role="group" aria-label="Document view" hidden></div>
+    <div part="view-switcher" hidden><a-rich-text-select label="Document format" exportparts="trigger:view-trigger,menu:view-menu"></a-rich-text-select></div>
     <div part="editor" role="textbox" aria-multiline="true"></div>
     <section part="source-panel" hidden>
       <p part="source-note" id="source-note">Source edits apply only when you choose Apply changes. Applying clears undo history. JSON preserves the full document; other formats may lose unsupported formatting.</p>
@@ -298,6 +297,7 @@ export class ARichTextElement extends HTMLElementBase {
   #activeView: ARichTextView = 'visual';
   #source: HTMLTextAreaElement;
   #sourceDirty = false;
+  #viewToolbars = 0;
   #sourceError = '';
   #sourceDocument = '';
   #codeEditor: CodeBlockEditor;
@@ -313,6 +313,7 @@ export class ARichTextElement extends HTMLElementBase {
 
     const shadow = this.attachShadow({ mode: 'open' });
     shadow.append(getTemplate().content.cloneNode(true));
+    this.ownerDocument.defaultView?.customElements.upgrade(shadow);
     this.#editor = shadow.querySelector<HTMLDivElement>('[part="editor"]')!;
     this.#source = shadow.querySelector<HTMLTextAreaElement>('[part="source"]')!;
     this.#internals = typeof this.attachInternals === 'function' ? this.attachInternals() : null;
@@ -330,9 +331,8 @@ export class ARichTextElement extends HTMLElementBase {
       this.#syncFormValue();
     });
     this.#source.addEventListener('change', (event) => event.stopPropagation());
-    shadow.querySelector('[part="view-switcher"]')!.addEventListener('click', (event) => {
-      const button = (event.target as Element).closest<HTMLButtonElement>('[data-view]');
-      if (button && !button.disabled) { this.view = button.dataset.view as ARichTextView; this.focus(); }
+    shadow.querySelector('[part="view-switcher"] a-rich-text-select')!.addEventListener('change', event => {
+      event.stopPropagation(); this.view = (event.target as ARichTextSelectElement).value as ARichTextView;
     });
     shadow.querySelector('[part="source-actions"]')!.addEventListener('click', (event) => {
       const action = (event.target as Element).closest<HTMLElement>('[data-source-action]')?.dataset.sourceAction;
@@ -465,23 +465,9 @@ export class ARichTextElement extends HTMLElementBase {
 
   #syncViews(): void {
     const switcher = this.shadowRoot!.querySelector<HTMLElement>('[part="view-switcher"]')!;
-    const signature = this.views.join(' ');
-    if (switcher.dataset.views !== signature) {
-      switcher.replaceChildren(...this.views.map((view) => {
-        const button = this.ownerDocument.createElement('button');
-        button.type = 'button'; button.dataset.view = view;
-        button.setAttribute('part', 'view-button');
-        button.textContent = { visual: 'Editor', html: 'HTML', markdown: 'Markdown', json: 'JSON', text: 'Text' }[view];
-        return button;
-      }));
-      switcher.dataset.views = signature;
-    }
-    switcher.hidden = this.views.length < 2;
-    for (const button of switcher.querySelectorAll('button')) {
-      button.setAttribute('part', button.dataset.view === this.#activeView ? 'view-button active-view-button' : 'view-button');
-      button.setAttribute('aria-pressed', String(button.dataset.view === this.#activeView));
-      button.disabled = this.disabled || (this.#sourceDirty && button.dataset.view !== this.#activeView);
-    }
+    const select = switcher.querySelector<ARichTextSelectElement>('a-rich-text-select')!;
+    this.configureViewSelect(select);
+    switcher.hidden = this.views.length < 2 || this.#viewToolbars > 0;
     this.#editor.hidden = this.#activeView !== 'visual';
     this.shadowRoot!.querySelector<HTMLElement>('[part="source-panel"]')!.hidden = this.#activeView === 'visual';
     this.#source.disabled = this.disabled;
@@ -493,6 +479,29 @@ export class ARichTextElement extends HTMLElementBase {
     actions.querySelector<HTMLButtonElement>('[data-source-action="apply"]')!.disabled = this.disabled || this.readOnly;
     actions.querySelector<HTMLButtonElement>('[data-source-action="discard"]')!.disabled = this.disabled;
     this.shadowRoot!.querySelector<HTMLElement>('[part="source-error"]')!.textContent = this.#sourceError;
+    this.dispatchEvent(new CustomEvent('view-state-change'));
+  }
+
+  /** Shared view-control state for bundled and custom toolbars. */
+  configureViewSelect(select: ARichTextSelectElement): void {
+    const signature = this.views.join(' ');
+    if (select.dataset.views !== signature) {
+      select.replaceChildren(...this.views.map(view => {
+        const option = this.ownerDocument.createElement('option'); option.value = view;
+        option.textContent = { visual: 'Editor', html: 'HTML', markdown: 'Markdown', json: 'JSON', text: 'Text' }[view];
+        return option;
+      }));
+      select.dataset.views = signature;
+    }
+    select.value = this.#activeView; select.disabled = this.disabled;
+    for (const option of select.options) {
+      const disabled = this.#sourceDirty && option.value !== this.#activeView;
+      if (option.disabled !== disabled) option.disabled = disabled;
+    }
+  }
+  registerViewToolbar(): () => void {
+    this.#viewToolbars++; this.#syncViews(); let released = false;
+    return () => { if (!released) { released = true; this.#viewToolbars--; this.#syncViews(); } };
   }
 
   get extensions(): ARichTextExtensionRuntime | undefined {

@@ -1,3 +1,4 @@
+import { chooseView } from './controls.js';
 import { expect, test } from '@playwright/test';
 import type { ARichTextElement } from '../../packages/web-component/src/index.js';
 
@@ -61,16 +62,16 @@ test('source views preserve untouched data and explicitly apply HTML and Markdow
   const editor = page.locator('#editor');
   await editor.evaluate((node: ARichTextElement) => node.setHTML('<p><strong>Hello</strong></p>'));
   const original = await editor.evaluate((node: ARichTextElement) => node.getJSON());
-  await page.getByRole('button', { name: 'Markdown', exact: true }).click();
+  await chooseView(page, 'Markdown');
   await expect(page.getByRole('textbox', { name: 'MARKDOWN document source' })).toHaveValue('**Hello**');
-  await page.getByRole('button', { name: 'Text', exact: true }).click();
-  await page.getByRole('button', { name: 'Editor', exact: true }).click();
+  await chooseView(page, 'Text');
+  await chooseView(page, 'Editor');
   expect(await editor.evaluate((node: ARichTextElement) => node.getJSON())).toEqual(original);
-  await page.getByRole('button', { name: 'HTML', exact: true }).click();
+  await chooseView(page, 'HTML');
   await page.getByRole('textbox', { name: 'HTML document source' }).fill('<p><em>Safe</em><script>alert(1)</script></p>');
   await page.getByRole('button', { name: 'Apply changes', exact: true }).click();
   expect(await editor.evaluate((node: ARichTextElement) => node.getHTML())).toBe('<p><em>Safe</em></p>');
-  await page.getByRole('button', { name: 'Markdown', exact: true }).click();
+  await chooseView(page, 'Markdown');
   await page.getByRole('textbox', { name: 'MARKDOWN document source' }).fill('## Updated');
   await page.getByRole('button', { name: 'Apply changes', exact: true }).click();
   expect(await editor.evaluate((node: ARichTextElement) => node.getHTML())).toBe('<h2>Updated</h2>');
@@ -80,13 +81,15 @@ test('source views preserve untouched data and explicitly apply HTML and Markdow
 test('invalid JSON retains the draft, prevents stale form submission and can be discarded', async ({ page }) => {
   const editor = page.locator('#editor');
   await editor.evaluate((node: ARichTextElement) => node.setText('Saved'));
-  await page.getByRole('button', { name: 'JSON', exact: true }).click();
+  await chooseView(page, 'JSON');
   const source = page.getByRole('textbox', { name: 'JSON document source' });
   await source.fill('{not valid');
   expect(await editor.evaluate((node: ARichTextElement) => node.checkValidity())).toBe(false);
   await page.getByRole('button', { name: 'Apply changes', exact: true }).click();
   await expect(source).toHaveAttribute('aria-invalid', 'true');
-  await expect(page.getByRole('button', { name: 'Editor', exact: true })).toBeDisabled();
+  await page.getByRole('combobox', { name: 'Document format' }).click();
+  await expect(page.getByRole('option', { name: 'Editor', exact: true })).toBeDisabled();
+  await page.keyboard.press('Escape');
   expect(await editor.evaluate((node: ARichTextElement) => node.getText())).toBe('Saved');
   await page.getByRole('button', { name: 'Discard changes', exact: true }).click();
   expect(await editor.evaluate((node: ARichTextElement) => node.checkValidity())).toBe(true);
@@ -98,8 +101,8 @@ test('invalid JSON retains the draft, prevents stale form submission and can be 
 test('view attributes update live and readonly source remains inspectable', async ({ page }) => {
   const editor = page.locator('#editor');
   await editor.evaluate((node: ARichTextElement) => { node.views = 'json'; node.readOnly = true; });
-  await expect(page.getByRole('button', { name: 'HTML', exact: true })).toHaveCount(0);
-  await page.getByRole('button', { name: 'JSON', exact: true }).click();
+  await expect(page.locator('a-rich-text-toolbar a-rich-text-select[data-role=view] option[value=html]')).toHaveCount(0);
+  await chooseView(page, 'JSON');
   await expect(page.getByRole('textbox', { name: 'JSON document source' })).toHaveAttribute('readonly', '');
   const toolbar = page.getByRole('toolbar', { name: 'Text formatting' });
   await expect(toolbar.getByRole('button')).toHaveCount(1);

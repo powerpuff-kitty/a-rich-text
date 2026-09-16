@@ -35,3 +35,8 @@ inline code, composition, imports and paste are not automatically rewritten.
 ![Standard editor](../../docs/screenshots/standard-editor.png)
 
 [Complete component gallery](../../docs/component-gallery.md).
+
+Wrap toolbar and editor in `<a-rich-text-shell>` for one shared frame. Set
+`mode="inline"` on the toolbar for contextual formatting. Optional basic code
+highlighting is exported separately from `@arichtext/editor/highlight`; call
+`enableCodeHighlighting(editor)` and dispose its returned controller on teardown.

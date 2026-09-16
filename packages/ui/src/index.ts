@@ -1,3 +1,5 @@
+export { ARichTextShellElement } from './shell.js';
+import { ARichTextSelectElement } from '@arichtext/web-component';
 import { toolbarIcon } from './icons.js';
 import {
   createLinkMark,
@@ -60,6 +62,9 @@ function getTemplate(): HTMLTemplateElement {
         font-family: var(--art-toolbar-font);
       }
 
+      [part='toolbar-header'] { display:flex; align-items:center; gap:.75rem; padding:.4rem .6rem; font-size:.8rem; color:GrayText; }
+      [part='toolbar-header'][hidden] { display:none; }
+      [part='toolbar'][popover] { position:fixed; inset:auto; margin:0; width:max-content; max-width:calc(100vw - 16px); max-height:calc(100dvh - 16px); overflow:auto; border:1px solid #d5dbe5; border-radius:8px; box-shadow:0 6px 28px #0003; z-index:9999; }
       [part='toolbar'] {
         display: flex;
         align-items: center;
@@ -70,8 +75,8 @@ function getTemplate(): HTMLTemplateElement {
         max-width: min(100%, var(--art-toolbar-max-width, var(--_art-toolbar-max-width, 100%)));
         margin-inline: auto;
         padding: var(--art-toolbar-padding, var(--_art-toolbar-padding, 0.25rem));
-        border: 1px solid var(--art-toolbar-border, var(--_art-toolbar-border));
-        border-radius: var(--art-toolbar-radius);
+        border: 0;
+        border-radius: 0;
         background: var(--art-toolbar-background);
         overflow: visible;
       }
@@ -167,8 +172,10 @@ function getTemplate(): HTMLTemplateElement {
         font-size: 0.875em;
       }
     </style>
+    <div part="toolbar-header" hidden><span>Select text to format · Alt+F10</span></div>
     <div part="toolbar" role="toolbar" aria-label="Text formatting">
-      <select part="block-select" aria-label="Text style" data-role="block">
+      <a-rich-text-select part="format-select" label="Document format" exportparts="trigger:view-trigger,menu:view-menu" data-role="view"></a-rich-text-select>
+      <a-rich-text-select part="block-select" label="Text style" data-role="block">
         <option value="mixed" disabled hidden>Mixed styles</option>
         <option value="paragraph">Paragraph</option>
         <option value="h1">Heading 1</option>
@@ -177,7 +184,7 @@ function getTemplate(): HTMLTemplateElement {
         <option value="h4">Heading 4</option>
         <option value="h5">Heading 5</option>
         <option value="h6">Heading 6</option>
-      </select>
+      </a-rich-text-select>
       <span part="separator" aria-hidden="true"></span>
       ${MARK_ACTIONS.map(({ action, label, text }) => `
         <button
@@ -242,11 +249,15 @@ function getTemplate(): HTMLTemplateElement {
 }
 
 export class ARichTextToolbarElement extends HTMLElementBase {
-  static readonly observedAttributes = ['for'];
+  static readonly observedAttributes = ['for', 'mode'];
 
   #editor: ARichTextElement | null = null;
   #toolbar: HTMLDivElement;
-  #blockSelect: HTMLSelectElement;
+  #blockSelect: ARichTextSelectElement;
+  #viewSelect: ARichTextSelectElement;
+  #releaseViewToolbar?: () => void;
+  #inlineRequested = false;
+  #inlineDismissed = false;
   #linkEditor: HTMLFormElement;
   #linkInput: HTMLInputElement;
   #linkError: HTMLSpanElement;
@@ -261,31 +272,52 @@ export class ARichTextToolbarElement extends HTMLElementBase {
 
     const shadow = this.attachShadow({ mode: 'open' });
     shadow.append(getTemplate().content.cloneNode(true));
+    this.ownerDocument.defaultView?.customElements.upgrade(shadow);
     this.#toolbar = shadow.querySelector<HTMLDivElement>('[part="toolbar"]')!;
-    this.#blockSelect = shadow.querySelector<HTMLSelectElement>('[data-role="block"]')!;
+    this.#blockSelect = shadow.querySelector<ARichTextSelectElement>('[data-role="block"]')!;
     this.#linkEditor = shadow.querySelector<HTMLFormElement>('[data-role="link-editor"]')!;
     this.#linkInput = shadow.querySelector<HTMLInputElement>('[data-role="link-input"]')!;
     this.#linkError = shadow.querySelector<HTMLSpanElement>('[data-role="link-error"]')!;
 
     shadow.addEventListener('pointerdown', this.#handlePointerDown);
+    shadow.addEventListener('keydown', event => {
+      if ((event as KeyboardEvent).key !== 'Escape' || this.getAttribute('mode') !== 'inline' || this.#toolbar.hidden) return;
+      event.preventDefault(); event.stopPropagation();
+      this.#inlineDismissed = true; this.#inlineRequested = false; this.#syncInline(); this.#editor?.focus();
+    });
     shadow.addEventListener('click', this.#handleClick);
     for (const type of ['input', 'change']) shadow.addEventListener(type, event => event.stopPropagation());
+    this.#viewSelect = shadow.querySelector<ARichTextSelectElement>('[data-role="view"]')!;
+    this.#viewSelect.addEventListener('change', () => {
+      if (this.#editor) this.#editor.view = this.#viewSelect.value as ARichTextElement['view'];
+    });
     this.#blockSelect.addEventListener('change', this.#handleBlockChange);
     this.#linkEditor.addEventListener('submit', this.#handleLinkSubmit);
     this.#linkInput.addEventListener('keydown', this.#handleLinkInputKeyDown);
   }
 
   connectedCallback(): void {
+    this.ownerDocument.addEventListener('pointerdown', this.#outsideInline, true);
+    this.ownerDocument.addEventListener('scroll', this.#positionInline, true);
+    this.ownerDocument.defaultView?.addEventListener('resize', this.#positionInline);
+    this.ownerDocument.defaultView?.visualViewport?.addEventListener('resize', this.#positionInline);
+    this.ownerDocument.defaultView?.visualViewport?.addEventListener('scroll', this.#positionInline);
     this.#resolveEditor();
     this.#refresh();
   }
 
   disconnectedCallback(): void {
+    this.ownerDocument.removeEventListener('pointerdown', this.#outsideInline, true);
+    this.ownerDocument.removeEventListener('scroll', this.#positionInline, true);
+    this.ownerDocument.defaultView?.removeEventListener('resize', this.#positionInline);
+    this.ownerDocument.defaultView?.visualViewport?.removeEventListener('resize', this.#positionInline);
+    this.ownerDocument.defaultView?.visualViewport?.removeEventListener('scroll', this.#positionInline);
     queueMicrotask(() => { if (!this.isConnected) this.#bindEditor(null); });
   }
 
   attributeChangedCallback(name: string, oldValue: string | null, newValue: string | null): void {
     if (name === 'for' && oldValue !== newValue && this.isConnected) this.#resolveEditor();
+    if (name === 'mode' && oldValue !== newValue && this.isConnected) this.#refresh();
   }
 
   get editor(): ARichTextElement | null {
@@ -317,6 +349,7 @@ export class ARichTextToolbarElement extends HTMLElementBase {
     }
 
     this.#releaseFocusToolbar?.(); this.#releaseFocusToolbar = undefined;
+    this.#releaseViewToolbar?.(); this.#releaseViewToolbar = undefined;
     if (this.#editor) {
       for (const eventName of observedEditorEvents) {
         this.#editor.removeEventListener(eventName, this.#handleEditorStateChange);
@@ -330,6 +363,7 @@ export class ARichTextToolbarElement extends HTMLElementBase {
     this.#closeLinkEditor();
     if (editor) {
       this.#releaseFocusToolbar = editor.registerFocusToolbar(this);
+      this.#releaseViewToolbar = editor.registerViewToolbar();
       for (const eventName of observedEditorEvents) {
         editor.addEventListener(eventName, this.#handleEditorStateChange);
       }
@@ -349,13 +383,66 @@ export class ARichTextToolbarElement extends HTMLElementBase {
     this.#refresh();
   }
 
-  #handleEditorStateChange = (): void => {
+  #outsideInline = (event: Event): void => {
+    if (!event.composedPath().includes(this) && !event.composedPath().includes(this.#editor!)) {
+      this.#inlineDismissed = true; this.#inlineRequested = false; this.#syncInline();
+    }
+  };
+  #syncInline(): void {
+    if (this.getAttribute('mode') !== 'inline') {
+      if (this.#toolbar.hasAttribute('popover')) {
+        if (typeof this.#toolbar.hidePopover === 'function' && this.#toolbar.matches(':popover-open')) this.#toolbar.hidePopover();
+        this.#toolbar.removeAttribute('popover'); this.#toolbar.style.removeProperty('left'); this.#toolbar.style.removeProperty('top');
+      }
+      return;
+    }
+    this.#toolbar.setAttribute('popover', 'manual');
+    const selection = this.#editor?.getSelection();
+    const range = selection && (String(selection.anchor.blockPath) !== String(selection.head.blockPath) || selection.anchor.offset !== selection.head.offset);
+    const hasControls = Array.from(this.#toolbar.children).some(child => !(child as HTMLElement).hidden && child.getAttribute('part') !== 'separator');
+    const show = this.isConnected && hasControls && !this.#inlineDismissed && (range || this.#inlineRequested) && this.#editor?.view === 'visual' && !this.#editor.disabled && !this.#editor.readOnly;
+    this.#toolbar.hidden = !show;
+    if (show) {
+      if (typeof this.#toolbar.showPopover === 'function' && !this.#toolbar.matches(':popover-open')) this.#toolbar.showPopover();
+      this.#positionInline();
+    } else if (typeof this.#toolbar.hidePopover === 'function' && this.#toolbar.matches(':popover-open')) this.#toolbar.hidePopover();
+  }
+  #positionInline = (): void => {
+    if (this.getAttribute('mode') !== 'inline' || this.#toolbar.hidden || !this.#editor) return;
+    const root = this.#editor.shadowRoot!;
+    const selection = (root as ShadowRoot & { getSelection?: () => Selection | null }).getSelection?.() ?? this.ownerDocument.getSelection();
+    let range = selection?.rangeCount ? selection.getRangeAt(0) : null;
+    // Document-level ranges can be retargeted to the shadow host (a zero rect).
+    const composed = selection?.getComposedRanges?.({ shadowRoots: [root] })[0];
+    if (composed && root.contains(composed.startContainer) && root.contains(composed.endContainer)) {
+      range = this.ownerDocument.createRange();
+      range.setStart(composed.startContainer, composed.startOffset);
+      range.setEnd(composed.endContainer, composed.endOffset);
+    }
+    const measured = range?.getBoundingClientRect();
+    const rect = measured && measured.height > 0 ? measured : this.#editor.getBoundingClientRect();
+    const box = this.#toolbar.getBoundingClientRect();
+    const win = this.ownerDocument.defaultView!;
+    const viewport = win.visualViewport;
+    const left = viewport?.offsetLeft ?? 0, top = viewport?.offsetTop ?? 0;
+    const width = viewport?.width ?? win.innerWidth, height = viewport?.height ?? win.innerHeight;
+    this.#toolbar.style.left = `${Math.max(left + 8, Math.min(rect.left, left + width - box.width - 8))}px`;
+    this.#toolbar.style.top = `${Math.max(top + 8, Math.min(rect.top - box.height - 8 >= top + 8 ? rect.top - box.height - 8 : rect.bottom + 8, top + height - box.height - 8))}px`;
+  };
+
+  #handleEditorStateChange = (event?: Event | MutationRecord[]): void => {
+    if (event instanceof Event && event.type === 'selection-change') { this.#inlineDismissed = false; this.#inlineRequested = false; }
     this.#refresh();
   };
 
   #handleEditorKeyDown = (event: Event): void => {
     if (event.composedPath().includes(this)) return;
     const keyboard = event as KeyboardEvent;
+    if (keyboard.key === 'Escape' && this.getAttribute('mode') === 'inline' && !this.#toolbar.hidden) { keyboard.preventDefault(); this.#inlineDismissed = true; this.#inlineRequested = false; this.#syncInline(); return; }
+    if (keyboard.altKey && keyboard.key === 'F10' && this.getAttribute('mode') === 'inline') {
+      keyboard.preventDefault(); this.#inlineRequested = true; this.#inlineDismissed = false; this.#refresh();
+      this.#toolbar.querySelector<HTMLButtonElement>('button:not([hidden]):not(:disabled)')?.focus(); return;
+    }
     if (!this.#editor || this.#editor.disabled || this.#editor.readOnly || this.#editor.view !== 'visual' || !this.#editor.isToolEnabled('link')) return;
     if (!(keyboard.ctrlKey || keyboard.metaKey) || keyboard.altKey || keyboard.shiftKey) return;
     if (keyboard.key.toLowerCase() !== 'k') return;
@@ -537,7 +624,14 @@ export class ARichTextToolbarElement extends HTMLElementBase {
 
   #refresh(): void {
     const editor = this.#editor;
+    const header = this.shadowRoot!.querySelector<HTMLElement>('[part="toolbar-header"]')!;
+    const inlineMode = this.getAttribute('mode') === 'inline';
+    header.hidden = !inlineMode;
+    const viewParent = inlineMode ? header : this.#toolbar;
+    if (this.#viewSelect.parentNode !== viewParent) viewParent.prepend(this.#viewSelect);
     this.#toolbar.dataset.preset = editor?.preset ?? 'default';
+    this.#viewSelect.hidden = !editor || editor.views.length < 2;
+    if (editor) editor.configureViewSelect(this.#viewSelect);
     const locked = !editor || editor.disabled || editor.readOnly;
     const activeMarks = new Set(editor?.getActiveMarks().map((mark) => mark.type) ?? []);
     const state = editor ? editorState(editor) : null;
@@ -644,6 +738,7 @@ export class ARichTextToolbarElement extends HTMLElementBase {
     });
     this.#toolbar.hidden = !children.some((child) => !child.hidden && child.getAttribute('part') !== 'separator');
     if ((locked || !visual || !editor?.isToolEnabled('link') || !selectionAvailable) && !this.#linkEditor.hidden) this.#closeLinkEditor();
+    this.#syncInline();
   }
 }
 
@@ -654,6 +749,7 @@ const observedEditorEvents = [
   'format-state-change',
   'input',
   'view-change',
+  'view-state-change',
   'focus-mode-change',
   'find-replace-change',
 ] as const;
