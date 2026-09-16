@@ -81,7 +81,7 @@ test('source views preserve untouched data and explicitly apply HTML and Markdow
 test('invalid JSON retains the draft, prevents stale form submission and can be discarded', async ({ page }) => {
   const editor = page.locator('#editor');
   await editor.evaluate((node: ARichTextElement) => node.setText('Saved'));
-  await chooseView(page, 'JSON');
+  await chooseView(page, 'ART JSON');
   const source = page.getByRole('textbox', { name: 'JSON document source' });
   await source.fill('{not valid');
   expect(await editor.evaluate((node: ARichTextElement) => node.checkValidity())).toBe(false);
@@ -102,7 +102,7 @@ test('view attributes update live and readonly source remains inspectable', asyn
   const editor = page.locator('#editor');
   await editor.evaluate((node: ARichTextElement) => { node.views = 'json'; node.readOnly = true; });
   await expect(page.locator('a-rich-text-toolbar a-rich-text-select[data-role=view] option[value=html]')).toHaveCount(0);
-  await chooseView(page, 'JSON');
+  await chooseView(page, 'ART JSON');
   await expect(page.getByRole('textbox', { name: 'JSON document source' })).toHaveAttribute('readonly', '');
   const toolbar = page.getByRole('toolbar', { name: 'Text formatting' });
   await expect(toolbar.getByRole('button')).toHaveCount(1);

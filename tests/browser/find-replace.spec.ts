@@ -71,7 +71,7 @@ test('whole-word options, readonly inspection, source views and tool locks are r
   await expect(panel.getByRole('textbox', { name: 'Replace with', exact: true })).toBeHidden();
   await editor.evaluate(node => node.removeAttribute('readonly'));
   await expect(panel.getByRole('textbox', { name: 'Replace with', exact: true })).toBeVisible();
-  await chooseView(page, 'JSON');
+  await chooseView(page, 'ART JSON');
   await expect(panel).not.toBeVisible();
   await expect(page.getByRole('button', panelName)).toBeHidden();
   expect(await editor.evaluate(node => (node as ARichTextElement).openFindReplace())).toBe(false);

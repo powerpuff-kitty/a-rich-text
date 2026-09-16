@@ -229,10 +229,12 @@ view changes.
 
 ## Format compatibility
 
-- **ART JSON**: canonical, validated, lossless representation of supported ART.
+- **ART JSON**: canonical, validated representation of supported ART. `json` means
+  this project’s schema, not arbitrary JSON or another editor’s JSON. The dropdown
+  explicitly labels it ART JSON.
 - **HTML**: import/export for the supported block/mark model; unsafe or unsupported
   markup is removed or unwrapped.
-- **Markdown**: deterministic supported subset; underline uses `<u>`, and table
+- **Markdown**: deterministic supported subset, not full CommonMark/GFM compliance; underline uses `<u>`, and table
   spans cannot be represented faithfully.
 - **Text**: deliberately drops formatting and structure when applied.
 

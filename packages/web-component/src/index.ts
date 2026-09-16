@@ -256,7 +256,7 @@ function getTemplate(): HTMLTemplateElement {
     <div part="view-switcher" hidden><a-rich-text-select label="Document format" exportparts="trigger:view-trigger,menu:view-menu"></a-rich-text-select></div>
     <div part="editor" role="textbox" aria-multiline="true"></div>
     <section part="source-panel" hidden>
-      <p part="source-note" id="source-note">Source edits apply only when you choose Apply changes. Applying clears undo history. JSON preserves the full document; other formats may lose unsupported formatting.</p>
+      <p part="source-note" id="source-note">Source edits apply only when you choose Apply changes. Applying clears undo history. ART JSON preserves the document model and uses the A Rich Text schema. Other formats may lose unsupported formatting.</p>
       <textarea part="source" aria-label="Document source" aria-describedby="source-note source-error" spellcheck="false"></textarea>
       <div part="source-actions">
         <button part="source-apply-button" type="button" data-source-action="apply">Apply changes</button>
@@ -488,7 +488,7 @@ export class ARichTextElement extends HTMLElementBase {
     if (select.dataset.views !== signature) {
       select.replaceChildren(...this.views.map(view => {
         const option = this.ownerDocument.createElement('option'); option.value = view;
-        option.textContent = { visual: 'Editor', html: 'HTML', markdown: 'Markdown', json: 'JSON', text: 'Text' }[view];
+        option.textContent = { visual: 'Editor', html: 'HTML', markdown: 'Markdown', json: 'ART JSON', text: 'Text' }[view];
         return option;
       }));
       select.dataset.views = signature;

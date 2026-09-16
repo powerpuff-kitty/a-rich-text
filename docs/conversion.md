@@ -2,6 +2,75 @@
 
 A Rich Text uses **ART JSON** as its canonical structured document model. HTML, Markdown and plain text are portable representations of that model, not competing internal states.
 
+## Standards and interoperability
+
+The syntax of a format and the document structure stored in it are separate
+contracts. A parser accepting a file does not guarantee that all its formatting
+or metadata can be retained.
+
+| Format | External specification | This repository's contract |
+| --- | --- | --- |
+| HTML | [WHATWG HTML Living Standard](https://html.spec.whatwg.org/multipage/introduction.html) | Supported semantic HTML fragments mapped to ART; not arbitrary HTML/CSS or full-page round trips |
+| Markdown | [CommonMark](https://spec.commonmark.org/) and the [GFM dialect](https://github.github.com/gfm/) specify parsing rules | A custom supported subset, including pipe tables, tasks and strike; no claim of full CommonMark/GFM conformance |
+| ART JSON | [JSON syntax, RFC 8259](https://www.rfc-editor.org/rfc/rfc8259) | Standard JSON syntax containing the project's versioned ART document structure |
+| Plain text | Text without rich-document semantics | Text extraction/import; styles, links as marks and table structure are lost; choose UTF-8 when writing files or sending bytes |
+
+HTML is suitable for publishing supported content. Markdown is useful for text
+workflows that accept its reduced fidelity. Save ART JSON to retain the supported
+document model for re-editing. Merely inspecting a source view is lossless; applying
+edited HTML/Markdown/text reconstructs the document from that representation.
+
+### Is there a standard rich-text JSON format?
+
+JSON standardizes objects, arrays, strings, numbers, booleans and null. It does
+not assign meaning to keys such as `content`, `blocks` or `ops`. There is no single
+universal rich-text JSON interchange schema shared by these editors:
+
+- [Quill Delta](https://quilljs.com/docs/delta) represents content and changes using operations.
+- [Editor.js output](https://editorjs.io/saving-data/) uses its own block/tool data structure.
+- ART JSON uses the `ARTDocument` contract implemented by this repository.
+
+For example, this is an ART v1 document:
+
+```json
+{
+  "type": "doc",
+  "version": 1,
+  "content": [
+    { "type": "paragraph", "content": [{ "type": "text", "text": "Hello" }] }
+  ]
+}
+```
+
+`setJSON()` validates ART, not any arbitrary JSON document. The format/view API
+value remains `json`; the menu labels it **ART JSON** to make this explicit.
+Quill Delta and Editor.js JSON are not accepted directly. Dedicated adapters would
+need to map supported nodes/marks and report losses; none are bundled currently.
+HTML can be an exchange bridge when both applications support the relevant content,
+but it cannot promise preservation of editor-specific features.
+
+ART JSON stores document content. It does not bundle the editor's undo stack,
+selection, appearance or separately managed comments/collaboration state.
+`version: 1` identifies the ART format version; unknown versions are rejected.
+The migration API remains open in [issue #2](https://github.com/powerpuff-kitty/a-rich-text/issues/2).
+
+For developer defaults and custom converter selection, see the
+[format-profile proposal](proposals/format-profiles.md). That registry is not
+implemented; the existing format/view attributes retain their current behavior.
+
+### What about JSON Schema?
+
+[JSON Schema](https://json-schema.org/understanding-json-schema/about) is a
+specification for describing and validating JSON structures. It can describe ART,
+Delta or another application's structure; it does not make those structures
+interchangeable and does not define a rich-text format itself.
+
+Today ART has TypeScript types and runtime validation in
+[core](../packages/core/src/index.ts). A distributable JSON Schema document is not
+yet included. Publishing one, with parity checks against the runtime validator,
+is follow-up work under #2. Semantic checks such as rectangular table coverage
+still need code even with a JSON Schema artifact.
+
 ## Packages
 
 | Package | Import | Export | Runtime |
