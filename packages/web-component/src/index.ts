@@ -156,7 +156,6 @@ function getTemplate(): HTMLTemplateElement {
         --_art-padding: clamp(1.25rem, 5vw, 3.5rem);
         --art-font-family: Georgia, Cambria, serif;
         --_art-min-height: 22rem;
-        --_art-max-width: 52rem;
         --_art-paragraph-spacing: 1em;
       }
 
@@ -256,12 +255,12 @@ function getTemplate(): HTMLTemplateElement {
         font: inherit; color: inherit; padding: 0.4rem 0.7rem; cursor: pointer;
         border: 1px solid var(--art-border-color); border-radius: var(--art-radius); background: var(--art-background);
       }
-      [part='source'] { display: block; width: 100%; min-height: 14rem; box-sizing: border-box; resize: vertical;
-        padding: 0.75rem; font: 0.9rem/1.6 ui-monospace, monospace; color: inherit;
-        border: 0; border-radius: 0; background: var(--art-background); }
+      [part='source'] { display: block; width: 100%; min-height: var(--art-editor-min-height, var(--_art-min-height, 8rem)); box-sizing: border-box; resize: vertical;
+        padding: var(--art-editor-padding, var(--_art-padding, 1.25rem)); font: 0.9rem/1.6 ui-monospace, monospace; color: inherit;
+        border: 0; border-radius: 0; outline: none; background: var(--art-background); }
       [part='source-actions'] { display: flex; gap: 0.4rem; }
       [part='source-error'] { font: 0.85rem/1.5 var(--art-font-family); margin-block: 0.4rem; }
-      button:focus-visible, [part='source']:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
+      button:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
     </style>
     <div part="view-switcher" role="toolbar" aria-label="Document source tools" hidden><a-rich-text-select label="Document format" exportparts="trigger:view-trigger,menu:view-menu"></a-rich-text-select>      <div part="source-actions">
         <button part="source-format-button" data-source-action="format" type="button" hidden>Format source</button>
