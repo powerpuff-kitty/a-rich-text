@@ -27,6 +27,8 @@ interface ListMatch {
 
 export function fromMarkdown(markdown: string): ARTDocument {
   const lines = markdown.replaceAll('\r\n', '\n').replaceAll('\r', '\n').split('\n');
+  // split() adds a sentinel after the final line ending, not another content line.
+  if (lines.at(-1) === '') lines.pop();
   const content = parseBlocks(lines);
   return {
     type: 'doc',
@@ -63,18 +65,17 @@ function parseBlocks(lines: readonly string[]): ARTBlockNode[] {
       continue;
     }
 
-    const fence = line.match(/^\s{0,3}(`{3,}|~{3,})(.*)$/);
-    if (fence && !(fence[1]!.startsWith('`') && fence[2]!.includes('`'))) {
-      const marker = fence[1]!;
-      const info = fence[2]?.trim() || undefined;
+    const fence = matchOpeningFence(line);
+    if (fence) {
+      const { marker, indent, language } = fence;
       const code: string[] = [];
       index += 1;
       while (index < lines.length && !isClosingFence(lines[index] ?? '', marker)) {
-        code.push(lines[index] ?? '');
+        code.push(stripFenceIndent(lines[index] ?? '', indent));
         index += 1;
       }
       if (index < lines.length) index += 1;
-      blocks.push({ type: 'codeBlock', ...(info ? { language: info } : {}), text: code.join('\n') });
+      blocks.push({ type: 'codeBlock', ...(language ? { language } : {}), text: code.join('\n') });
       continue;
     }
 
@@ -149,8 +150,8 @@ function isBlockStart(lines: readonly string[], index: number): boolean {
   // Indented code cannot interrupt an existing paragraph, even when its
   // literal contents resemble another block marker.
   if (stripCodeIndent(line) !== null) return false;
-  const fence = line.match(/^\s{0,3}(`{3,}|~{3,})(.*)$/);
-  return Boolean(fence && !(fence[1]!.startsWith('`') && fence[2]!.includes('`')))
+  const fence = matchOpeningFence(line);
+  return fence !== null
     || matchHeading(line) !== null
     || isHorizontalRule(line)
     || /^\s{0,3}>/.test(line)
@@ -181,10 +182,30 @@ function matchHeading(line: string): { level: 1 | 2 | 3 | 4 | 5 | 6; text: strin
   return { level: match[1]!.length as 1 | 2 | 3 | 4 | 5 | 6, text };
 }
 
+function matchOpeningFence(line: string): { marker: string; indent: number; language: string | undefined } | null {
+  const match = line.match(/^( {0,3})(`{3,}|~{3,})(.*)$/);
+  if (!match || (match[2]!.startsWith('`') && match[3]!.includes('`'))) return null;
+  // ART stores the first info-string word as language; extra metadata has no field.
+  const language = match[3]!.replace(/^[ \t]+|[ \t]+$/g, '').split(/[ \t]+/)[0] || undefined;
+  return { marker: match[2]!, indent: match[1]!.length, language };
+}
+
+function stripFenceIndent(line: string, width: number): string {
+  let column = 0;
+  let index = 0;
+  while (column < width && index < line.length) {
+    if (line[index] === ' ') column += 1;
+    else if (line[index] === '\t') column += 4 - column % 4;
+    else break;
+    index += 1;
+  }
+  return ' '.repeat(Math.max(0, column - width)) + line.slice(index);
+}
+
 function isClosingFence(line: string, opening: string): boolean {
   const character = opening[0];
   if (!character) return false;
-  return new RegExp(`^\\s{0,3}${escapeRegExp(character)}{${opening.length},}\\s*$`).test(line);
+  return new RegExp(`^ {0,3}${escapeRegExp(character)}{${opening.length},}[ \\t]*$`).test(line);
 }
 
 function isHorizontalRule(line: string): boolean {
@@ -485,7 +506,7 @@ function serializeBlock(block: ARTBlockNode): string {
     case 'paragraph': return serializeInline(block.content ?? []);
     case 'heading': return `${'#'.repeat(block.level)} ${serializeInline(block.content ?? [])}`;
     case 'blockquote': return serializeBlocks(block.content).split('\n').map((line) => `> ${line}`).join('\n');
-    case 'codeBlock': { const fence = createFence(block.text); return `${fence}${block.language ?? ''}\n${block.text}\n${fence}`; }
+    case 'codeBlock': { const fence = createFence(block.text, block.language); return `${fence}${block.language ?? ''}\n${block.text}\n${fence}`; }
     case 'horizontalRule': return '---';
     case 'list': return serializeList(block);
     case 'image': {
@@ -543,9 +564,10 @@ function serializeTable(table: Extract<ARTBlockNode, { type: 'table' }>): string
   ].join('\n');
 }
 
-function createFence(text: string): string {
-  const longest = (text.match(/`+/g) ?? []).reduce((max, run) => Math.max(max, run.length), 0);
-  return '`'.repeat(Math.max(3, longest + 1));
+function createFence(text: string, language?: string): string {
+  const marker = language?.includes('`') ? '~' : '`';
+  const longest = (text.match(marker === '~' ? /~+/g : /`+/g) ?? []).reduce((max, run) => Math.max(max, run.length), 0);
+  return marker.repeat(Math.max(3, longest + 1));
 }
 
 function codeSpan(text: string): string {

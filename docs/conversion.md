@@ -113,6 +113,7 @@ Conversion is deterministic for the supported ART model, but external formats ar
 - ART JSON is the lossless canonical representation.
 - HTML covers the initial ART v1 block/mark model closely.
 - Markdown uses standard syntax where possible; underline is represented with inline `<u>` markup.
+- Markdown code fences retain the first info-string word as language; extra metadata is not retained.
 - Markdown tables flatten cell spans because pipe-table syntax cannot represent `rowspan`/`colspan` faithfully.
 - Unsupported HTML nodes are unwrapped or dropped rather than stored as opaque executable markup.
 
@@ -161,6 +162,7 @@ repair or schema version bump. See [ADR 0002](adr/0002-table-grid-validation.md)
 
 ## Scoped CommonMark checks
 
-The reference target is CommonMark 0.31.2, with 20 code-span examples verified
-and two documented unsupported interactions. The full dialect is not implemented.
+The reference target is CommonMark 0.31.2. Vendored examples cover code spans,
+ATX/setext headings and indented/fenced code, with explicit remaining mismatches.
+The full dialect is not implemented.
 See [compatibility scope and fixtures](markdown-compatibility.md).

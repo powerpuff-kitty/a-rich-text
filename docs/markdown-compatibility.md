@@ -69,6 +69,24 @@ uses canonical ATX (`#`/`##`) syntax, preserving the document rather than the in
 heading spelling. Source edits update the visual editor automatically.
 See [setext tests](../packages/markdown/test/setext-headings.test.ts).
 
+## Verified scope: fenced code blocks
+
+All 29 upstream fenced-code examples (119–147) are vendored unchanged and match
+under the documented ART final-code-line and HTML soft-break normalization.
+Opening indentation is removed up to its width, including partial tab columns;
+extra code indentation and internal/trailing blank lines remain. Closing fences
+must use the same marker, be at least as long, have at most three leading ASCII
+spaces and only spaces/tabs after them. Unclosed fences consume the remaining
+container content without inventing an extra line at end of input.
+
+Only the first space/tab-delimited info-string word becomes the ART code language.
+Additional info metadata (for example `startline=3`) is not retained: ART has no
+field for it. This replaces the previous behavior of treating the entire info
+string as the language. Entity/escape decoding in info strings is not yet covered.
+Export normally uses backticks, or tildes when the language contains a backtick;
+the fence is longer than any matching marker run in the content.
+See [fenced-code tests](../packages/markdown/test/fenced-code.test.ts).
+
 ### Known exclusions
 
 | Upstream example | Remaining behavior |

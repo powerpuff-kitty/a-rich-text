@@ -78,3 +78,22 @@ test('setext headings update automatically and export as canonical ATX headings'
   await page.locator('#editor').evaluate(node => { (node as ARichTextElement).view = 'markdown'; });
   await expect(source).toHaveValue('# Main *title*\n\n## Second line');
 });
+
+test('indented fenced code normalizes language metadata without changing literal content', async ({ page }) => {
+  await page.goto('/dist/browser/');
+  await page.locator('#editor').evaluate(node => {
+    const editor = node as ARichTextElement;
+    editor.setText('Original'); editor.view = 'markdown';
+  });
+  const source = page.locator('#editor [part="source"]');
+  // Deliberately unclosed, as it would be while typing. The terminal newline
+  // terminates the last content line; it must not add another empty code line.
+  await source.fill('  ~~~js startline=3\n    const x = 1;\n  <b>literal</b>\n');
+  await expect.poll(() => page.locator('#editor').evaluate(node => (node as ARichTextElement).sourceDirty)).toBe(false);
+  expect(await page.locator('#editor').evaluate(node => (node as ARichTextElement).getJSON())).toMatchObject({ content: [{ type: 'codeBlock', language: 'js', text: '  const x = 1;\n<b>literal</b>' }] });
+  await page.locator('#editor').evaluate(node => { (node as ARichTextElement).view = 'visual'; });
+  await expect(page.locator('#editor [contenteditable] pre code')).toHaveText('  const x = 1;\n<b>literal</b>');
+  await expect(page.locator('#editor [contenteditable] pre b')).toHaveCount(0);
+  await page.locator('#editor').evaluate(node => { (node as ARichTextElement).view = 'markdown'; });
+  await expect(source).toHaveValue('```js\n  const x = 1;\n<b>literal</b>\n```');
+});
