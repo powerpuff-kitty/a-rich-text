@@ -58,13 +58,15 @@ task checkbox editing honor their corresponding tool switches.
 | `indent`, `outdent` | Only inside a list; indentation needs a preceding sibling |
 | `insert-table` | Single text-block selection outside a table |
 | `add-row`, `remove-row`, `add-column`, `remove-column` | Only inside a supported rectangular table; unavailable dimensions are hidden |
+| `focus-mode` | Expand the editor into a modal writing area; available without a text selection, including source views and readonly inspection |
 | `undo`, `redo` | Only while the corresponding history step exists |
 
 Unavailable controls and empty separators are hidden. Formatting controls are
-hidden in source views and while disabled/readonly. Task-list checkboxes remain
+hidden in source views and while disabled/readonly. Focus mode remains available
+in source views and readonly mode; disabled editors cannot enter it. Task-list checkboxes remain
 visible, with checked state preserved, but become disabled when appropriate.
-An empty, unfocused editor has no selection yet; its toolbar becomes available
-when a text selection/caret exists.
+An empty, unfocused editor has no selection yet; formatting tools become available
+when a text selection/caret exists. Focus mode does not need a selection.
 
 The element also exposes `toggleBlockquote()`, `insertHorizontalRule()` and
 `clearFormatting()`, returning whether the operation was handled. These methods
@@ -106,6 +108,39 @@ otherwise retain the draft with conflict protection.
 Code and language round-trip through ART JSON and supported HTML/Markdown code
 blocks. Editor buttons are excluded from exported content and native DOM
 reconciliation. Language metadata survives reconciliation.
+
+## Focus mode
+
+The `focus-mode` tool shows an expand button in the standard toolbar. Call
+`editor.toggleFocusMode()` from a custom button, or pass `true`/`false` to request
+entry/exit. The method returns whether the request was handled. `editor.focusMode`
+reports active state; `focus-mode-change` emits `{ active }`.
+
+Focus mode uses a native modal dialog sized to the viewport. It keeps the
+form-associated host in place and moves its existing controls, preserving content,
+selection, undo history, form ownership and pending source drafts. The background
+is inert while open. Exit through the visible button or Escape. An image/code
+subdialog dismisses first; Escape in the link field cancels that draft first.
+Focus returns to the initiating control when it still exists.
+
+The standard toolbar travels into focus mode and returns to its original position.
+For a custom light-DOM toolbar, call `editor.registerFocusToolbar(toolbarElement)`
+and call the returned cleanup function when disposing the integration. Its global
+CSS classes remain usable; selectors depending on its original ancestors may no
+longer match while it is inside the editor. Alternatively, supply a direct child
+with `slot="focus-toolbar"` for controls shown only in focus mode. Custom toolbar
+inputs should stop their draft `input`/`change` events from bubbling as editor
+content events; the standard toolbar already does this.
+
+Disabling the editor (including a disabled fieldset), removing the `focus-mode`
+tool, resetting the form or disconnecting the host exits focus mode. Readonly and
+source-view changes retain it for inspection. Exiting does not apply/discard a
+source draft. Entry is rejected while an image/code dialog is already open.
+Multiple editor instances maintain independent state. This is an expanded writing
+view; it does not invoke the browser Fullscreen API or hide browser chrome.
+
+See [styling hooks](customization.md) for focus-mode parts. The host must be
+connected and the browser must support native modal dialogs.
 
 ## Source editing and recovery
 
@@ -149,7 +184,7 @@ is configurable because not every application should expose lossy editing paths.
 Image insertion, editing and optional uploads are available through the
 [image dialog](image-authoring.md). Comments, suggestions and AI have optional
 packages but no bundled toolbar UI.
-Find/replace, fullscreen/focus mode, and table merge/split are
+Find/replace and table merge/split are
 also absent. Text alignment, font/color/highlight choices would require extending
 the current schema or defining extensions; hiding/showing toolbar tools does not
 add those capabilities. These are follow-up features, not advertised controls.

@@ -1,3 +1,4 @@
+import { FocusMode } from './focus-mode.js';
 import { ImageEditor, type ARichTextImageUploader } from './image-editor.js';
 export type { ARichTextImageUploader, ARichTextImageUploadContext } from './image-editor.js';
 import { CodeBlockEditor } from './code-editor.js';
@@ -198,6 +199,16 @@ function getTemplate(): HTMLTemplateElement {
       [part='image-dialog'] .image-choice { display: flex; align-items: center; gap: 0.5rem; }
       [part='image-dialog'] input[type='checkbox'] { display: inline-block; width: auto; }
       .image-actions, .code-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+      [part='focus-dialog'] { box-sizing: border-box; width: calc(100vw - 2rem); max-width: 80rem; height: calc(100dvh - 2rem); max-height: none;
+        padding: 1rem; color: var(--art-color); background: var(--art-background); border: 1px solid var(--art-border-color); border-radius: var(--art-radius); }
+      [part='focus-dialog'][open] { display: flex; flex-direction: column; gap: 0.75rem; }
+      [part='focus-dialog']::backdrop { background: rgb(0 0 0 / 55%); }
+      [part='focus-header'] { display: flex; flex-shrink: 0; align-items: center; justify-content: space-between; gap: 1rem; }
+      [part='focus-exit-button'] { font: inherit; padding: 0.5rem; cursor: pointer; }
+      [part='focus-toolbar'] { display: block; flex-shrink: 0; max-height: 35dvh; overflow: auto; }
+      [part='focus-content'] { flex: 1; min-height: 0; overflow: auto; }
+      [part='focus-content'] [part='editor'] { min-height: max(var(--art-editor-min-height, 8rem), 50dvh); }
+      [part='focus-content'] [part='source'] { min-height: 45dvh; }
       [hidden] { display: none !important; }
       [part='view-switcher'] { display: flex; flex-wrap: wrap; gap: 0.25rem; margin-block: 0.4rem; }
       [part='view-switcher'] button, [part='source-actions'] button {
@@ -258,6 +269,7 @@ export class ARichTextElement extends HTMLElementBase {
   #sourceDocument = '';
   #codeEditor: CodeBlockEditor;
   #imageEditor: ImageEditor;
+  #focusMode: FocusMode;
 
   constructor() {
     super();
@@ -273,6 +285,7 @@ export class ARichTextElement extends HTMLElementBase {
     this.#engine = this.#createEngine(createTextDocument(''));
     this.#codeEditor = new CodeBlockEditor(this);
     this.#imageEditor = new ImageEditor(this);
+    this.#focusMode = new FocusMode(this, () => { this.#codeEditor.close(false); this.#imageEditor.close(false); });
     this.#renderFromEngine();
     this.#source.addEventListener('input', (event) => {
       event.stopPropagation();
@@ -316,6 +329,7 @@ export class ARichTextElement extends HTMLElementBase {
   }
 
   disconnectedCallback(): void {
+    this.#focusMode.close(false);
     this.#codeEditor.close(false);
     this.#imageEditor.close(false);
     this.#selectionDocument?.removeEventListener('selectionchange', this.#handleDocumentSelectionChange);
@@ -629,6 +643,14 @@ export class ARichTextElement extends HTMLElementBase {
     return true;
   }
 
+  get focusMode(): boolean { return this.#focusMode.active; }
+  toggleFocusMode(force = !this.focusMode): boolean {
+    if (force) return this.#focusMode.open();
+    this.#focusMode.close(); return true;
+  }
+  /** Register a light-DOM toolbar to travel into focus mode; call the returned cleanup on disposal. */
+  registerFocusToolbar(toolbar: HTMLElement): () => void { return this.#focusMode.registerToolbar(toolbar); }
+
   /** Optional host-owned upload callback. No upload service is installed by default. */
   get imageUploader(): ARichTextImageUploader | undefined { return this.#imageEditor.uploader; }
   set imageUploader(value: ARichTextImageUploader | undefined) { this.#imageEditor.uploader = value; }
@@ -730,6 +752,7 @@ export class ARichTextElement extends HTMLElementBase {
   }
 
   formResetCallback(): void {
+    this.#focusMode.close(false);
     this.#codeEditor.close(false);
     this.#imageEditor.close(false);
     this.#sourceDirty = false;
@@ -1054,6 +1077,7 @@ export class ARichTextElement extends HTMLElementBase {
   }
 
   #syncState(): void {
+    this.#focusMode.sync();
     this.#codeEditor.sync();
     this.#imageEditor.sync();
     const editable = !this.disabled && !this.readOnly;

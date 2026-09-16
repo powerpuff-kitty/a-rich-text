@@ -62,6 +62,7 @@ shadow tree: the editor recreates content DOM during transactions.
 
 | Editor surface | Parts |
 | --- | --- |
+| Focus mode | `focus-dialog`, `focus-header`, `focus-exit-button`, `focus-toolbar`, `focus-content` |
 | Editable area | `editor` |
 | Text blocks | `paragraph`, `heading`, `heading-1` through `heading-6`, `blockquote` |
 | Marks | `bold`, `italic`, `underline`, `strike`, `inline-code`, `link` |
@@ -192,3 +193,21 @@ These are development/example dependencies, not editor runtime dependencies.
 
 The example is client-mounted. In SSR/Nuxt, initialize the editor on the client;
 server-safe package imports do not provide server-rendered editor hydration.
+
+## Custom toolbar in focus mode
+
+Keep custom buttons in light DOM so Tailwind and application styles still apply:
+
+```ts
+const unregister = editor.registerFocusToolbar(customToolbar);
+// Custom expand button:
+expandButton.addEventListener('click', () => editor.toggleFocusMode());
+// During application/component disposal:
+// unregister();
+```
+
+The toolbar returns to its original position on exit. For controls exclusive to
+focus mode, put a child with `slot="focus-toolbar"` inside `<a-rich-text>`. The
+standard toolbar registers automatically. Vue wrappers may register their toolbar
+container on mount and unregister before unmount; do not render a second editor.
+See [focus-mode behavior](editor-configuration.md#focus-mode).
