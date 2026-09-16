@@ -5,6 +5,7 @@ declare module 'vue' {
   interface GlobalComponents {
     'a-rich-text': DefineComponent<HTMLAttributes & {
       format?: ARichTextFormat;
+      'source-update'?: 'manual' | 'auto';
       name?: string;
       required?: boolean;
       placeholder?: string;
@@ -18,6 +19,10 @@ declare module 'vue' {
       onTransaction?: () => void;
       onViewChange?: () => void;
     }>;
+    'art-editor': GlobalComponents['a-rich-text'];
+    'art-shell': GlobalComponents['a-rich-text-shell'];
+    'art-toolbar': GlobalComponents['a-rich-text-toolbar'];
+    'art-select': DefineComponent<HTMLAttributes & { value?: string; label?: string; disabled?: boolean }>;
     'a-rich-text-shell': DefineComponent<HTMLAttributes>;
     'a-rich-text-toolbar': DefineComponent<HTMLAttributes & { for?: string }>;
   }

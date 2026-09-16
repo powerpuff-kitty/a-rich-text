@@ -140,7 +140,15 @@ export class ARichTextSelectElement extends Base {
     }
   };
 }
-export function defineARichTextSelect(): void {
-  if (typeof customElements !== 'undefined' && !customElements.get('a-rich-text-select')) customElements.define('a-rich-text-select', ARichTextSelectElement);
+export function defineARichTextSelect(tagName = 'a-rich-text-select'): void {
+  if (typeof customElements !== 'undefined' && !customElements.get(tagName)) customElements.define(tagName, tagName === 'a-rich-text-select' ? ARichTextSelectElement : class extends ARichTextSelectElement {});
 }
 defineARichTextSelect();
+defineARichTextSelect('art-select');
+
+declare global {
+  interface HTMLElementTagNameMap {
+    'a-rich-text-select': ARichTextSelectElement;
+    'art-select': ARichTextSelectElement;
+  }
+}

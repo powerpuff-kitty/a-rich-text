@@ -1,4 +1,4 @@
-export { ARichTextShellElement } from './shell.js';
+export { ARichTextShellElement, defineARichTextShell } from './shell.js';
 import { ARichTextSelectElement } from '@arichtext/web-component';
 import { toolbarIcon } from './icons.js';
 import {
@@ -308,6 +308,8 @@ export class ARichTextToolbarElement extends HTMLElementBase {
     this.ownerDocument.defaultView?.visualViewport?.addEventListener('resize', this.#positionInline);
     this.ownerDocument.defaultView?.visualViewport?.addEventListener('scroll', this.#positionInline);
     this.#resolveEditor();
+    // A toolbar can connect before its editor sibling is upgraded/connected.
+    queueMicrotask(() => { if (this.isConnected) this.#resolveEditor(); });
     this.#refresh();
   }
 
@@ -840,7 +842,15 @@ function isARichTextElement(value: Element | null): value is ARichTextElement {
 
 export function defineARichTextToolbar(tagName = 'a-rich-text-toolbar'): void {
   if (typeof customElements === 'undefined') return;
-  if (!customElements.get(tagName)) customElements.define(tagName, ARichTextToolbarElement);
+  if (!customElements.get(tagName)) customElements.define(tagName, tagName === 'a-rich-text-toolbar' ? ARichTextToolbarElement : class extends ARichTextToolbarElement {});
 }
 
 defineARichTextToolbar();
+defineARichTextToolbar('art-toolbar');
+
+declare global {
+  interface HTMLElementTagNameMap {
+    'a-rich-text-toolbar': ARichTextToolbarElement;
+    'art-toolbar': ARichTextToolbarElement;
+  }
+}

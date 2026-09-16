@@ -1,5 +1,6 @@
 export const componentExamples = [
   ['standard-editor', 'Standard editor'],
+  ['short-tags', 'Short tag aliases'],
   ['inline-editor', 'Inline toolbar'],
   ['code-highlighting', 'Optional code highlighting'],
   ['dropdown', 'Viewport-aware dropdown'],

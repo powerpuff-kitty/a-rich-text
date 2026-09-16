@@ -33,3 +33,7 @@ pause, preserving invalid drafts. Manual Apply remains the default. Optional
 mutating content or treating foreign JSON as importable.
 See [source editing](https://github.com/powerpuff-kitty/a-rich-text/blob/main/docs/editor-configuration.md#automatic-source-updates-and-formatting)
 and the [format catalogue](https://github.com/powerpuff-kitty/a-rich-text/blob/main/docs/editor-formats.md).
+
+Short tags are registered alongside the existing names: `art-editor` and
+`art-select` in the base package; `art-toolbar` and `art-shell` in the UI package.
+The standard editor imports both. [Alias examples](https://github.com/powerpuff-kitty/a-rich-text/blob/main/docs/getting-started.md#short-tag-aliases).

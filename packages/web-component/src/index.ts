@@ -1361,7 +1361,15 @@ function keyboardChord(event: KeyboardEvent): string {
 
 export function defineARichText(tagName = 'a-rich-text'): void {
   if (typeof customElements === 'undefined') return;
-  if (!customElements.get(tagName)) customElements.define(tagName, ARichTextElement);
+  if (!customElements.get(tagName)) customElements.define(tagName, tagName === 'a-rich-text' ? ARichTextElement : class extends ARichTextElement {});
 }
 
 defineARichText();
+defineARichText('art-editor');
+
+declare global {
+  interface HTMLElementTagNameMap {
+    'a-rich-text': ARichTextElement;
+    'art-editor': ARichTextElement;
+  }
+}

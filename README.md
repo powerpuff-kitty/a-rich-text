@@ -60,6 +60,7 @@ Core architecture docs:
 - [`docs/dom-adapter.md`](docs/dom-adapter.md)
 - [`docs/web-component-runtime.md`](docs/web-component-runtime.md)
 - [`docs/extensions.md`](docs/extensions.md)
+- [Short `art-*` tag aliases](docs/getting-started.md#short-tag-aliases)
 - [`docs/conversion.md`](docs/conversion.md)
 - [Editor formats, profiles and detection](docs/editor-formats.md)
 - [`docs/forms.md`](docs/forms.md)
