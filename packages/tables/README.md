@@ -12,3 +12,11 @@ Exported API declarations are included in `dist/`. Version 0.0.0 is a developmen
 selection and leaves an empty paragraph in its place. One Undo restores all
 content, including imported merged cells. Selections outside tables or spanning
 multiple text blocks return `null`. Hosts enforce readonly/disabled state.
+
+`mergeTableCellRight(state)` appends the right cell's blocks to the active cell
+and combines their column spans. `splitTableCell(state)` retains content in the
+left cell and adds empty unit cells. Both preserve review-anchor mappings and
+are undoable. `getTableCellActions(state)` reports contextual availability.
+These commands and Tab navigation support horizontal spans; vertical spans and
+row/column changes to merged grids remain unsupported. HTML/JSON preserve spans;
+Markdown/plain text do not.

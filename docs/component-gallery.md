@@ -42,6 +42,15 @@ leaves a paragraph ready for typing and can be undone.
 
 ![Table controls with row, column and whole-table removal actions](screenshots/table-controls.png)
 
+## Horizontal merged cells
+
+[Open this example locally](http://localhost:8080/components/merged-cells.html).
+
+Merge with the cell on the right or split a horizontal span. Content remains in
+the left cell when splitting; Undo restores the previous arrangement.
+
+![Table with horizontal spans and contextual merge/split controls](screenshots/merged-cells.png)
+
 ## Link editor
 
 [Open this example locally](http://localhost:8080/components/link-editor.html).

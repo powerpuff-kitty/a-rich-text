@@ -60,6 +60,8 @@ task checkbox editing honor their corresponding tool switches.
 | `clear-formatting` | Remove all inline marks from selected text, or clear marks for subsequent typing at a caret; retain headings/lists |
 | `indent`, `outdent` | Only inside a list; indentation needs a preceding sibling |
 | `insert-table` | Single text-block selection outside a table |
+| `merge-cell-right` | Merge the active cell with its right neighbor in tables with horizontal spans only; retain all content |
+| `split-cell` | Expand the active horizontal span into unit cells; keep content in the left cell |
 | `remove-table` | Remove the containing table at a single text-block selection, including imported merged tables; leaves an editable paragraph and supports Undo |
 | `add-row`, `remove-row`, `add-column`, `remove-column` | Only inside a supported rectangular table; unavailable dimensions are hidden |
 | `find-replace` | Search and navigate visual body text without a selection; replacement is hidden in readonly mode |
@@ -257,3 +259,24 @@ including nested list, quote and table text. A selection ending at offset zero
 of a following block excludes that block. Text, inline marks, containers and
 selection direction are retained; atomic code/image blocks are unchanged.
 `getSelectedBlockStyle()` returns the common style, `"mixed"`, or `null`.
+
+## Horizontal merged cells
+
+Select text within one table cell and use **Merge with right cell**. The command
+adds the column spans and appends the right cell's content blocks to the left;
+it preserves inline formatting and maps review anchors to the moved content.
+**Split cell** expands a horizontal span into individual cells, retaining all
+content in the left cell and adding empty cells to the right. It does not guess
+how to redistribute content; Undo restores the exact previous arrangement.
+Both commands are a single history step. Tab/Shift+Tab navigate physical cells
+in row order, including horizontal spans.
+
+`merge-cell-right` and `split-cell` tool tokens control their contextual buttons.
+The standard controller exposes `mergeCellRight()` and `splitCell()`; custom
+adapters can call `mergeTableCellRight(state)`, `splitTableCell(state)` and
+`getTableCellActions(state)` from `@arichtext/tables`.
+
+Vertical spans, grids larger than 50×50 and selections across text blocks expose
+neither action. Row/column insertion/removal remains limited to unmerged grids.
+HTML and ART JSON preserve horizontal spans; Markdown/plain text do not preserve
+merged-cell structure. Use HTML or JSON when this structure matters.

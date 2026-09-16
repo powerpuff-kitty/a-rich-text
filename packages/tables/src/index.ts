@@ -62,11 +62,12 @@ export function getActiveTable(state: EditorState): ActiveTable | null {
 export function moveTableCell(state: EditorState, direction: 'next' | 'previous' = 'next'): EditorTransaction | null {
   const active = tableLocation(state);
   if (!active) return null;
-  const columns = simpleColumnCount(active.node);
-  const index = active.rowIndex * columns + active.columnIndex + (direction === 'next' ? 1 : -1);
-  if (index < 0 || index >= active.node.content.length * columns) return null;
-  const row = Math.floor(index / columns);
-  const column = index % columns;
+  horizontalColumnCount(active.node);
+  const cells = active.node.content.flatMap((row, rowIndex) => row.content.map((_, columnIndex) => ({ row: rowIndex, column: columnIndex })));
+  const current = cells.findIndex(cell => cell.row === active.rowIndex && cell.column === active.columnIndex);
+  const targetCell = cells[current + (direction === 'next' ? 1 : -1)];
+  if (!targetCell) return null;
+  const { row, column } = targetCell;
   const mappings: ARTPathMapping[] = [];
   const path = [...active.path, row, column];
   collectPreservedMappings(active.node.content[row]!.content[column], path, path, mappings);
@@ -218,6 +219,75 @@ export function removeCurrentTable(state: EditorState): EditorTransaction | null
     .setSelection(collapsedSelection(active.path))
     .setMeta('command', 'removeTable')
     .build();
+}
+
+export interface TableCellActions { canMergeRight: boolean; canSplit: boolean }
+
+/** Context for horizontal authoring. Unsupported grids expose no actions. */
+export function getTableCellActions(state: EditorState): TableCellActions {
+  const active = tableLocation(state);
+  if (!active) return { canMergeRight: false, canSplit: false };
+  try { horizontalColumnCount(active.node); }
+  catch { return { canMergeRight: false, canSplit: false }; }
+  const cells = active.node.content[active.rowIndex]!.content;
+  return { canMergeRight: active.columnIndex + 1 < cells.length, canSplit: (cells[active.columnIndex]!.colspan ?? 1) > 1 };
+}
+
+/** Join the active cell and its right neighbor, retaining every content block. */
+export function mergeTableCellRight(state: EditorState): EditorTransaction | null {
+  if (!getTableCellActions(state).canMergeRight) return null;
+  const active = tableLocation(state)!;
+  const next = cloneValue(active.node);
+  const cells = next.content[active.rowIndex]!.content;
+  const left = cells[active.columnIndex]!;
+  const right = cells[active.columnIndex + 1]!;
+  const leftLength = left.content.length;
+  left.colspan = (left.colspan ?? 1) + (right.colspan ?? 1);
+  left.content.push(...right.content);
+  cells.splice(active.columnIndex + 1, 1);
+  const mappings: ARTPathMapping[] = [];
+  active.node.content.forEach((row, r) => row.content.forEach((cell, c) => {
+    const target = r === active.rowIndex && c > active.columnIndex ? c - 1 : c;
+    const shift = r === active.rowIndex && c === active.columnIndex + 1 ? leftLength : 0;
+    cell.content.forEach((node, child) => collectPreservedMappings(node,
+      [...active.path, r, c, child], [...active.path, r, target, child + shift], mappings));
+  }));
+  return transaction().replaceBlock(active.path, [next], mappings)
+    .setSelection(state.selection).setMeta('command', 'mergeTableCellRight').build();
+}
+
+/** Expand a colspan into unit cells, retaining all content in the first cell. */
+export function splitTableCell(state: EditorState): EditorTransaction | null {
+  if (!getTableCellActions(state).canSplit) return null;
+  const active = tableLocation(state)!;
+  const next = cloneValue(active.node);
+  const cells = next.content[active.rowIndex]!.content;
+  const current = cells[active.columnIndex]!;
+  const width = current.colspan!;
+  delete current.colspan;
+  cells.splice(active.columnIndex + 1, 0, ...Array.from({ length: width - 1 }, createEmptyCell));
+  const mappings = mapPreservedCells(active.node, active.path, (row, column) => ({
+    row, column: row === active.rowIndex && column > active.columnIndex ? column + width - 1 : column,
+  }));
+  return transaction().replaceBlock(active.path, [next], mappings)
+    .setSelection(state.selection).setMeta('command', 'splitTableCell').build();
+}
+
+function horizontalColumnCount(table: ARTTableNode): number {
+  if (!table.content.length || table.content.length > MAX_TABLE_ROWS) throw new TableCommandError('invalid-dimensions', 'Unsupported table dimensions');
+  let width: number | undefined;
+  for (const row of table.content) {
+    let columns = 0;
+    for (const cell of row.content) {
+      if ((cell.rowspan ?? 1) !== 1) throw new TableCommandError('merged-cells', 'Vertical merged-cell editing is not supported');
+      const span = cell.colspan ?? 1;
+      if (!Number.isInteger(span) || span < 1) throw new TableCommandError('invalid-dimensions', 'Invalid column span');
+      columns += span;
+    }
+    if (!columns || columns > MAX_TABLE_COLUMNS || (width !== undefined && width !== columns)) throw new TableCommandError('invalid-dimensions', 'Unsupported table dimensions');
+    width = columns;
+  }
+  return width!;
 }
 
 function createEmptyTable(rows: number, columns: number): ARTTableNode {

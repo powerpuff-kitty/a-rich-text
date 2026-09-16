@@ -16,6 +16,7 @@ Open [the example index](http://localhost:8080/components/).
 | Base Web Component without toolbar | `/components/base-editor.html` |
 | Formatting toolbar, with an editor to operate on | `/components/toolbar.html` |
 | Table and contextual controls | `/components/table-controls.html` |
+| Horizontal merged cells | `/components/merged-cells.html` |
 | Link editor | `/components/link-editor.html` |
 | HTML source | `/components/source-html.html` |
 | Markdown source | `/components/source-markdown.html` |

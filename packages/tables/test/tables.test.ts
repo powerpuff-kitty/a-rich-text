@@ -13,6 +13,9 @@ import {
   addTableColumn,
   addTableRow,
   getActiveTable,
+  getTableCellActions,
+  mergeTableCellRight,
+  splitTableCell,
   insertTable,
   removeCurrentTable,
   removeCurrentTableColumn,
@@ -230,5 +233,62 @@ describe('removeCurrentTable', () => {
     expect(removeCurrentTable(createEditorState(doc))).toBeNull();
     expect(removeCurrentTable(createEditorState(doc, textSelection(textPoint([0], 0))))).toBeNull();
     expect(removeCurrentTable(createEditorState(doc, textSelection(textPoint([1, 0, 0, 0], 0), textPoint([1, 0, 1, 0], 1))))).toBeNull();
+  });
+});
+
+
+describe('horizontal cell authoring', () => {
+  it('merges all content, maps right-cell review anchors, and undoes exactly', () => {
+    const doc = document(table([['a', 'b', 'c'], ['d', 'e', 'f']]));
+    const engine = new EditorEngine(createEditorState(doc, textSelection(textPoint([0, 0, 0, 0], 1))));
+    const anchor = createAnchoredRange(doc, textSelection(textPoint([0, 0, 1, 0], 0), textPoint([0, 0, 1, 0], 1)));
+    const command = mergeTableCellRight(engine.state)!;
+    const mapped = mapAnchoredRangeThroughTransaction(doc, anchor, command);
+    expect(mapped.status).toBe('mapped');
+    if (mapped.status !== 'orphaned') expect(mapped.range.start.blockPath).toEqual([0, 0, 0, 1]);
+    engine.dispatch(command);
+    const merged = engine.state.document.content[0] as ARTTableNode;
+    expect(merged.content[0]!.content[0]).toEqual({ type: 'tableCell', colspan: 2, content: [paragraph('a'), paragraph('b')] });
+    expect(merged.content[0]!.content[1]).toEqual(cell('c'));
+    expect(merged.content[1]).toEqual((doc.content[0] as ARTTableNode).content[1]);
+    expect(getTableCellActions(engine.state)).toEqual({ canMergeRight: true, canSplit: true });
+    engine.undo(); expect(engine.state.document).toEqual(doc);
+    engine.redo();
+    engine.dispatch(mergeTableCellRight(engine.state)!);
+    expect((engine.state.document.content[0] as ARTTableNode).content[0]!.content[0]!.colspan).toBe(3);
+    expect(getTableCellActions(engine.state).canMergeRight).toBe(false);
+  });
+
+  it('splits a span while retaining all content on the left and mapping following cells', () => {
+    const merged = table([['left', 'next'], ['a', 'b', 'c']]);
+    merged.content[0]!.content[0]!.colspan = 2;
+    merged.content[0]!.content[0]!.content.push(paragraph('more'));
+    const doc = document({ type: 'blockquote', content: [merged] });
+    const engine = new EditorEngine(createEditorState(doc, textSelection(textPoint([0, 0, 0, 0, 1], 2))));
+    const anchor = createAnchoredRange(doc, textSelection(textPoint([0, 0, 0, 1, 0], 0), textPoint([0, 0, 0, 1, 0], 1)));
+    const command = splitTableCell(engine.state)!;
+    const mapped = mapAnchoredRangeThroughTransaction(doc, anchor, command);
+    if (mapped.status !== 'orphaned') expect(mapped.range.start.blockPath).toEqual([0, 0, 0, 2, 0]);
+    expect(mapped.status).toBe('mapped');
+    engine.dispatch(command);
+    expect(engine.state.selection?.anchor).toEqual(textPoint([0, 0, 0, 0, 1], 2));
+    const expected = structuredClone(merged);
+    delete expected.content[0]!.content[0]!.colspan;
+    expected.content[0]!.content.splice(1, 0, cell(''));
+    expect(engine.state.document).toEqual(document({ type: 'blockquote', content: [expected] }));
+    expect(getTableCellActions(engine.state).canSplit).toBe(false);
+    engine.undo(); expect(engine.state.document).toEqual(doc);
+  });
+
+  it('rejects vertical spans, oversized grids, non-table and multi-block selections', () => {
+    const grid = table([['a', 'b']]);
+    grid.content[0]!.content[0]!.rowspan = 2;
+    const state = createEditorState(document(grid), textSelection(textPoint([0, 0, 0, 0], 0)));
+    expect(mergeTableCellRight(state)).toBeNull(); expect(splitTableCell(state)).toBeNull();
+    delete grid.content[0]!.content[0]!.rowspan;
+    grid.content[0]!.content[0]!.colspan = 50;
+    expect(mergeTableCellRight(createEditorState(document(grid), state.selection))).toBeNull();
+    expect(getTableCellActions(createEditorState(document(paragraph('text')), textSelection(textPoint([0], 0))))).toEqual({ canMergeRight: false, canSplit: false });
+    expect(mergeTableCellRight(createEditorState(document(table([['a', 'b']])), textSelection(textPoint([0, 0, 0, 0], 0), textPoint([0, 0, 1, 0], 1))))).toBeNull();
   });
 });

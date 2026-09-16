@@ -7,6 +7,9 @@ import {
   addTableColumn,
   addTableRow,
   getActiveTable,
+  getTableCellActions,
+  mergeTableCellRight,
+  splitTableCell,
   insertTable,
   removeCurrentTable,
   removeCurrentTableColumn,
@@ -190,6 +193,8 @@ function getTemplate(): HTMLTemplateElement {
       <button part="button indent-button" type="button" data-action="indent" aria-label="Indent list item" title="Indent list item (Tab)">${toolbarIcon('indent')}</button>
       <button part="button outdent-button" type="button" data-action="outdent" aria-label="Outdent list item" title="Outdent list item (Shift+Tab)">${toolbarIcon('outdent')}</button>
       <button part="button insert-table-button" type="button" data-action="insert-table" aria-label="Insert table" title="Insert 2 × 2 table">${toolbarIcon('insert-table')}</button>
+      <button part="button merge-cell-right-button" type="button" data-action="merge-cell-right" aria-label="Merge with right cell" title="Merge with right cell">${toolbarIcon('merge-cell-right')}</button>
+      <button part="button split-cell-button" type="button" data-action="split-cell" aria-label="Split cell" title="Split cell">${toolbarIcon('split-cell')}</button>
       <button part="button remove-table-button" type="button" data-action="remove-table" aria-label="Remove table" title="Remove entire table">${toolbarIcon('remove-table')}</button>
       <button part="button add-row-button" type="button" data-action="add-row" aria-label="Add table row" title="Add row">${toolbarIcon('add-row')}</button>
       <button part="button remove-row-button" type="button" data-action="remove-row" aria-label="Remove table row" title="Remove row">${toolbarIcon('remove-row')}</button>
@@ -419,6 +424,10 @@ export class ARichTextToolbarElement extends HTMLElementBase {
       this.#dispatchCommand(addTableColumn(editorState(this.#editor)));
       return;
     }
+    if (action === 'merge-cell-right' || action === 'split-cell') {
+      this.#dispatchCommand((action === 'merge-cell-right' ? mergeTableCellRight : splitTableCell)(editorState(this.#editor)));
+      return;
+    }
     if (action === 'remove-table') {
       this.#dispatchCommand(removeCurrentTable(editorState(this.#editor)));
       return;
@@ -521,6 +530,7 @@ export class ARichTextToolbarElement extends HTMLElementBase {
     const activeLink = editor ? safeActiveLink(editor) : null;
     const activeList = state ? safeActiveList(state) : null;
     const activeTable = state ? safeActiveTable(state) : null;
+    const cellActions = state ? getTableCellActions(state) : null;
     const selection = state?.selection;
     const singleBlock = Boolean(selection && String(selection.anchor.blockPath) === String(selection.head.blockPath));
     const visual = editor?.view === 'visual';
@@ -548,6 +558,9 @@ export class ARichTextToolbarElement extends HTMLElementBase {
         button.disabled = locked;
       } else if (action === 'indent' || action === 'outdent') {
         available = singleBlock && activeList !== null && (action === 'outdent' || activeList.itemIndex > 0);
+        button.disabled = locked || !available;
+      } else if (action === 'merge-cell-right' || action === 'split-cell') {
+        available = Boolean(action === 'merge-cell-right' ? cellActions?.canMergeRight : cellActions?.canSplit);
         button.disabled = locked || !available;
       } else if (action === 'remove-table') {
         available = singleBlock && insideTable;

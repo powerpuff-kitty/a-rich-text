@@ -14,7 +14,7 @@ editor.setHTML('<p>Hello</p>');
 Add `<a-rich-text-toolbar for="body"></a-rich-text-toolbar>` and
 `<a-rich-text id="body" name="body" aria-label="Body"></a-rich-text>` to your form.
 The controller exposes `setLink`, `removeLink`, `toggleList`, `setTaskChecked`,
-`insertTable` and `removeTable` convenience commands. Initialization requires a browser DOM.
+`insertTable`, `removeTable`, `mergeCellRight` and `splitCell` convenience commands. Initialization requires a browser DOM.
 
 ES modules with TypeScript declarations. MIT licensed. No mandatory hosted service.
 

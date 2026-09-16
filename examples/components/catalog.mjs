@@ -3,6 +3,7 @@ export const componentExamples = [
   ['base-editor', 'Base Web Component'],
   ['toolbar', 'Formatting toolbar'],
   ['table-controls', 'Table controls'],
+  ['merged-cells', 'Horizontal merged cells'],
   ['link-editor', 'Link editor'],
   ['source-html', 'HTML source'],
   ['source-markdown', 'Markdown source'],
