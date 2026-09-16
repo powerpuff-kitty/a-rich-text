@@ -17,7 +17,7 @@ there is no public npm release yet.
   the existing optional media adapters.
 - [Component #3](https://github.com/powerpuff-kitty/a-rich-text/issues/3) and
   [extensions #6](https://github.com/powerpuff-kitty/a-rich-text/issues/6): named
-  presets, custom inline atomic nodes and public API stability guarantees.
+  component preset attributes, custom inline atomic nodes and public API stability guarantees.
 - [Schema #2](https://github.com/powerpuff-kitty/a-rich-text/issues/2) and
   [foundation #1](https://github.com/powerpuff-kitty/a-rich-text/issues/1): schema
   migration API, versioning/persistence decisions and stability policy.
