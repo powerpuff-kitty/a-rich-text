@@ -32,7 +32,9 @@ try {
   // Supply the optional formatter from the locked local installation: this smoke
   // check must not depend on npm's separate registry cache or network access.
   const prettierPack = JSON.parse(execFileSync('npm', ['pack', path.join(root, 'packages/editor/node_modules/prettier'), '--offline', '--ignore-scripts', '--json', '--pack-destination', consumer], { cwd: consumer, encoding: 'utf8' }));
-  const formatterTarball = path.join(consumer, prettierPack[0].filename);
+  const formatterPackage = Object.values(prettierPack)[0];
+  assert(formatterPackage?.filename, 'npm pack did not produce the local formatter tarball');
+  const formatterTarball = path.join(consumer, formatterPackage.filename);
   execFileSync('npm', ['install', '--offline', '--ignore-scripts', '--no-audit', '--no-fund', formatterTarball, ...tarballs], { cwd: consumer, stdio: 'pipe' });
   const imports = manifests.flatMap(manifest => Object.keys(manifest.exports).map(subpath =>
     `await import('${manifest.name}${subpath === '.' ? '' : subpath.slice(1)}');`)).join('\n');
