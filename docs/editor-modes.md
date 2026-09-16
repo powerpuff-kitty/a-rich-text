@@ -89,6 +89,9 @@ Reviewed 2026-09-16 against the official documentation:
   move/duplicate/delete menus and drag reordering are **not implemented**. ART JSON
   is our schema; it is not interchangeable with Editor.js output JSON.
 
+Optional comments, suggestions and AI packages already exist, but do not have
+bundled toolbar controls; their remaining work stays under issues #9 and #10.
+
 Existing issues #4 (authoring) and #6 (extensions) were broad umbrellas; neither
 specified a complete Notion-style interaction mode. Dedicated follow-up tickets
 track block UX and additional formatting, linked below. These are planned work,
