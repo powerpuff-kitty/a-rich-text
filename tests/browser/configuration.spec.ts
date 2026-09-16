@@ -101,7 +101,9 @@ test('view attributes update live and readonly source remains inspectable', asyn
   await expect(page.getByRole('button', { name: 'HTML', exact: true })).toHaveCount(0);
   await page.getByRole('button', { name: 'JSON', exact: true }).click();
   await expect(page.getByRole('textbox', { name: 'JSON document source' })).toHaveAttribute('readonly', '');
-  await expect(page.getByRole('toolbar', { name: 'Text formatting' })).toBeHidden();
+  const toolbar = page.getByRole('toolbar', { name: 'Text formatting' });
+  await expect(toolbar.getByRole('button')).toHaveCount(1);
+  await expect(toolbar.getByRole('button', { name: 'Enter focus mode', exact: true })).toBeVisible();
   await editor.evaluate((node: ARichTextElement) => { node.views = ''; });
   await expect(editor.locator('[part="editor"]')).toBeVisible();
   await expect(editor.locator('[part="view-switcher"]')).toBeHidden();
