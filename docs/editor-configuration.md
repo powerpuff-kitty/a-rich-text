@@ -46,7 +46,7 @@ task checkbox editing honor their corresponding tool switches.
 
 | Tools | Visibility / behavior |
 | --- | --- |
-| `paragraph`, `heading` | Text-style selector at a single paragraph/heading selection; heading levels 1–3 |
+| `paragraph`, `heading` | Text-style selector at a single paragraph/heading selection; heading levels 1–6 |
 | `bold`, `italic`, `underline`, `strike`, `code` | Apply marks to selected text or subsequent caret typing |
 | `link` | Link entry/removal and Ctrl/Command+K |
 | `bullet-list`, `ordered-list`, `task-list` | Toggle or convert the current list at a single-block selection |
