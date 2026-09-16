@@ -44,8 +44,8 @@ separate Vue editing engine is unnecessary; the wrapper is optional.
 
 ## Production release gates
 
-The [latest full local run](verification/2026-09-16-editor-showcase.md) passed 406 unit
-tests, all 330 browser cases without retries/skips, and 26 package installation
+The [latest full local run](verification/2026-09-16-live-source.md) passed 428 unit
+tests, all 365 browser cases without retries/skips, and 26 package installation
 checks. This closes the accumulated automated-regression check at its recorded
 revision; the manual and release prerequisites below remain.
 
