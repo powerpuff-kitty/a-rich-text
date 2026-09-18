@@ -1,3 +1,4 @@
+import { mapMovedBlockPath } from './block-mapping.js';
 import { inlineNodeText } from '@arichtext/core';
 import { isARTDocument } from '@arichtext/core';
 import type {
@@ -157,6 +158,19 @@ export function applyTransaction(state: EditorState, transactionValue: EditorTra
 
   for (const operation of transactionValue.operations) {
     switch (operation.type) {
+      case 'moveBlock': {
+        const { from, to } = operation;
+        if (![from, to].every(index => Number.isInteger(index) && index >= 0 && index < document.content.length)) {
+          throw new RangeError('Block move indices must target existing top-level blocks');
+        }
+        const [block] = document.content.splice(from, 1);
+        document.content.splice(to, 0, block!);
+        if (selection) selection = {
+          anchor: { ...selection.anchor, blockPath: mapMovedBlockPath(selection.anchor.blockPath, from, to) },
+          head: { ...selection.head, blockPath: mapMovedBlockPath(selection.head.blockPath, from, to) },
+        };
+        break;
+      }
       case 'replaceText': {
         const result = applyReplaceText(document, operation);
         document = result.document;
