@@ -35,6 +35,12 @@ export interface EditorState {
 
 export type EditorOperation =
   | {
+      /** Reorder one top-level block to another existing top-level index. */
+      type: 'moveBlock';
+      from: number;
+      to: number;
+    }
+  | {
       type: 'replaceText';
       from: ARTTextPoint;
       to: ARTTextPoint;
