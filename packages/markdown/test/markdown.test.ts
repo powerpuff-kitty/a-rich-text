@@ -23,6 +23,11 @@ describe('@arichtext/markdown', () => {
     expect(document.content[0]).toMatchObject({ type: 'blockquote' });
     expect((document.content[0] as any).content[0].content[0].marks[0]).toMatchObject({ type: 'link', href: 'https://example.com/docs' });
   });
+  it('collects reference definitions inside list containers', () => {
+    const document = fromMarkdown('- [guide]\n\n- [guide]: https://example.com/docs');
+    expect(document.content[0]).toMatchObject({ type: 'list' });
+    expect((document.content[0] as any).content[0].content[0].content[0].marks[0]).toMatchObject({ type: 'link', href: 'https://example.com/docs' });
+  });
   it('parses and serializes common document structures', () => {
     const source = [
       '## Hello **world**',
