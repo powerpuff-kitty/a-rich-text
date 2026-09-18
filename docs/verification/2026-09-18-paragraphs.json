@@ -1,0 +1,56 @@
+{
+  "revision": "002c0f8e68a5f31343c13f3b0e5109b84f1b14d7",
+  "unit": {
+    "passed": 1031,
+    "files": 85
+  },
+  "browser": {
+    "scope": "markdown-compatibility, live-source, profiles, autolink",
+    "stats": {
+      "startTime": "2026-09-18T18:29:37.340Z",
+      "duration": 184251.69,
+      "expected": 140,
+      "skipped": 0,
+      "unexpected": 0,
+      "flaky": 0
+    },
+    "projects": {
+      "chromium": 28,
+      "firefox": 28,
+      "webkit": 28,
+      "mobile-chromium": 28,
+      "mobile-webkit": 28
+    },
+    "workers": 2,
+    "retries": 0,
+    "reportSHA256": "410cff0b6320bac2574011f98784e930e93086d39552e69f197b07b66f91e952"
+  },
+  "packages": 27,
+  "gzipBytes": {
+    "minimal": 40342,
+    "standard": 59220
+  },
+  "fixtures": {
+    "sections": [
+      "Paragraphs",
+      "Blank lines",
+      "Textual content"
+    ],
+    "total": 12,
+    "matching": 12,
+    "examples": [
+      219,
+      220,
+      221,
+      222,
+      223,
+      224,
+      225,
+      226,
+      227,
+      650,
+      651,
+      652
+    ]
+  }
+}

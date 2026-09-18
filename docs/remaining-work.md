@@ -50,10 +50,11 @@ tests, all 470 browser cases without retries/skips, and 27 package installation
 checks. It covers the latest format converters, source/output showcase controls,
 and shared editor surfaces. The manual and release prerequisites below remain.
 
-The [newer emphasis increment](verification/2026-09-18-emphasis.md)
-passed 999 unit tests, 130 targeted browser cases and 27 package checks. It covers
+The [newer paragraph-whitespace increment](verification/2026-09-18-paragraphs.md)
+passed 1,031 unit tests, 140 targeted browser cases and 27 package checks. It covers
 thematic-break/list boundaries, safe URI/email links and emphasis delimiter runs,
-including mixed-formatting export round trips; it does not
+including mixed-formatting export round trips and Unicode paragraph preservation;
+it does not
 replace the full browser baseline or complete #2's interoperability scope.
 
 - [Quality #11](https://github.com/powerpuff-kitty/a-rich-text/issues/11) and
