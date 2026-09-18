@@ -28,8 +28,8 @@ See [thematic-break tests](../packages/markdown/test/thematic-breaks.test.ts).
 
 All 22 upstream examples in the CommonMark 0.31.2 “Code spans” section are
 vendored unchanged with attribution under their original CC BY-SA 4.0 license.
-The tests assert 20 supported examples and explicitly assert the two known
-mismatches; none are silently skipped. See
+The tests assert 21 supported examples and explicitly assert the remaining raw-HTML
+mismatch; none are silently skipped. See
 [fixtures and licensing](../packages/markdown/test/fixtures/README.md) and
 [the test runner](../packages/markdown/test/commonmark.test.ts).
 
@@ -112,9 +112,9 @@ See [fenced-code tests](../packages/markdown/test/fenced-code.test.ts).
 
 All 13 upstream backslash-escape examples (12–24), 15 hard-break examples
 (633–647) and two soft-break examples (648–649) are vendored unchanged.
-Eight escape, thirteen hard-break and both soft-break examples match after
+Nine escape, thirteen hard-break and both soft-break examples match after
 normalizing equivalent HTML quotes, `<br>` spelling, soft breaks and ART's final
-code line convention. The seven remaining interactions are explicit mismatches
+code line convention. The six remaining interactions are explicit mismatches
 in [the tests](../packages/markdown/test/escapes-breaks.test.ts).
 
 Backslashes escape ASCII punctuation, not ordinary letters, digits or Unicode
@@ -126,6 +126,30 @@ paragraph hard breaks survive reimport, including inside supported inline marks.
 Terminal block breaks, arbitrary whitespace and multiline ATX heading fidelity
 are not established by these fixtures.
 
+## Verified scope: angle-bracket autolinks
+
+All 19 upstream autolink examples (594–612) are vendored unchanged. Fifteen
+match exactly after removing the final HTML line ending. Four use schemes
+outside ART's existing URL allowlist (`irc`, `a+b+c`, `made-up-scheme` and
+`localhost`); these deliberately remain literal text, including their brackets.
+The same policy keeps executable and other unsupported URLs non-interactive.
+
+Absolute URI and email syntax inside `<...>` creates link marks for accepted
+targets. Bare URLs/email addresses do not become links during Markdown import;
+the editor's typed-space URL detection is a separate feature. Code spans and
+autolinks take precedence in encounter order: markup inside either is literal.
+URI backslashes and entity-like text are not decoded as Markdown escapes or
+HTML entities. Destinations percent-encode unsafe URI characters while retaining
+existing percent escapes; labels retain the original text. Malformed UTF-16 URI
+input stays literal rather than throwing.
+
+Export uses angle syntax when it exactly preserves a link's label and href,
+including surrounding formatting. Links with different labels keep explicit
+link syntax. An autolink inside a potential link label is not wrapped in another
+link; the surrounding bracket syntax stays literal. General link/reference
+parsing remains incomplete. The formerly excluded code-span example 346 and
+backslash example 20 now match. See [autolink tests](../packages/markdown/test/autolinks.test.ts).
+
 ### Known exclusions
 
 | Upstream example | Remaining behavior |
@@ -133,17 +157,16 @@ are not established by these fixtures.
 | 55 | Whitespace-delimited underscores incorrectly create emphasis |
 | 57, 60, 61 | Tight-list HTML rendering retains ART paragraph wrappers |
 | 14 | Full emphasis delimiter rules are not implemented |
-| 20 | Autolinks are not implemented |
 | 21, 642, 643 | Raw HTML is literal text rather than interpreted HTML |
 | 22, 23 | Link titles/reference definitions are not supported |
 | 109 | Tight-list HTML rendering retains ART paragraph wrappers |
 | 93 | Lazy blockquote continuation is not implemented |
 | 94, 99 | Tight-list HTML rendering retains ART paragraph wrappers |
 | 344 | Raw HTML tag precedence over backticks is not implemented; HTML remains literal text |
-| 346 | CommonMark autolink precedence and URL encoding are not implemented |
+| 596, 598, 599, 601 | URI schemes outside ART's URL allowlist remain literal text |
 
 Other unverified/incomplete areas include the complete emphasis delimiter
-algorithm, reference links, raw HTML, autolinks,
+algorithm, reference links, raw HTML, GFM bare-URL autolinking,
 list/container edge cases and full GFM extensions. Existing tasks, pipe tables,
 strike and underline are ART subset features, not evidence of full GFM conformance.
 
