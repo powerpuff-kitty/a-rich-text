@@ -37,6 +37,8 @@ const MARK_ORDER: Record<ARTTextMark['type'], number> = {
   extensionMark: 6,
   subscript: 7,
   superscript: 8,
+  color: 9,
+  background: 10,
 };
 
 export interface ExtensionHTMLDescriptorLike {
@@ -225,6 +227,10 @@ function parseInline(nodes: readonly Node[], options: ResolvedOptions, inherited
     }
 
     const marks = [...inheritedMarks];
+    const color = element instanceof HTMLElement ? element.style.color : '';
+    const background = element instanceof HTMLElement ? element.style.backgroundColor : '';
+    if (color && /^#|^(?:rgb|hsl)/i.test(color)) marks.push({ type: 'color', value: color });
+    if (background && /^#|^(?:rgb|hsl)/i.test(background)) marks.push({ type: 'background', value: background });
     const extensionMark = parseExtensionMark(element) ?? options.extensions?.parseMarkHTML(element) ?? null;
     if (extensionMark) {
       if (!isValidExtensionMark(extensionMark)) throw new TypeError(`Extension HTML parser returned invalid mark: ${extensionMark.name}`);
@@ -431,6 +437,8 @@ function serializeInline(nodes: readonly ARTInlineNode[], options: ResolvedOptio
         case 'code': value = `<code>${value}</code>`; break;
         case 'subscript': value = `<sub>${value}</sub>`; break;
         case 'superscript': value = `<sup>${value}</sup>`; break;
+        case 'color': value = `<span style="color:${escapeAttribute(mark.value)}">${value}</span>`; break;
+        case 'background': value = `<span style="background-color:${escapeAttribute(mark.value)}">${value}</span>`; break;
         case 'link': {
           const href = sanitizeUrl(mark.href, options.linkProtocols, false);
           if (href) value = `<a href="${escapeAttribute(href)}">${value}</a>`;

@@ -24,6 +24,8 @@ export type ARTTextMark =
   | { type: 'code' }
   | { type: 'subscript' }
   | { type: 'superscript' }
+  | { type: 'color'; value: string }
+  | { type: 'background'; value: string }
   | { type: 'link'; href: string }
   | ARTExtensionMark;
 
@@ -326,6 +328,9 @@ function isTextMark(value: unknown): value is ARTTextMark {
     case 'subscript':
     case 'superscript':
       return true;
+    case 'color':
+    case 'background':
+      return isSafeColor(value.value);
     case 'link':
       return typeof value.href === 'string' && value.href.length > 0;
     case 'extensionMark':
@@ -344,6 +349,10 @@ function isHeadingLevel(value: unknown): value is ARTHeadingNode['level'] {
 
 function isPositiveFiniteNumber(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value) && value > 0;
+}
+
+function isSafeColor(value: unknown): value is string {
+  return typeof value === 'string' && /^(?:#[0-9a-f]{3,8}|(?:rgb|hsl)a?\([^)]{1,80}\))$/i.test(value.trim());
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

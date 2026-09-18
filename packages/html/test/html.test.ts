@@ -70,3 +70,13 @@ describe('semantic subscript and superscript marks', () => {
     expect(toHTML(source)).toContain('<sup>x</sup>');
   });
 });
+
+describe('portable color marks', () => {
+  it('round-trips constrained color and background values', () => {
+    const source = { type: 'doc' as const, version: 1 as const, content: [{ type: 'paragraph' as const, content: [
+      { type: 'text' as const, text: 'red', marks: [{ type: 'color' as const, value: '#f00' }] },
+      { type: 'text' as const, text: ' wash', marks: [{ type: 'background' as const, value: 'rgb(1, 2, 3)' }] },
+    ] }] };
+    expect(fromHTML(toHTML(source))).toEqual(source);
+  });
+});

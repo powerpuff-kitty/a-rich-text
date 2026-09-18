@@ -42,6 +42,8 @@ const MARK_ORDER: Record<ARTMarkType, number> = {
   extensionMark: 6,
   subscript: 7,
   superscript: 8,
+  color: 9,
+  background: 10,
 };
 
 export function cloneDocument(document: ARTDocument): ARTDocument {
@@ -86,6 +88,7 @@ export function cloneMarks(marks: readonly ARTTextMark[]): ARTTextMark[] { retur
 
 export function cloneMark(mark: ARTTextMark): ARTTextMark {
   if (mark.type === 'link') return { type: 'link', href: mark.href };
+  if (mark.type === 'color' || mark.type === 'background') return { type: mark.type, value: mark.value };
   if (mark.type === 'extensionMark') return { type: 'extensionMark', name: mark.name, ...(mark.attrs ? { attrs: cloneValue(mark.attrs) } : {}) };
   return { type: mark.type };
 }

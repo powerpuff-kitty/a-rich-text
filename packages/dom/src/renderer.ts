@@ -29,6 +29,8 @@ const MARK_ORDER: Record<ARTTextMark['type'], number> = {
   extensionMark: 6,
   subscript: 7,
   superscript: 8,
+  color: 9,
+  background: 10,
 };
 
 export interface DOMExtensionRenderer {
@@ -259,6 +261,12 @@ function markElement(
       return partElement(owner, 'sub', 'subscript');
     case 'superscript':
       return partElement(owner, 'sup', 'superscript');
+    case 'color': {
+      const element = partElement(owner, 'span', 'color'); element.style.color = mark.value; return element;
+    }
+    case 'background': {
+      const element = partElement(owner, 'span', 'background'); element.style.backgroundColor = mark.value; return element;
+    }
     case 'link': {
       const href = safeUrl(mark.href, false);
       if (!href) return null;

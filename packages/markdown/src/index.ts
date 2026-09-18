@@ -18,6 +18,8 @@ const MARK_ORDER: Record<ARTTextMark['type'], number> = {
   extensionMark: 6,
   subscript: 7,
   superscript: 8,
+  color: 9,
+  background: 10,
 };
 
 interface ListMatch {

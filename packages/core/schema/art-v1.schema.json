@@ -69,6 +69,8 @@
                 "code",
                 "subscript",
                 "superscript"
+                ,"color"
+                ,"background"
               ]
             }
           },
