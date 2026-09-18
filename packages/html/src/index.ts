@@ -35,6 +35,8 @@ const MARK_ORDER: Record<ARTTextMark['type'], number> = {
   code: 4,
   link: 5,
   extensionMark: 6,
+  subscript: 7,
+  superscript: 8,
 };
 
 export interface ExtensionHTMLDescriptorLike {
@@ -234,6 +236,8 @@ function parseInline(nodes: readonly Node[], options: ResolvedOptions, inherited
         case 'U': marks.push({ type: 'underline' }); break;
         case 'S': case 'STRIKE': case 'DEL': marks.push({ type: 'strike' }); break;
         case 'CODE': marks.push({ type: 'code' }); break;
+        case 'SUB': marks.push({ type: 'subscript' }); break;
+        case 'SUP': marks.push({ type: 'superscript' }); break;
         case 'A': {
           const href = sanitizeUrl(element.getAttribute('href'), options.linkProtocols, false);
           if (href) marks.push({ type: 'link', href });
@@ -425,6 +429,8 @@ function serializeInline(nodes: readonly ARTInlineNode[], options: ResolvedOptio
         case 'underline': value = `<u>${value}</u>`; break;
         case 'strike': value = `<s>${value}</s>`; break;
         case 'code': value = `<code>${value}</code>`; break;
+        case 'subscript': value = `<sub>${value}</sub>`; break;
+        case 'superscript': value = `<sup>${value}</sup>`; break;
         case 'link': {
           const href = sanitizeUrl(mark.href, options.linkProtocols, false);
           if (href) value = `<a href="${escapeAttribute(href)}">${value}</a>`;

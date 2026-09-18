@@ -58,3 +58,15 @@ describe('@arichtext/html', () => {
   });
 
 });
+
+describe('semantic subscript and superscript marks', () => {
+  it('round-trips safe HTML elements', () => {
+    const source = { type: 'doc' as const, version: 1 as const, content: [{ type: 'paragraph' as const, content: [
+      { type: 'text' as const, text: 'H', marks: [{ type: 'subscript' as const }] },
+      { type: 'text' as const, text: 'x', marks: [{ type: 'superscript' as const }] },
+    ] }] };
+    expect(fromHTML(toHTML(source))).toEqual(source);
+    expect(toHTML(source)).toContain('<sub>H</sub>');
+    expect(toHTML(source)).toContain('<sup>x</sup>');
+  });
+});

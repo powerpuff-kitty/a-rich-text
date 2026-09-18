@@ -40,6 +40,8 @@ const MARK_ORDER: Record<ARTMarkType, number> = {
   code: 4,
   link: 5,
   extensionMark: 6,
+  subscript: 7,
+  superscript: 8,
 };
 
 export function cloneDocument(document: ARTDocument): ARTDocument {

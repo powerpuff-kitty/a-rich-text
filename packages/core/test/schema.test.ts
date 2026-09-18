@@ -74,3 +74,9 @@ describe('ART v1 JSON Schema parity on JSON data', () => {
     expect(isARTDocument(doc(block))).toBe(false);
   });
 });
+
+it('accepts semantic subscript and superscript marks', () => {
+  const value = doc({ type: 'paragraph', content: [{ type: 'text', text: 'H2O', marks: [{ type: 'subscript' }] }, { type: 'text', text: 'x2', marks: [{ type: 'superscript' }] }] });
+  expect(validate(value)).toBe(true);
+  expect(isARTDocument(value)).toBe(true);
+});
