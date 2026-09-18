@@ -47,4 +47,14 @@ describe('@arichtext/html', () => {
     expect(document.content[1]).toMatchObject({ type: 'table' });
     expect(toHTML(document)).toContain('data-art-list="task"');
   });
+
+  it.each(['<blockquote></blockquote>', '<blockquote> \n\t </blockquote>', '<blockquote onclick="alert(1)"><script>alert(1)</script></blockquote>'])('preserves an empty quote while sanitizing its contents: %s', source => {
+    expect(fromHTML(source).content).toEqual([{ type: 'blockquote', content: [] }]);
+    expect(sanitizeHTML(source)).toBe('<blockquote></blockquote>');
+  });
+
+  it('distinguishes an empty quote from a quote containing an empty paragraph', () => {
+    expect(fromHTML('<blockquote><p></p></blockquote>').content).toEqual([{ type: 'blockquote', content: [{ type: 'paragraph', content: [] }] }]);
+  });
+
 });

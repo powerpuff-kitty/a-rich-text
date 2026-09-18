@@ -151,7 +151,7 @@ function parseBlockElement(element: Element, options: ResolvedOptions): ARTBlock
       }];
     case 'BLOCKQUOTE': {
       const content = parseBlocks(Array.from(element.childNodes), options);
-      return content.length > 0 ? [{ type: 'blockquote', content }] : [];
+      return [{ type: 'blockquote', content }];
     }
     case 'PRE': {
       const code = element.querySelector(':scope > code');

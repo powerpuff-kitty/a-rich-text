@@ -112,6 +112,7 @@ Conversion is deterministic for the supported ART model, but external formats ar
 
 - ART JSON is the lossless canonical representation.
 - HTML covers the initial ART v1 block/mark model closely.
+- Empty blockquotes are preserved by HTML and Markdown import/export, including nested quotes and quotes in list items. This structure is distinct from a quote containing an explicit empty paragraph.
 - Markdown uses standard syntax where possible; underline is represented with inline `<u>` markup.
 - Markdown code fences retain the first info-string word as language; extra metadata is not retained.
 - Markdown tables flatten cell spans because pipe-table syntax cannot represent `rowspan`/`colspan` faithfully. GFM header roles and column alignment are not represented in ART; short body rows are padded and excess cells are ignored according to GFM rules. See [verified table scope and limits](markdown-compatibility.md#verified-gfm-extension-scope-pipe-tables).

@@ -21,6 +21,23 @@ without trimming Unicode text. Existing soft/hard-break normalization still appl
 These checks do not establish arbitrary whitespace fidelity in other Markdown
 constructs. See [paragraph tests](../packages/markdown/test/paragraphs.test.ts).
 
+## Verified scope: blockquote structure
+
+All 25 CommonMark 0.31.2 blockquote examples (228–252) are vendored unchanged.
+Eighteen match after normalizing block separators, soft breaks outside code,
+equivalent `<hr>` spelling and ART's omitted final code line terminator. Six lazy
+continuation examples and one tight-list rendering example remain explicit
+mismatches, not skipped tests.
+
+Empty blockquotes now import as `{ type: 'blockquote', content: [] }`, including
+nested quotes, adjacent quotes separated by blank lines and quotes in list items.
+HTML import preserves the same structure, so Markdown/HTML round trips retain
+it. Sanitization still removes unsafe descendants and attributes. An empty quote
+is distinct from a quote containing an explicit empty paragraph; arbitrary empty
+paragraph fidelity through Markdown and empty-quote caret editing are not
+established here. General lazy continuation and container tab/indentation rules
+remain incomplete. See [blockquote tests](../packages/markdown/test/blockquotes.test.ts).
+
 ## Verified scope: thematic breaks
 
 All 19 upstream thematic-break examples (43–61) are vendored unchanged.
@@ -220,8 +237,8 @@ precedence interactions remain unverified. See
 | 57, 60, 61 | Tight-list HTML rendering retains ART paragraph wrappers |
 | 21, 475–477, 642, 643 | Raw HTML is literal text rather than interpreted HTML |
 | 22, 23 | Link titles/reference definitions are not supported |
-| 109 | Tight-list HTML rendering retains ART paragraph wrappers |
-| 93 | Lazy blockquote continuation is not implemented |
+| 109, 235 | Tight-list HTML rendering retains ART paragraph wrappers |
+| 93, 232, 233, 238, 247, 250, 251 | Lazy blockquote continuation is not implemented |
 | 94, 99 | Tight-list HTML rendering retains ART paragraph wrappers |
 | 344 | Raw HTML tag precedence over backticks is not implemented; HTML remains literal text |
 | 596, 598, 599, 601 | URI schemes outside ART's URL allowlist remain literal text |

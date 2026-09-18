@@ -101,7 +101,7 @@ function parseBlocks(lines: readonly string[]): ARTBlockNode[] {
         index += 1;
       }
       const content = parseBlocks(quoted);
-      if (content.length > 0) blocks.push({ type: 'blockquote', content });
+      blocks.push({ type: 'blockquote', content });
       continue;
     }
 
