@@ -21,3 +21,10 @@ it('maps Quill inline color, background and script formats', () => {
   const exported = exportQuillDelta(imported.value);
   expect(JSON.parse(exported.value).ops[0].attributes).toMatchObject({ color: '#f00', background: '#000', script: 'sub' });
 });
+
+it('preserves Quill font and size as namespaced extension marks', () => {
+  const imported = importQuillDelta(JSON.stringify({ ops: [{ insert: 'Title', attributes: { font: 'serif', size: 'large' } }, { insert: '\n' }] }));
+  expect(imported.value.content[0]).toMatchObject({ content: [{ marks: [{ type: 'extensionMark', name: 'quill:font' }, { type: 'extensionMark', name: 'quill:size' }] }] });
+  const exported = exportQuillDelta(imported.value);
+  expect(JSON.parse(exported.value).ops[0].attributes).toMatchObject({ font: 'serif', size: 'large' });
+});

@@ -3,7 +3,7 @@ import type { ConversionDiagnostic, ConversionOutput, FormatProfile } from '@ari
 
 type Attributes = Record<string, unknown>;
 type Operation = { insert: string | Record<string, unknown>; attributes?: Attributes };
-const inline = ['bold', 'italic', 'underline', 'strike', 'code', 'link', 'color', 'background', 'script'];
+const inline = ['bold', 'italic', 'underline', 'strike', 'code', 'link', 'color', 'background', 'script', 'font', 'size'];
 const blocks = ['header', 'blockquote', 'code-block', 'list'];
 const record = (value: unknown): value is Attributes => !!value && typeof value === 'object' && !Array.isArray(value);
 const active = (value: unknown) => value !== undefined && value !== null && value !== false;
@@ -85,6 +85,9 @@ export function importQuillDelta(source: string): ConversionOutput<ARTDocument> 
         if (attrs[key] === 'sub') marks.push({ type: 'subscript' });
         else if (attrs[key] === 'super') marks.push({ type: 'superscript' });
         else diagnostics.add('format-value', 'Invalid Quill script value is omitted');
+      } else if (key === 'font' || key === 'size') {
+        if (typeof attrs[key] !== 'string' || !attrs[key]) diagnostics.add('format-value', `Invalid Quill ${key} value is omitted`);
+        else { marks.push({ type: 'extensionMark', name: `quill:${key}`, attrs: { value: attrs[key] as string } }); diagnostics.add('adapter-format', `Quill ${key} is preserved as a quill:${key} extension mark`); }
       } else {
         if (attrs[key] !== true) throw new TypeError('Invalid Delta inline mark');
         marks.push({ type: key as 'bold' | 'italic' | 'underline' | 'strike' | 'code' });
@@ -132,9 +135,10 @@ export function exportQuillDelta(document: ARTDocument): ConversionOutput<string
       const marks: Attributes = {};
       for (const mark of node.marks ?? []) {
         diagnostics.extra(mark, mark.type === 'link' ? ['type', 'href'] : ['type']);
-        if (mark.type === 'extensionMark') { diagnostics.add('extension-marks', 'Extension marks are omitted'); continue; }
+        if (mark.type === 'extensionMark' && !['quill:font', 'quill:size'].includes(mark.name)) { diagnostics.add('extension-marks', 'Extension marks are omitted'); continue; }
         if (mark.type in marks) diagnostics.add('duplicate-marks', 'Repeated marks are collapsed');
-        if (mark.type === 'link') marks.link = mark.href;
+        if (mark.type === 'extensionMark' && (mark.name === 'quill:font' || mark.name === 'quill:size') && typeof mark.attrs?.value === 'string') { marks[mark.name.slice(6)] = mark.attrs.value; diagnostics.add('adapter-format', `${mark.name} is exported as a Quill inline attribute`); }
+        else if (mark.type === 'link') marks.link = mark.href;
         else if (mark.type === 'color' || mark.type === 'background') marks[mark.type] = mark.value;
         else if (mark.type === 'subscript') marks.script = 'sub';
         else if (mark.type === 'superscript') marks.script = 'super';
