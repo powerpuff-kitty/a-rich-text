@@ -40,6 +40,10 @@ describe('CommonMark emphasis delimiter runs', () => {
     expect(toHTML(fromMarkdown('**a\\*\\*b**'))).toBe('<p><strong>a**b</strong></p>');
   });
 
+  it('retains normalized link targets when exporting shared marks', () => {
+    expect(toMarkdown({ type: 'doc', version: 1, content: [{ type: 'paragraph', content: [{ type: 'text', text: 'label', marks: [{ type: 'bold' }, { type: 'link', href: '  https://example.com  ' }] }] }] })).toBe('[**label**](https://example.com)');
+  });
+
   it('handles long unmatched delimiter sequences', () => {
     const source = 'a_b_c '.repeat(4000);
     expect(fromMarkdown(source).content).toEqual([{ type: 'paragraph', content: [{ type: 'text', text: source.trimEnd() }] }]);

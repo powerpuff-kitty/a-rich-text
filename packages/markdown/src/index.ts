@@ -683,7 +683,7 @@ function serializeInline(nodes: readonly ARTTextNode[]): string {
       case 'italic': return '*';
       case 'underline': return closing ? '</u>' : '<u>';
       case 'strike': return '~~';
-      case 'link': return closing ? `](${mark.href})` : '[';
+      case 'link': return closing ? `](${safeUrl(mark.href, false)})` : '[';
       default: return '';
     }
   };
