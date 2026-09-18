@@ -19,6 +19,7 @@ const MARK_ORDER: Record<ARTTextMark['type'], number> = {
 
 interface ListMatch {
   indent: number;
+  contentIndent: number;
   style: ARTListNode['style'];
   marker: string;
   body: string;
@@ -45,7 +46,7 @@ export function toMarkdown(document: ARTDocument): string {
 
 interface BlockSource {
   length: number;
-  get(index: number, allowLazy?: boolean): string | undefined;
+  get(index: number, allowLazy?: boolean, literal?: boolean): string | undefined;
 }
 
 function parseBlocks(lines: readonly string[]): ARTBlockNode[] {
@@ -55,8 +56,8 @@ function parseBlocks(lines: readonly string[]): ARTBlockNode[] {
 function quoteSource(parent: BlockSource): BlockSource {
   return {
     length: parent.length,
-    get(index, allowLazy = false) {
-      const line = parent.get(index, allowLazy);
+    get(index, allowLazy = false, literal = false) {
+      const line = parent.get(index, allowLazy, literal);
       if (line === undefined) return undefined;
       const match = line.match(/^ {0,3}> ?([^\r\n]*)$/);
       return match ? match[1]! : allowLazy ? line : undefined;
@@ -96,8 +97,8 @@ function parseBlockSequence(lines: BlockSource, start: number): { content: ARTBl
       const { marker, indent, language } = fence;
       const code: string[] = [];
       index += 1;
-      while (index < lines.length && lines.get(index) !== undefined && !isClosingFence(lines.get(index)!, marker)) {
-        code.push(stripFenceIndent(lines.get(index) ?? '', indent));
+      while (index < lines.length && lines.get(index, false, true) !== undefined && !isClosingFence(lines.get(index, false, true)!, marker)) {
+        code.push(stripFenceIndent(lines.get(index, false, true) ?? '', indent));
         index += 1;
       }
       if (lines.get(index) !== undefined) index += 1;
@@ -239,17 +240,26 @@ function isHorizontalRule(line: string): boolean {
 }
 
 function matchListItem(line: string): ListMatch | null {
-  const task = line.match(/^([ \t]*)([-+*])[ \t]+\[([ xX])\][ \t]+([^\r\n]*)$/);
-  if (task) {
-    return { indent: indentationWidth(task[1] ?? ''), style: 'task', marker: task[2]!, checked: (task[3] ?? '').toLowerCase() === 'x', body: task[4] ?? '' };
-  }
-  const ordered = line.match(/^([ \t]*)([0-9]{1,9})([.)])(?:[ \t]+([^\r\n]*)|$)$/);
-  if (ordered) {
-    return { indent: indentationWidth(ordered[1] ?? ''), style: 'ordered', marker: ordered[3]!, number: Number.parseInt(ordered[2] ?? '1', 10), body: ordered[4] ?? '' };
-  }
-  const bullet = line.match(/^([ \t]*)([-+*])(?:[ \t]+([^\r\n]*)|$)$/);
-  if (bullet) return { indent: indentationWidth(bullet[1] ?? ''), style: 'bullet', marker: bullet[2]!, body: bullet[3] ?? '' };
-  return null;
+  const match = line.match(/^([ \t]*)(?:([0-9]{1,9})([.)])|([-+*]))(?=[ \t]|$)([^\r\n]*)$/);
+  if (!match) return null;
+  const indent = indentationWidth(match[1]!);
+  const marker = match[3] ?? match[4]!;
+  const width = (match[2]?.length ?? 0) + 1;
+  const remainder = match[5]!;
+  const whitespace = remainder.match(/^[ \t]*/)?.[0] ?? '';
+  const padding = indentationWidth(whitespace, indent + width);
+  // One to four spaces establish the item's content column. Larger padding
+  // leaves indented code after consuming one space; empty items also use one.
+  const contentPadding = isBlankLine(remainder) || padding > 4 ? 1 : padding;
+  const body = isBlankLine(remainder) ? '' : removeIndent(remainder, contentPadding, indent + width);
+  const task = !match[2] && body.match(/^\[([ xX])\][ \t]+([^\r\n]*)$/);
+  return {
+    indent, contentIndent: indent + width + contentPadding, marker,
+    style: match[2] ? 'ordered' : task ? 'task' : 'bullet',
+    ...(match[2] ? { number: Number.parseInt(match[2], 10) } : {}),
+    ...(task ? { checked: task[1]!.toLowerCase() === 'x' } : {}),
+    body: task ? task[2]! : body,
+  };
 }
 
 function parseList(lines: BlockSource, start: number, first: ListMatch): { node: ARTListNode; next: number } {
@@ -263,38 +273,41 @@ function parseList(lines: BlockSource, start: number, first: ListMatch): { node:
     if (isHorizontalRule(lines.get(index) ?? '')) break;
     const current = matchListItem(lines.get(index) ?? '');
     if (!current || current.indent !== baseIndent || current.style !== style || current.marker !== first.marker) break;
-    const itemLines = [current.body];
-    index += 1;
-
-    while (index < lines.length) {
-      const line = lines.get(index);
-      if (line === undefined) break;
-      const nextItem = matchListItem(line);
-      if (nextItem && nextItem.indent === baseIndent && nextItem.style === style) break;
-
-      if (isBlankLine(line)) {
-        const next = findNextNonEmpty(lines, index + 1);
-        if (next === -1) {
-          while (lines.get(index) !== undefined && isBlankLine(lines.get(index)!)) index += 1;
-          break;
+    const itemStart = index;
+    let nextContent = -1;
+    const itemSource: BlockSource = {
+      length: lines.length,
+      get(position, allowLazy = false, literal = false) {
+        if (position === itemStart) return current.body;
+        const line = lines.get(position, allowLazy, literal);
+        if (line === undefined) return undefined;
+        if (isBlankLine(line)) {
+          // An empty item may contain one initial blank line, not two.
+          if (position === itemStart + 1 && current.style !== 'task' && isBlankLine(current.body)) return undefined;
+          if (nextContent <= position) nextContent = findNextNonEmpty(lines, position + 1);
+          return nextContent !== -1 && leadingIndent(lines.get(nextContent)!) >= current.contentIndent
+            ? literal ? stripFenceIndent(line, current.contentIndent) : removeIndent(line, current.contentIndent)
+            : undefined;
         }
-        const following = lines.get(next) ?? '';
-        const followingItem = matchListItem(following);
-        if (followingItem && followingItem.indent === baseIndent && followingItem.style === style) { index = next; break; }
-        if (leadingIndent(following) > baseIndent) { itemLines.push(''); index += 1; continue; }
-        break;
-      }
-
-      if (leadingIndent(line) > baseIndent) { itemLines.push(removeIndent(line, baseIndent + 2)); index += 1; continue; }
-      break;
-    }
-
-    const content = parseBlocks(itemLines);
+        if (leadingIndent(line) >= current.contentIndent) return literal ? stripFenceIndent(line, current.contentIndent) : removeIndent(line, current.contentIndent);
+        const nextItem = matchListItem(line);
+        // A sibling marker ends this item, even if its number is not one.
+        if (nextItem && nextItem.indent === baseIndent && nextItem.style === style) return undefined;
+        return allowLazy ? line : undefined;
+      },
+    };
+    const parsed = parseBlockSequence(itemSource, itemStart);
+    index = parsed.next;
     items.push({
       type: 'listItem',
       ...(style === 'task' ? { checked: current.checked === true } : {}),
-      content: content.length > 0 ? content : [{ type: 'paragraph', content: [] }],
+      content: parsed.content.length > 0 ? parsed.content : [{ type: 'paragraph', content: [] }],
     });
+    const next = findNextNonEmpty(lines, index);
+    if (next === -1) break;
+    const following = matchListItem(lines.get(next)!);
+    if (!following || following.indent !== baseIndent || following.style !== style || following.marker !== first.marker) break;
+    index = next;
   }
 
   return {
@@ -786,7 +799,7 @@ function serializeList(list: ARTListNode, alternate = false): string {
     // the first block of a bullet item is a rule so the list survives reimport.
     let body = serializeBlocks(item.content);
     if (list.style === 'bullet' && item.content[0]?.type === 'horizontalRule') body = '***' + body.slice(3);
-    const indent = ' '.repeat(marker.length);
+    const indent = ' '.repeat(list.style === 'task' ? 2 : marker.length);
     return body.split('\n').map((line, lineIndex) => `${lineIndex === 0 ? marker : indent}${line}`).join('\n');
   }).join('\n');
 }
@@ -845,16 +858,20 @@ function findNextNonEmpty(lines: BlockSource, from: number): number {
 }
 
 function leadingIndent(line: string): number { return indentationWidth(line.match(/^[ \t]*/)?.[0] ?? ''); }
-function indentationWidth(value: string): number { return [...value].reduce((width, character) => width + (character === '\t' ? 4 : 1), 0); }
-function removeIndent(line: string, width: number): string {
-  let consumed = 0; let index = 0;
-  while (index < line.length && consumed < width) {
-    if (line[index] === ' ') consumed += 1;
-    else if (line[index] === '\t') consumed += 4;
+function indentationWidth(value: string, startColumn = 0): number {
+  return [...value].reduce((column, character) => column + (character === '\t' ? 4 - column % 4 : 1), startColumn) - startColumn;
+}
+function removeIndent(line: string, width: number, startColumn = 0): string {
+  let column = startColumn; let index = 0;
+  // Resolve tabs through the child block's four-column code boundary. Beyond
+  // that boundary, tabs are literal code content and must remain unchanged.
+  while (index < line.length && column - startColumn < width + 4) {
+    if (line[index] === ' ') column += 1;
+    else if (line[index] === '\t') column += 4 - column % 4;
     else break;
     index += 1;
   }
-  return line.slice(index);
+  return ' '.repeat(Math.max(0, column - startColumn - width)) + line.slice(index);
 }
 function countRun(value: string, start: number, character: string): number { let index = start; while (value[index] === character) index += 1; return index - start; }
 function escapeMarkdown(value: string): string { return value.replace(/([\\`*_[\]<>#])/g, '\\$1'); }

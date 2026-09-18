@@ -50,13 +50,13 @@ tests, all 470 browser cases without retries/skips, and 27 package installation
 checks. It covers the latest format converters, source/output showcase controls,
 and shared editor surfaces. The manual and release prerequisites below remain.
 
-The [newer list-grouping increment](verification/2026-09-18-list-grouping.md)
-passed 1,180 unit tests, 190 targeted browser cases and 27 package checks. It covers
+The [newer list-indentation increment](verification/2026-09-18-list-indentation.md)
+passed 1,232 unit tests, 200 targeted browser cases and 27 package checks. It covers
 thematic-break/list boundaries, safe URI/email links and emphasis delimiter runs,
 including mixed-formatting export round trips, Unicode paragraph preservation,
 GFM pipe-table cell semantics, empty-quote preservation across HTML/Markdown,
-nested quote paragraph continuation, list-marker/empty-item boundaries and
-adjacent list grouping through import/export.
+nested quote paragraph continuation, list-marker/empty-item boundaries, adjacent
+list grouping and per-item content indentation with paragraph continuation.
 It does not replace the full browser baseline or complete #2's interoperability scope.
 
 - [Quality #11](https://github.com/powerpuff-kitty/a-rich-text/issues/11) and

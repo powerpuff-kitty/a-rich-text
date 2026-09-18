@@ -471,3 +471,39 @@ test('task list boundaries survive nested quote source conversion', async ({ pag
   await expect.poll(() => page.locator('#editor').evaluate(node => (node as ARichTextElement).sourceDirty)).toBe(false);
   expect(await page.locator('#editor').evaluate(node => (node as ARichTextElement).getJSON())).toEqual(doc);
 });
+
+test('wide ordered markers preserve nested code tabs and lists', async ({ page }) => {
+  await page.goto('/dist/browser/');
+  await page.locator('#editor').evaluate(node => { (node as ARichTextElement).view = 'markdown'; });
+  const source = page.locator('#editor [part="source"]');
+  await source.fill('10. first\n\n    ```\n    \tcode\n    ```\n\n    - nested\n\noutside');
+  await expect.poll(() => page.locator('#editor').evaluate(node => (node as ARichTextElement).sourceDirty)).toBe(false);
+  const doc = await page.locator('#editor').evaluate(node => (node as ARichTextElement).getJSON());
+  expect(doc.content.map(block => block.type)).toEqual(['list', 'paragraph']);
+  await page.locator('#editor').evaluate(node => { (node as ARichTextElement).view = 'visual'; });
+  await expect(page.locator('#editor [contenteditable] ol')).toHaveAttribute('start', '10');
+  await expect(page.locator('#editor [contenteditable] ol ul')).toHaveCount(1);
+  expect(await page.locator('#editor [contenteditable] pre code').textContent()).toBe('\tcode');
+  await page.locator('#editor').evaluate(node => { (node as ARichTextElement).view = 'markdown'; });
+  await source.fill((await source.inputValue()) + '\n');
+  await expect.poll(() => page.locator('#editor').evaluate(node => (node as ARichTextElement).sourceDirty)).toBe(false);
+  expect(await page.locator('#editor').evaluate(node => (node as ARichTextElement).getJSON())).toEqual(doc);
+});
+
+test('list paragraph continuations and task child blocks survive source reimport', async ({ page }) => {
+  await page.goto('/dist/browser/');
+  await page.locator('#editor').evaluate(node => { (node as ARichTextElement).view = 'markdown'; });
+  const source = page.locator('#editor [part="source"]');
+  await source.fill('1. first\n  continued\n\n- [x] task\n\n  > quoted\n\n  ```\n  code\n  ```');
+  await expect.poll(() => page.locator('#editor').evaluate(node => (node as ARichTextElement).sourceDirty)).toBe(false);
+  const doc = await page.locator('#editor').evaluate(node => (node as ARichTextElement).getJSON());
+  expect(doc.content.map(block => block.type)).toEqual(['list', 'list']);
+  await page.locator('#editor').evaluate(node => { (node as ARichTextElement).view = 'visual'; });
+  await expect(page.locator('#editor [contenteditable] ol p')).toHaveText('first continued');
+  await expect(page.locator('#editor [contenteditable] ul blockquote')).toHaveText('quoted');
+  await expect(page.locator('#editor [contenteditable] ul pre code')).toHaveText('code');
+  await page.locator('#editor').evaluate(node => { (node as ARichTextElement).view = 'markdown'; });
+  await source.fill((await source.inputValue()) + '\n');
+  await expect.poll(() => page.locator('#editor').evaluate(node => (node as ARichTextElement).sourceDirty)).toBe(false);
+  expect(await page.locator('#editor').evaluate(node => (node as ARichTextElement).getJSON())).toEqual(doc);
+});

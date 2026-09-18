@@ -88,6 +88,35 @@ General list indentation, lazy continuation and tight/loose rendering remain
 outside this increment; these are three selected fixtures, not full Lists coverage.
 See [list-grouping tests](../packages/markdown/test/list-grouping.test.ts).
 
+## Verified scope: list content indentation and continuation
+
+Thirty-one unchanged CommonMark examples cover content indentation, code/quote
+children, initially empty items, omitted paragraph indentation and nested lists:
+253–264, 270–280, 290–294, 296, 298–299. All match retained ART semantics through
+HTML import. The runner removes block-separator whitespace (including before
+nested lists), folds paragraph soft breaks and omits the final code line terminator;
+internal code whitespace is retained. Tight/loose paragraph wrappers are not stored.
+
+Each item's content boundary follows its own marker width and the following
+one to four columns of whitespace. Larger padding consumes one column and leaves
+the remaining code indentation. Empty items use one column; a second blank line
+ends an initially empty item. Under-indented blocks after blank lines remain
+outside, while open paragraphs can continue with omitted indentation, including
+through nested quotes. Headings, code and closed paragraphs do not accept those
+continuations. Shared source positions avoid reparsing growing paragraph prefixes;
+regressions cover 2,000 alternating continuation lines and 2,000 blank lines.
+
+Four-column tab stops determine list boundaries. Partial-tab spaces survive
+indent removal; tabs beyond the child code boundary and inside fenced code remain
+literal. Task child blocks align with the bullet content column rather than the
+checkbox width on export. Ordered width changes, nested lists, code padding and
+task quote/code children have round-trip coverage.
+
+This is selected coverage, not full List items/Lists conformance. Variable sibling
+indentation, broader nested-container/tab interactions and tight/loose rendering
+remain incomplete or unverified; the zero-start and maximum-start mapping limits
+above remain. See [list-indentation tests](../packages/markdown/test/list-indentation.test.ts).
+
 ## Verified scope: thematic breaks
 
 All 19 upstream thematic-break examples (43–61) are vendored unchanged.
