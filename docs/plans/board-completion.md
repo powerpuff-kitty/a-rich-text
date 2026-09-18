@@ -50,7 +50,9 @@ have been made durable. Do not publish packages as part of merging code.
 Physical iPhone/Android, real IME and screen-reader results require the relevant
 devices/tools and a recorded tester. npm ownership/publication and repository
 visibility require the corresponding account state and explicit release scope.
-Project workflow filters currently require authenticated UI inspection because
+On 2026-09-18, `npm whoami` against the public registry returned HTTP 401, so
+publication authentication is not currently verified. Project workflow filters
+currently require authenticated UI inspection because
 the available API does not expose their configuration. These are completion
 requirements, not reasons to stop independent code or documentation work.
 
