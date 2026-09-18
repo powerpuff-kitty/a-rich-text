@@ -153,7 +153,7 @@ function parseBlockSequence(lines: BlockSource, start: number): { content: ARTBl
         index += 1;
         break;
       }
-      if (isBlankLine(current) || isBlockStart(lines, index, true, true)) break;
+      if (isBlankLine(current) || isBlockStart(lines, index, true, true, true)) break;
       paragraph.push(current);
       index += 1;
     }
@@ -165,17 +165,20 @@ function parseBlockSequence(lines: BlockSource, start: number): { content: ARTBl
   return { content: blocks, next: index };
 }
 
-function isBlockStart(lines: BlockSource, index: number, includeTables = true, allowLazy = false): boolean {
+function isBlockStart(lines: BlockSource, index: number, includeTables = true, allowLazy = false, interruptParagraph = false): boolean {
   const line = lines.get(index, allowLazy) ?? '';
   // Indented code cannot interrupt an existing paragraph, even when its
   // literal contents resemble another block marker.
   if (stripCodeIndent(line) !== null) return false;
   const fence = matchOpeningFence(line);
+  const list = matchListItem(line);
+  const startsList = list !== null && (!interruptParagraph
+    || ((list.style === 'task' || !isBlankLine(list.body)) && (list.style !== 'ordered' || list.number === 1)));
   return fence !== null
     || matchHeading(line) !== null
     || isHorizontalRule(line)
     || /^ {0,3}>/.test(line)
-    || matchListItem(line) !== null
+    || startsList
     || parseImage(line) !== null
     || (includeTables && isTableStart(lines, index));
 }
@@ -235,15 +238,15 @@ function isHorizontalRule(line: string): boolean {
 }
 
 function matchListItem(line: string): ListMatch | null {
-  const task = line.match(/^([ \t]*)[-+*][ \t]+\[([ xX])\][ \t]+(.*)$/);
+  const task = line.match(/^([ \t]*)[-+*][ \t]+\[([ xX])\][ \t]+([^\r\n]*)$/);
   if (task) {
     return { indent: indentationWidth(task[1] ?? ''), style: 'task', checked: (task[2] ?? '').toLowerCase() === 'x', body: task[3] ?? '' };
   }
-  const ordered = line.match(/^([ \t]*)(\d+)[.)][ \t]+(.*)$/);
+  const ordered = line.match(/^([ \t]*)([0-9]{1,9})[.)](?:[ \t]+([^\r\n]*)|$)$/);
   if (ordered) {
     return { indent: indentationWidth(ordered[1] ?? ''), style: 'ordered', number: Number.parseInt(ordered[2] ?? '1', 10), body: ordered[3] ?? '' };
   }
-  const bullet = line.match(/^([ \t]*)[-+*][ \t]+(.*)$/);
+  const bullet = line.match(/^([ \t]*)[-+*](?:[ \t]+([^\r\n]*)|$)$/);
   if (bullet) return { indent: indentationWidth(bullet[1] ?? ''), style: 'bullet', body: bullet[2] ?? '' };
   return null;
 }
@@ -297,7 +300,7 @@ function parseList(lines: BlockSource, start: number, first: ListMatch): { node:
     node: {
       type: 'list',
       style,
-      ...(style === 'ordered' && (first.number ?? 1) !== 1 ? { start: Math.max(1, first.number ?? 1) } : {}),
+      ...(style === 'ordered' && (first.number ?? 1) > 1 ? { start: first.number } : {}),
       content: items,
     },
     next: index,
@@ -759,8 +762,12 @@ function serializeInline(nodes: readonly ARTTextNode[]): string {
 
 function serializeList(list: ARTListNode): string {
   return list.content.map((item, itemIndex) => {
+    const start = list.start ?? 1;
+    // Only the first marker determines the start. Keep subsequent markers valid
+    // when numbering a representable list would otherwise exceed nine digits.
+    const number = start <= 999_999_999 ? Math.min(start + itemIndex, 999_999_999) : start + itemIndex;
     const marker = list.style === 'ordered'
-      ? `${(list.start ?? 1) + itemIndex}. `
+      ? `${number}. `
       : list.style === 'task' ? `- [${item.checked ? 'x' : ' '}] ` : '- ';
     // "- ---" is itself a thematic break. Use a different rule marker when
     // the first block of a bullet item is a rule so the list survives reimport.

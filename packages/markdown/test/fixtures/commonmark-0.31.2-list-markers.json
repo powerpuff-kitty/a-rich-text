@@ -1,0 +1,106 @@
+[
+  {
+    "markdown": "123456789. ok\n",
+    "html": "<ol start=\"123456789\">\n<li>ok</li>\n</ol>\n",
+    "example": 265,
+    "start_line": 4377,
+    "end_line": 4383,
+    "section": "List items"
+  },
+  {
+    "markdown": "1234567890. not ok\n",
+    "html": "<p>1234567890. not ok</p>\n",
+    "example": 266,
+    "start_line": 4386,
+    "end_line": 4390,
+    "section": "List items"
+  },
+  {
+    "markdown": "0. ok\n",
+    "html": "<ol start=\"0\">\n<li>ok</li>\n</ol>\n",
+    "example": 267,
+    "start_line": 4395,
+    "end_line": 4401,
+    "section": "List items"
+  },
+  {
+    "markdown": "003. ok\n",
+    "html": "<ol start=\"3\">\n<li>ok</li>\n</ol>\n",
+    "example": 268,
+    "start_line": 4404,
+    "end_line": 4410,
+    "section": "List items"
+  },
+  {
+    "markdown": "-1. not ok\n",
+    "html": "<p>-1. not ok</p>\n",
+    "example": 269,
+    "start_line": 4415,
+    "end_line": 4419,
+    "section": "List items"
+  },
+  {
+    "markdown": "- foo\n-\n- bar\n",
+    "html": "<ul>\n<li>foo</li>\n<li></li>\n<li>bar</li>\n</ul>\n",
+    "example": 281,
+    "start_line": 4646,
+    "end_line": 4656,
+    "section": "List items"
+  },
+  {
+    "markdown": "- foo\n-   \n- bar\n",
+    "html": "<ul>\n<li>foo</li>\n<li></li>\n<li>bar</li>\n</ul>\n",
+    "example": 282,
+    "start_line": 4661,
+    "end_line": 4671,
+    "section": "List items"
+  },
+  {
+    "markdown": "1. foo\n2.\n3. bar\n",
+    "html": "<ol>\n<li>foo</li>\n<li></li>\n<li>bar</li>\n</ol>\n",
+    "example": 283,
+    "start_line": 4676,
+    "end_line": 4686,
+    "section": "List items"
+  },
+  {
+    "markdown": "*\n",
+    "html": "<ul>\n<li></li>\n</ul>\n",
+    "example": 284,
+    "start_line": 4691,
+    "end_line": 4697,
+    "section": "List items"
+  },
+  {
+    "markdown": "foo\n*\n\nfoo\n1.\n",
+    "html": "<p>foo\n*</p>\n<p>foo\n1.</p>\n",
+    "example": 285,
+    "start_line": 4701,
+    "end_line": 4712,
+    "section": "List items"
+  },
+  {
+    "markdown": "Foo\n- bar\n- baz\n",
+    "html": "<p>Foo</p>\n<ul>\n<li>bar</li>\n<li>baz</li>\n</ul>\n",
+    "example": 303,
+    "start_line": 5283,
+    "end_line": 5293,
+    "section": "Lists"
+  },
+  {
+    "markdown": "The number of windows in my house is\n14.  The number of doors is 6.\n",
+    "html": "<p>The number of windows in my house is\n14.  The number of doors is 6.</p>\n",
+    "example": 304,
+    "start_line": 5360,
+    "end_line": 5366,
+    "section": "Lists"
+  },
+  {
+    "markdown": "The number of windows in my house is\n1.  The number of doors is 6.\n",
+    "html": "<p>The number of windows in my house is</p>\n<ol>\n<li>The number of doors is 6.</li>\n</ol>\n",
+    "example": 305,
+    "start_line": 5370,
+    "end_line": 5378,
+    "section": "Lists"
+  }
+]

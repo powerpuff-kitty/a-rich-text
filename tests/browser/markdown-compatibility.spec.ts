@@ -402,3 +402,38 @@ test('lazy quote text does not become a setext heading or cross a blank boundary
   await expect(page.locator('#editor [contenteditable] h1')).toHaveText('Heading');
   await expect(page.locator('#editor [contenteditable] blockquote')).toHaveCount(2);
 });
+
+test('non-one ordered markers remain paragraph text across source views', async ({ page }) => {
+  await page.goto('/dist/browser/');
+  await page.locator('#editor').evaluate(node => { (node as ARichTextElement).view = 'markdown'; });
+  const source = page.locator('#editor [part="source"]');
+  await source.fill('first\n14. item\n\n> quoted\n2) continuation\n\n1. actual list');
+  await expect.poll(() => page.locator('#editor').evaluate(node => (node as ARichTextElement).sourceDirty)).toBe(false);
+  const doc = await page.locator('#editor').evaluate(node => (node as ARichTextElement).getJSON());
+  expect(doc.content.map(block => block.type)).toEqual(['paragraph', 'blockquote', 'list']);
+  await page.locator('#editor').evaluate(node => { (node as ARichTextElement).view = 'visual'; });
+  await expect(page.locator('#editor [contenteditable] blockquote p')).toHaveText('quoted 2) continuation');
+  await expect(page.locator('#editor [contenteditable] ol')).toHaveCount(1);
+  await page.locator('#editor').evaluate(node => { (node as ARichTextElement).view = 'markdown'; });
+  await source.fill((await source.inputValue()) + '\n');
+  await expect.poll(() => page.locator('#editor').evaluate(node => (node as ARichTextElement).sourceDirty)).toBe(false);
+  expect(await page.locator('#editor').evaluate(node => (node as ARichTextElement).getJSON())).toEqual(doc);
+});
+
+test('empty list items and maximum-width starts survive Markdown reimport', async ({ page }) => {
+  await page.goto('/dist/browser/');
+  await page.locator('#editor').evaluate(node => { (node as ARichTextElement).view = 'markdown'; });
+  const source = page.locator('#editor [part="source"]');
+  await source.fill('- first\n-\n- last\n\n999999999. numbered\n1.');
+  await expect.poll(() => page.locator('#editor').evaluate(node => (node as ARichTextElement).sourceDirty)).toBe(false);
+  const doc = await page.locator('#editor').evaluate(node => (node as ARichTextElement).getJSON());
+  expect(doc.content.map(block => block.type)).toEqual(['list', 'list']);
+  await page.locator('#editor').evaluate(node => { (node as ARichTextElement).view = 'visual'; });
+  await expect(page.locator('#editor [contenteditable] ul li')).toHaveCount(3);
+  await expect(page.locator('#editor [contenteditable] ol li')).toHaveCount(2);
+  await expect(page.locator('#editor [contenteditable] ol')).toHaveAttribute('start', '999999999');
+  await page.locator('#editor').evaluate(node => { (node as ARichTextElement).view = 'markdown'; });
+  await source.fill((await source.inputValue()) + '\n');
+  await expect.poll(() => page.locator('#editor').evaluate(node => (node as ARichTextElement).sourceDirty)).toBe(false);
+  expect(await page.locator('#editor').evaluate(node => (node as ARichTextElement).getJSON())).toEqual(doc);
+});
