@@ -53,7 +53,7 @@ and shared editor surfaces. The manual and release prerequisites below remain.
 The [newer empty-blockquote increment](verification/2026-09-18-blockquotes.md)
 passed 1,103 unit tests, 160 targeted browser cases and 27 package checks. It covers
 thematic-break/list boundaries, safe URI/email links and emphasis delimiter runs,
-including mixed-formatting export round trips, Unicode paragraph preservation
+including mixed-formatting export round trips, Unicode paragraph preservation,
 GFM pipe-table cell semantics and empty-quote preservation across HTML/Markdown;
 it does not
 replace the full browser baseline or complete #2's interoperability scope.
