@@ -39,7 +39,7 @@ export function fromMarkdown(markdown: string): ARTDocument {
 
 export function toMarkdown(document: ARTDocument): string {
   if (!isARTDocument(document)) throw new TypeError('Invalid ART document');
-  return serializeBlocks(document.content).trimEnd();
+  return serializeBlocks(document.content).replace(/[ \t\n]+$/, '');
 }
 
 function parseBlocks(lines: readonly string[]): ARTBlockNode[] {
@@ -48,7 +48,7 @@ function parseBlocks(lines: readonly string[]): ARTBlockNode[] {
 
   while (index < lines.length) {
     const line = lines[index] ?? '';
-    if (line.trim() === '') { index += 1; continue; }
+    if (isBlankLine(line)) { index += 1; continue; }
 
     if (stripCodeIndent(line) !== null) {
       const code: string[] = [];
@@ -92,10 +92,10 @@ function parseBlocks(lines: readonly string[]): ARTBlockNode[] {
 
     if (isHorizontalRule(line)) { blocks.push({ type: 'horizontalRule' }); index += 1; continue; }
 
-    if (/^\s{0,3}>/.test(line)) {
+    if (/^ {0,3}>/.test(line)) {
       const quoted: string[] = [];
       while (index < lines.length) {
-        const match = (lines[index] ?? '').match(/^\s{0,3}> ?(.*)$/);
+        const match = (lines[index] ?? '').match(/^ {0,3}> ?([^\r\n]*)$/);
         if (!match) break;
         quoted.push(match[1] ?? '');
         index += 1;
@@ -133,7 +133,7 @@ function parseBlocks(lines: readonly string[]): ARTBlockNode[] {
         index += 1;
         break;
       }
-      if (current.trim() === '' || isBlockStart(lines, index)) break;
+      if (isBlankLine(current) || isBlockStart(lines, index)) break;
       paragraph.push(current);
       index += 1;
     }
@@ -154,7 +154,7 @@ function isBlockStart(lines: readonly string[], index: number): boolean {
   return fence !== null
     || matchHeading(line) !== null
     || isHorizontalRule(line)
-    || /^\s{0,3}>/.test(line)
+    || /^ {0,3}>/.test(line)
     || matchListItem(line) !== null
     || parseImage(line) !== null
     || isTableStart(lines, index);
@@ -247,7 +247,7 @@ function parseList(lines: readonly string[], start: number, first: ListMatch): {
       const nextItem = matchListItem(line);
       if (nextItem && nextItem.indent === baseIndent && nextItem.style === style) break;
 
-      if (line.trim() === '') {
+      if (isBlankLine(line)) {
         const next = findNextNonEmpty(lines, index + 1);
         if (next === -1) { index = lines.length; break; }
         const following = lines[next] ?? '';
@@ -294,7 +294,7 @@ function parseTable(lines: readonly string[], start: number): { node: ARTBlockNo
   if (header.length === 0) return null;
   const rows = [header];
   let index = start + 2;
-  while (index < lines.length && (lines[index] ?? '').trim() !== '' && (lines[index] ?? '').includes('|')) {
+  while (index < lines.length && !isBlankLine(lines[index] ?? '') && (lines[index] ?? '').includes('|')) {
     const row = splitTableRow(lines[index] ?? '');
     if (row.length !== header.length) break;
     rows.push(row);
@@ -343,7 +343,7 @@ function joinParagraphLines(lines: readonly string[]): string {
     const slashRun = line.match(/\\+$/)?.[0].length ?? 0;
     const slashBreak = hasNext && slashRun % 2 === 1;
     const hardBreak = hasNext && (/ {2}$/.test(line) || slashBreak);
-    const value = (slashBreak ? line.slice(0, -1) : line).trim();
+    const value = trimInlineWhitespace(slashBreak ? line.slice(0, -1) : line);
     return value + (hasNext ? hardBreak ? '\n' : ' ' : '');
   }).join('');
 }
@@ -769,12 +769,16 @@ function safeUrl(value: string, image: boolean): string | null {
   } catch { return null; }
 }
 
+// Markdown block whitespace is ASCII space/tab, not JavaScript's broader \s.
+function isBlankLine(line: string): boolean { return /^[ \t]*$/.test(line); }
+function trimInlineWhitespace(value: string): string { return value.replace(/^[ \t]+|[ \t]+$/g, ''); }
+
 function findNextNonEmpty(lines: readonly string[], from: number): number {
-  for (let index = from; index < lines.length; index += 1) if ((lines[index] ?? '').trim() !== '') return index;
+  for (let index = from; index < lines.length; index += 1) if (!isBlankLine(lines[index] ?? '')) return index;
   return -1;
 }
 
-function leadingIndent(line: string): number { return indentationWidth(line.match(/^\s*/)?.[0] ?? ''); }
+function leadingIndent(line: string): number { return indentationWidth(line.match(/^[ \t]*/)?.[0] ?? ''); }
 function indentationWidth(value: string): number { return [...value].reduce((width, character) => width + (character === '\t' ? 4 : 1), 0); }
 function removeIndent(line: string, width: number): string {
   let consumed = 0; let index = 0;

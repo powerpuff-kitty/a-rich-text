@@ -4,6 +4,23 @@ The default `art:markdown-v1` profile remains the **ART Markdown subset**. Its
 CommonMark reference version is **0.31.2**. Naming that reference does not claim
 full CommonMark, GFM, MDX or Pandoc conformance.
 
+## Verified scope: paragraphs, blank lines and textual content
+
+All 12 upstream examples from these three sections (219–227 and 650–652) are
+vendored unchanged and match after normalizing block separators, paragraph soft
+breaks, `<br>` spelling and ART's omitted final code line terminator. Each also
+round-trips through Markdown export.
+
+Only ASCII spaces and tabs make a blank line or contribute paragraph indentation
+and trailing whitespace. Non-breaking spaces, other Unicode spaces, BOM characters,
+form feeds and vertical tabs remain paragraph text, including at document edges
+and on otherwise empty lines. Unicode line/paragraph separators remain text;
+inside quotes they no longer cause the quote scanner to stall. Quote indentation
+uses up to three ASCII spaces. Export removes trailing ASCII layout whitespace
+without trimming Unicode text. Existing soft/hard-break normalization still applies.
+These checks do not establish arbitrary whitespace fidelity in other Markdown
+constructs. See [paragraph tests](../packages/markdown/test/paragraphs.test.ts).
+
 ## Verified scope: thematic breaks
 
 All 19 upstream thematic-break examples (43–61) are vendored unchanged.

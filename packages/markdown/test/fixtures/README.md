@@ -1,5 +1,10 @@
 # CommonMark fixtures
 
+`commonmark-0.31.2-paragraphs.json` contains all 12 unmodified examples from
+“Paragraphs”, “Blank lines” and “Textual content”, downloaded from
+https://spec.commonmark.org/0.31.2/spec.json on 2026-09-18. All match under the
+runner’s documented HTML/soft-break/code-line normalization.
+
 `commonmark-0.31.2-thematic-breaks.json` contains all 19 unmodified examples from
 the “Thematic breaks” section of CommonMark 0.31.2, downloaded from
 https://spec.commonmark.org/0.31.2/spec.json on 2026-09-18.
