@@ -9,7 +9,6 @@ const fixtures: Fixture[] = JSON.parse(readFileSync(new URL('./fixtures/commonma
 // convention. Keep list paragraph wrappers and inline formatting significant.
 const expectedHTML = (html: string) => html.trimEnd().replace(/\n<\/code>/g, '</code>').replace(/>\n</g, '><').replaceAll('<hr />', '<hr>').replace(/(<pre>[\s\S]*?<\/pre>)|\n/g, (match, code: string | undefined) => code ?? ' ');
 const unsupported = new Map([
-  [55, 'emphasis delimiter whitespace rules'],
   [57, 'tight-list paragraph rendering'],
   [60, 'tight-list paragraph rendering'],
   [61, 'tight-list paragraph rendering'],
