@@ -50,13 +50,12 @@ tests, all 470 browser cases without retries/skips, and 27 package installation
 checks. It covers the latest format converters, source/output showcase controls,
 and shared editor surfaces. The manual and release prerequisites below remain.
 
-The [newer empty-blockquote increment](verification/2026-09-18-blockquotes.md)
-passed 1,103 unit tests, 160 targeted browser cases and 27 package checks. It covers
+The [newer blockquote-continuation increment](verification/2026-09-18-quote-continuation.md)
+passed 1,119 unit tests, 170 targeted browser cases and 27 package checks. It covers
 thematic-break/list boundaries, safe URI/email links and emphasis delimiter runs,
 including mixed-formatting export round trips, Unicode paragraph preservation,
-GFM pipe-table cell semantics and empty-quote preservation across HTML/Markdown;
-it does not
-replace the full browser baseline or complete #2's interoperability scope.
+GFM pipe-table cell semantics, empty-quote preservation across HTML/Markdown,
+and nested quote paragraph continuation. It does not replace the full browser baseline or complete #2's interoperability scope.
 
 - [Quality #11](https://github.com/powerpuff-kitty/a-rich-text/issues/11) and
   [local gates #46](https://github.com/powerpuff-kitty/a-rich-text/issues/46): real

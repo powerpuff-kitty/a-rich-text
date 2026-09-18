@@ -2,8 +2,8 @@
 
 `commonmark-0.31.2-blockquotes.json` contains all 25 unmodified “Block quotes”
 examples (228–252), downloaded from https://spec.commonmark.org/0.31.2/spec.json
-on 2026-09-18. Eighteen match under documented normalization; lazy continuation
-(232/233/238/247/250/251) and tight-list rendering (235) remain explicit mismatches.
+on 2026-09-18. Twenty-four match under documented normalization; tight-list rendering (235)
+remains an explicit mismatch. Lazy quote continuation and setext example 93 now match.
 
 `commonmark-0.31.2-paragraphs.json` contains all 12 unmodified examples from
 “Paragraphs”, “Blank lines” and “Textual content”, downloaded from
@@ -47,7 +47,7 @@ https://creativecommons.org/licenses/by-sa/4.0/ . These upstream fixtures retain
 that license; the repository MIT license does not replace it. No example text
 or expected HTML was altered. The test runner documents its soft-break and equivalent HTML quote-escaping
 normalization and explicitly unsupported interactions (thematic breaks 57/60/61;
-code spans 344; indented code 109; setext headings 93/94/99; escapes 21–23;
+code spans 344; indented code 109; setext headings 94/99; escapes 21–23;
 emphasis 475–477; hard breaks 642/643; autolink scheme policy 596/598/599/601).
 
 ## GFM table fixtures

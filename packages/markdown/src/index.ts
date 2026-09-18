@@ -42,18 +42,43 @@ export function toMarkdown(document: ARTDocument): string {
   return serializeBlocks(document.content).replace(/[ \t\n]+$/, '');
 }
 
+interface BlockSource {
+  length: number;
+  get(index: number, allowLazy?: boolean): string | undefined;
+}
+
 function parseBlocks(lines: readonly string[]): ARTBlockNode[] {
+  return parseBlockSequence({ length: lines.length, get: index => lines[index] }, 0).content;
+}
+
+function quoteSource(parent: BlockSource): BlockSource {
+  return {
+    length: parent.length,
+    get(index, allowLazy = false) {
+      const line = parent.get(index, allowLazy);
+      if (line === undefined) return undefined;
+      const match = line.match(/^ {0,3}> ?([^\r\n]*)$/);
+      return match ? match[1]! : allowLazy ? line : undefined;
+    },
+  };
+}
+
+// Quote containers share source positions. Only an open paragraph may read a
+// line with omitted markers; other blocks stop at the explicit quote boundary.
+function parseBlockSequence(lines: BlockSource, start: number): { content: ARTBlockNode[]; next: number } {
   const blocks: ARTBlockNode[] = [];
-  let index = 0;
+  let index = start;
 
   while (index < lines.length) {
-    const line = lines[index] ?? '';
+    const line = lines.get(index);
+    if (line === undefined) break;
     if (isBlankLine(line)) { index += 1; continue; }
 
     if (stripCodeIndent(line) !== null) {
       const code: string[] = [];
       while (index < lines.length) {
-        const current = lines[index] ?? '';
+        const current = lines.get(index);
+        if (current === undefined) break;
         const stripped = stripCodeIndent(current);
         if (stripped === null && !/^[ \t]*$/.test(current)) break;
         code.push(stripped ?? '');
@@ -70,11 +95,11 @@ function parseBlocks(lines: readonly string[]): ARTBlockNode[] {
       const { marker, indent, language } = fence;
       const code: string[] = [];
       index += 1;
-      while (index < lines.length && !isClosingFence(lines[index] ?? '', marker)) {
-        code.push(stripFenceIndent(lines[index] ?? '', indent));
+      while (index < lines.length && lines.get(index) !== undefined && !isClosingFence(lines.get(index)!, marker)) {
+        code.push(stripFenceIndent(lines.get(index) ?? '', indent));
         index += 1;
       }
-      if (index < lines.length) index += 1;
+      if (lines.get(index) !== undefined) index += 1;
       blocks.push({ type: 'codeBlock', ...(language ? { language } : {}), text: code.join('\n') });
       continue;
     }
@@ -93,15 +118,9 @@ function parseBlocks(lines: readonly string[]): ARTBlockNode[] {
     if (isHorizontalRule(line)) { blocks.push({ type: 'horizontalRule' }); index += 1; continue; }
 
     if (/^ {0,3}>/.test(line)) {
-      const quoted: string[] = [];
-      while (index < lines.length) {
-        const match = (lines[index] ?? '').match(/^ {0,3}> ?([^\r\n]*)$/);
-        if (!match) break;
-        quoted.push(match[1] ?? '');
-        index += 1;
-      }
-      const content = parseBlocks(quoted);
-      blocks.push({ type: 'blockquote', content });
+      const parsed = parseBlockSequence(quoteSource(lines), index);
+      blocks.push({ type: 'blockquote', content: parsed.content });
+      index = parsed.next;
       continue;
     }
 
@@ -125,15 +144,16 @@ function parseBlocks(lines: readonly string[]): ARTBlockNode[] {
     let setextLevel: 1 | 2 | undefined;
     index += 1;
     while (index < lines.length) {
-      const current = lines[index] ?? '';
+      const current = lines.get(index, true);
+      if (current === undefined) break;
       // Underlines take precedence over thematic breaks only after paragraph text.
       const underline = current.match(/^ {0,3}(=+|-+)[ \t]*$/);
-      if (underline) {
+      if (underline && lines.get(index) !== undefined) {
         setextLevel = underline[1]!.startsWith('=') ? 1 : 2;
         index += 1;
         break;
       }
-      if (isBlankLine(current) || isBlockStart(lines, index)) break;
+      if (isBlankLine(current) || isBlockStart(lines, index, true, true)) break;
       paragraph.push(current);
       index += 1;
     }
@@ -142,11 +162,11 @@ function parseBlocks(lines: readonly string[]): ARTBlockNode[] {
     blocks.push(setextLevel ? { type: 'heading', level: setextLevel, content } : { type: 'paragraph', content });
   }
 
-  return blocks;
+  return { content: blocks, next: index };
 }
 
-function isBlockStart(lines: readonly string[], index: number, includeTables = true): boolean {
-  const line = lines[index] ?? '';
+function isBlockStart(lines: BlockSource, index: number, includeTables = true, allowLazy = false): boolean {
+  const line = lines.get(index, allowLazy) ?? '';
   // Indented code cannot interrupt an existing paragraph, even when its
   // literal contents resemble another block marker.
   if (stripCodeIndent(line) !== null) return false;
@@ -228,7 +248,7 @@ function matchListItem(line: string): ListMatch | null {
   return null;
 }
 
-function parseList(lines: readonly string[], start: number, first: ListMatch): { node: ARTListNode; next: number } {
+function parseList(lines: BlockSource, start: number, first: ListMatch): { node: ARTListNode; next: number } {
   const items: ARTListNode['content'] = [];
   const baseIndent = first.indent;
   const style = first.style;
@@ -236,21 +256,25 @@ function parseList(lines: readonly string[], start: number, first: ListMatch): {
 
   while (index < lines.length) {
     // A thematic break wins over a list marker, including between list items.
-    if (isHorizontalRule(lines[index] ?? '')) break;
-    const current = matchListItem(lines[index] ?? '');
+    if (isHorizontalRule(lines.get(index) ?? '')) break;
+    const current = matchListItem(lines.get(index) ?? '');
     if (!current || current.indent !== baseIndent || current.style !== style) break;
     const itemLines = [current.body];
     index += 1;
 
     while (index < lines.length) {
-      const line = lines[index] ?? '';
+      const line = lines.get(index);
+      if (line === undefined) break;
       const nextItem = matchListItem(line);
       if (nextItem && nextItem.indent === baseIndent && nextItem.style === style) break;
 
       if (isBlankLine(line)) {
         const next = findNextNonEmpty(lines, index + 1);
-        if (next === -1) { index = lines.length; break; }
-        const following = lines[next] ?? '';
+        if (next === -1) {
+          while (lines.get(index) !== undefined && isBlankLine(lines.get(index)!)) index += 1;
+          break;
+        }
+        const following = lines.get(next) ?? '';
         const followingItem = matchListItem(following);
         if (followingItem && followingItem.indent === baseIndent && followingItem.style === style) { index = next; break; }
         if (leadingIndent(following) > baseIndent) { itemLines.push(''); index += 1; continue; }
@@ -280,11 +304,11 @@ function parseList(lines: readonly string[], start: number, first: ListMatch): {
   };
 }
 
-function isTableStart(lines: readonly string[], index: number): boolean {
-  const header = lines[index] ?? '';
+function isTableStart(lines: BlockSource, index: number): boolean {
+  const header = lines.get(index) ?? '';
   if (index + 1 >= lines.length || !hasTablePipe(header)) return false;
   const cells = splitTableRow(header);
-  const separators = splitTableRow(lines[index + 1] ?? '');
+  const separators = splitTableRow(lines.get(index + 1) ?? '');
   return cells.length > 0 && cells.length === separators.length
     && separators.every(cell => /^:?-+:?$/.test(trimInlineWhitespace(cell)));
 }
@@ -296,15 +320,15 @@ function hasTablePipe(line: string): boolean {
   return false;
 }
 
-function parseTable(lines: readonly string[], start: number): { node: ARTBlockNode; next: number } | null {
-  const header = splitTableRow(lines[start] ?? '');
+function parseTable(lines: BlockSource, start: number): { node: ARTBlockNode; next: number } | null {
+  const header = splitTableRow(lines.get(start) ?? '');
   if (header.length === 0) return null;
   const rows = [header];
   // Bound expansion when a wide header is followed by many short rows.
   let remainingPadding = 65_536;
   let index = start + 2;
-  while (index < lines.length && !isBlankLine(lines[index] ?? '') && !isBlockStart(lines, index, false)) {
-    const row = splitTableRow(lines[index] ?? '');
+  while (index < lines.length && !isBlankLine(lines.get(index) ?? '') && !isBlockStart(lines, index, false)) {
+    const row = splitTableRow(lines.get(index) ?? '');
     const missing = Math.max(0, header.length - row.length);
     if (missing > remainingPadding) break;
     remainingPadding -= missing;
@@ -792,8 +816,12 @@ function safeUrl(value: string, image: boolean): string | null {
 function isBlankLine(line: string): boolean { return /^[ \t]*$/.test(line); }
 function trimInlineWhitespace(value: string): string { return value.replace(/^[ \t]+|[ \t]+$/g, ''); }
 
-function findNextNonEmpty(lines: readonly string[], from: number): number {
-  for (let index = from; index < lines.length; index += 1) if (!isBlankLine(lines[index] ?? '')) return index;
+function findNextNonEmpty(lines: BlockSource, from: number): number {
+  for (let index = from; index < lines.length; index += 1) {
+    const line = lines.get(index);
+    if (line === undefined) break;
+    if (!isBlankLine(line)) return index;
+  }
   return -1;
 }
 

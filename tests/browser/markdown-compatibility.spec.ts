@@ -364,3 +364,41 @@ test('empty quotes in list items survive Markdown and HTML source views', async 
   await expect.poll(() => page.locator('#editor').evaluate(node => (node as ARichTextElement).sourceDirty)).toBe(false);
   expect(await page.locator('#editor').evaluate(node => (node as ARichTextElement).getJSON())).toEqual(doc);
 });
+
+
+test('nested quote continuation preserves inline marks and quote depth', async ({ page }) => {
+  await page.goto('/dist/browser/');
+  await page.locator('#editor').evaluate(node => {
+    const editor = node as ARichTextElement;
+    editor.setText('Original'); editor.view = 'markdown';
+  });
+  const source = page.locator('#editor [part="source"]');
+  await source.fill('>>> *first\n> second\n>> third*');
+  await expect.poll(() => page.locator('#editor').evaluate(node => (node as ARichTextElement).sourceDirty)).toBe(false);
+  const doc = await page.locator('#editor').evaluate(node => (node as ARichTextElement).getJSON());
+  expect(doc.content).toHaveLength(1);
+  await page.locator('#editor').evaluate(node => { (node as ARichTextElement).view = 'visual'; });
+  await expect(page.locator('#editor [contenteditable] blockquote')).toHaveCount(3);
+  await expect(page.locator('#editor [contenteditable] p em')).toHaveText('first second third');
+  await page.locator('#editor').evaluate(node => { (node as ARichTextElement).view = 'markdown'; });
+  await source.fill((await source.inputValue()) + '\n');
+  await expect.poll(() => page.locator('#editor').evaluate(node => (node as ARichTextElement).sourceDirty)).toBe(false);
+  expect(await page.locator('#editor').evaluate(node => (node as ARichTextElement).getJSON())).toEqual(doc);
+});
+
+test('lazy quote text does not become a setext heading or cross a blank boundary', async ({ page }) => {
+  await page.goto('/dist/browser/');
+  await page.locator('#editor').evaluate(node => {
+    const editor = node as ARichTextElement;
+    editor.setText('Original'); editor.view = 'markdown';
+  });
+  const source = page.locator('#editor [part="source"]');
+  await source.fill('> first\nsecond\n===\n\noutside\n\n> # Heading\nafter');
+  await expect.poll(() => page.locator('#editor').evaluate(node => (node as ARichTextElement).sourceDirty)).toBe(false);
+  const doc = await page.locator('#editor').evaluate(node => (node as ARichTextElement).getJSON());
+  expect(doc.content.map(block => block.type)).toEqual(['blockquote', 'paragraph', 'blockquote', 'paragraph']);
+  expect(doc.content[0]).toEqual({ type: 'blockquote', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'first second ===' }] }] });
+  await page.locator('#editor').evaluate(node => { (node as ARichTextElement).view = 'visual'; });
+  await expect(page.locator('#editor [contenteditable] h1')).toHaveText('Heading');
+  await expect(page.locator('#editor [contenteditable] blockquote')).toHaveCount(2);
+});

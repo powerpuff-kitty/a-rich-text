@@ -8,7 +8,7 @@ const fixtures: Fixture[] = JSON.parse(readFileSync(new URL('./fixtures/commonma
 // Normalize block separators, soft breaks outside code, equivalent text quotes,
 // and ART's omitted final code line terminator. Preserve internal code spacing.
 const expectedHTML = (html: string) => html.trimEnd().replace(/\n<\/code>/g, '</code>').replace(/>\n</g, '><').replaceAll('<hr />', '<hr>').replace(/(<pre>[\s\S]*?<\/pre>)|\n/g, (match, code: string | undefined) => code ?? ' ').replaceAll('&quot;', '"');
-const unsupported = new Map([[93, 'lazy blockquote continuation'], [94, 'tight-list paragraph rendering'], [99, 'tight-list paragraph rendering']]);
+const unsupported = new Map([[94, 'tight-list paragraph rendering'], [99, 'tight-list paragraph rendering']]);
 
 describe('CommonMark setext headings', () => {
   it('accounts for every upstream example', () => {
