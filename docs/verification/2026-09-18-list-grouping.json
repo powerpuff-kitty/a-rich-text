@@ -1,0 +1,46 @@
+{
+  "revision": "0d557d5fd00b4713f9f052d8e5c74a0570c49a1f",
+  "unit": {
+    "passed": 1180,
+    "files": 89
+  },
+  "browser": {
+    "scope": "markdown-compatibility, live-source, profiles, autolink",
+    "stats": {
+      "startTime": "2026-09-18T19:24:41.529Z",
+      "duration": 319250.82999999996,
+      "expected": 190,
+      "skipped": 0,
+      "unexpected": 0,
+      "flaky": 0
+    },
+    "projects": {
+      "chromium": 38,
+      "firefox": 38,
+      "webkit": 38,
+      "mobile-chromium": 38,
+      "mobile-webkit": 38
+    },
+    "workers": 2,
+    "retries": 0,
+    "reportSHA256": "8faa9acf66d3cb064756b9c0f1258688c28005a0c2023466def235bc8fb2d939"
+  },
+  "packages": 27,
+  "gzipBytes": {
+    "minimal": 40706,
+    "standard": 59607
+  },
+  "fixtures": {
+    "spec": "CommonMark 0.31.2",
+    "section": "Lists",
+    "scope": "selected grouping examples only",
+    "total": 3,
+    "examples": [
+      301,
+      302,
+      306
+    ],
+    "matchingRetainedSemantics": 3,
+    "normalization": "HTML import removes list-tightness differences; paragraph soft breaks fold"
+  }
+}

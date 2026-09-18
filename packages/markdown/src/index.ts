@@ -20,6 +20,7 @@ const MARK_ORDER: Record<ARTTextMark['type'], number> = {
 interface ListMatch {
   indent: number;
   style: ARTListNode['style'];
+  marker: string;
   body: string;
   checked?: boolean;
   number?: number;
@@ -238,16 +239,16 @@ function isHorizontalRule(line: string): boolean {
 }
 
 function matchListItem(line: string): ListMatch | null {
-  const task = line.match(/^([ \t]*)[-+*][ \t]+\[([ xX])\][ \t]+([^\r\n]*)$/);
+  const task = line.match(/^([ \t]*)([-+*])[ \t]+\[([ xX])\][ \t]+([^\r\n]*)$/);
   if (task) {
-    return { indent: indentationWidth(task[1] ?? ''), style: 'task', checked: (task[2] ?? '').toLowerCase() === 'x', body: task[3] ?? '' };
+    return { indent: indentationWidth(task[1] ?? ''), style: 'task', marker: task[2]!, checked: (task[3] ?? '').toLowerCase() === 'x', body: task[4] ?? '' };
   }
-  const ordered = line.match(/^([ \t]*)([0-9]{1,9})[.)](?:[ \t]+([^\r\n]*)|$)$/);
+  const ordered = line.match(/^([ \t]*)([0-9]{1,9})([.)])(?:[ \t]+([^\r\n]*)|$)$/);
   if (ordered) {
-    return { indent: indentationWidth(ordered[1] ?? ''), style: 'ordered', number: Number.parseInt(ordered[2] ?? '1', 10), body: ordered[3] ?? '' };
+    return { indent: indentationWidth(ordered[1] ?? ''), style: 'ordered', marker: ordered[3]!, number: Number.parseInt(ordered[2] ?? '1', 10), body: ordered[4] ?? '' };
   }
-  const bullet = line.match(/^([ \t]*)[-+*](?:[ \t]+([^\r\n]*)|$)$/);
-  if (bullet) return { indent: indentationWidth(bullet[1] ?? ''), style: 'bullet', body: bullet[2] ?? '' };
+  const bullet = line.match(/^([ \t]*)([-+*])(?:[ \t]+([^\r\n]*)|$)$/);
+  if (bullet) return { indent: indentationWidth(bullet[1] ?? ''), style: 'bullet', marker: bullet[2]!, body: bullet[3] ?? '' };
   return null;
 }
 
@@ -261,7 +262,7 @@ function parseList(lines: BlockSource, start: number, first: ListMatch): { node:
     // A thematic break wins over a list marker, including between list items.
     if (isHorizontalRule(lines.get(index) ?? '')) break;
     const current = matchListItem(lines.get(index) ?? '');
-    if (!current || current.indent !== baseIndent || current.style !== style) break;
+    if (!current || current.indent !== baseIndent || current.style !== style || current.marker !== first.marker) break;
     const itemLines = [current.body];
     index += 1;
 
@@ -698,7 +699,19 @@ function marksEqual(left: readonly ARTTextMark[], right: readonly ARTTextMark[])
 }
 
 function serializeBlocks(blocks: readonly ARTBlockNode[]): string {
-  return blocks.map(serializeBlock).join('\n\n');
+  let previousStyle: ARTListNode['style'] | undefined;
+  let alternate = false;
+  return blocks.map(block => {
+    if (block.type !== 'list') {
+      previousStyle = undefined;
+      return serializeBlock(block);
+    }
+    // Blank lines alone do not separate lists. Alternate marker spelling to
+    // preserve adjacent ART lists without storing source punctuation in ART.
+    alternate = previousStyle === block.style ? !alternate : false;
+    previousStyle = block.style;
+    return serializeList(block, alternate);
+  }).join('\n\n');
 }
 
 function serializeBlock(block: ARTBlockNode): string {
@@ -760,20 +773,19 @@ function serializeInline(nodes: readonly ARTTextNode[]): string {
   return output;
 }
 
-function serializeList(list: ARTListNode): string {
+function serializeList(list: ARTListNode, alternate = false): string {
   return list.content.map((item, itemIndex) => {
     const start = list.start ?? 1;
     // Only the first marker determines the start. Keep subsequent markers valid
     // when numbering a representable list would otherwise exceed nine digits.
     const number = start <= 999_999_999 ? Math.min(start + itemIndex, 999_999_999) : start + itemIndex;
     const marker = list.style === 'ordered'
-      ? `${number}. `
-      : list.style === 'task' ? `- [${item.checked ? 'x' : ' '}] ` : '- ';
+      ? `${number}${alternate ? ')' : '.'} `
+      : list.style === 'task' ? `${alternate ? '+' : '-'} [${item.checked ? 'x' : ' '}] ` : `${alternate ? '+' : '-'} `;
     // "- ---" is itself a thematic break. Use a different rule marker when
     // the first block of a bullet item is a rule so the list survives reimport.
-    const body = item.content.map((block, index) =>
-      index === 0 && list.style === 'bullet' && block.type === 'horizontalRule' ? '***' : serializeBlock(block),
-    ).join('\n\n');
+    let body = serializeBlocks(item.content);
+    if (list.style === 'bullet' && item.content[0]?.type === 'horizontalRule') body = '***' + body.slice(3);
     const indent = ' '.repeat(marker.length);
     return body.split('\n').map((line, lineIndex) => `${lineIndex === 0 ? marker : indent}${line}`).join('\n');
   }).join('\n');

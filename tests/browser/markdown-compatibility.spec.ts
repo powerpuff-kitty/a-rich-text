@@ -437,3 +437,37 @@ test('empty list items and maximum-width starts survive Markdown reimport', asyn
   await expect.poll(() => page.locator('#editor').evaluate(node => (node as ARichTextElement).sourceDirty)).toBe(false);
   expect(await page.locator('#editor').evaluate(node => (node as ARichTextElement).getJSON())).toEqual(doc);
 });
+
+test('changed list markers preserve separate visual lists and ordered starts', async ({ page }) => {
+  await page.goto('/dist/browser/');
+  await page.locator('#editor').evaluate(node => { (node as ARichTextElement).view = 'markdown'; });
+  const source = page.locator('#editor [part="source"]');
+  await source.fill('- one\n- two\n+ three\n\n1. first\n2. second\n3) third');
+  await expect.poll(() => page.locator('#editor').evaluate(node => (node as ARichTextElement).sourceDirty)).toBe(false);
+  const doc = await page.locator('#editor').evaluate(node => (node as ARichTextElement).getJSON());
+  expect(doc.content.map(block => block.type)).toEqual(['list', 'list', 'list', 'list']);
+  await page.locator('#editor').evaluate(node => { (node as ARichTextElement).view = 'visual'; });
+  await expect(page.locator('#editor [contenteditable] ul')).toHaveCount(2);
+  await expect(page.locator('#editor [contenteditable] ol')).toHaveCount(2);
+  await expect(page.locator('#editor [contenteditable] ol').last()).toHaveAttribute('start', '3');
+  await page.locator('#editor').evaluate(node => { (node as ARichTextElement).view = 'markdown'; });
+  await source.fill((await source.inputValue()) + '\n');
+  await expect.poll(() => page.locator('#editor').evaluate(node => (node as ARichTextElement).sourceDirty)).toBe(false);
+  expect(await page.locator('#editor').evaluate(node => (node as ARichTextElement).getJSON())).toEqual(doc);
+});
+
+test('task list boundaries survive nested quote source conversion', async ({ page }) => {
+  await page.goto('/dist/browser/');
+  await page.locator('#editor').evaluate(node => { (node as ARichTextElement).view = 'markdown'; });
+  const source = page.locator('#editor [part="source"]');
+  await source.fill('> - [x] one\n> + [ ] two\n> * [x] three');
+  await expect.poll(() => page.locator('#editor').evaluate(node => (node as ARichTextElement).sourceDirty)).toBe(false);
+  const doc = await page.locator('#editor').evaluate(node => (node as ARichTextElement).getJSON());
+  expect(doc.content[0]?.type).toBe('blockquote');
+  await page.locator('#editor').evaluate(node => { (node as ARichTextElement).view = 'visual'; });
+  await expect(page.locator('#editor [contenteditable] blockquote ul')).toHaveCount(3);
+  await page.locator('#editor').evaluate(node => { (node as ARichTextElement).view = 'markdown'; });
+  await source.fill((await source.inputValue()) + '\n');
+  await expect.poll(() => page.locator('#editor').evaluate(node => (node as ARichTextElement).sourceDirty)).toBe(false);
+  expect(await page.locator('#editor').evaluate(node => (node as ARichTextElement).getJSON())).toEqual(doc);
+});

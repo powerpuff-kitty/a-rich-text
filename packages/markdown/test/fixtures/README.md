@@ -59,6 +59,12 @@ semantics through HTML import (tightness is not stored; soft breaks fold). Twelv
 examples match that mapping; example 267 explicitly records zero-start lists
 normalizing to one under ART's positive-start constraint.
 
+`commonmark-0.31.2-list-grouping.json` contains three unchanged examples (301,
+302, 306) from the same CommonMark source, date and license. These cover changed
+bullet/ordered markers and blank lines between matching markers. All three match
+retained ART semantics through HTML import; tight/loose paragraph wrappers are
+not stored. This is a selected subset, not full Lists coverage.
+
 ## GFM table fixtures
 
 `gfm-0.29-tables.json` contains the eight unmodified Markdown/HTML examples
