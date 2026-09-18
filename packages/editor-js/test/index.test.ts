@@ -46,4 +46,10 @@ describe('Editor.js adapter', () => {
     const exported = exportEditorJS(imported.value);
     expect(JSON.parse(exported.value).blocks[0].data.content).toEqual([['A', 'B'], ['1', '2']]);
   });
+  it('preserves Editor.js warning blocks as extension blocks', () => {
+    const imported = importEditorJS(JSON.stringify({ blocks: [{ type: 'warning', data: { title: 'Note', message: 'Read this' } }] }));
+    expect(imported.value.content[0]).toMatchObject({ type: 'extensionBlock', name: 'editorjs:warning' });
+    expect(imported.diagnostics).toContainEqual(expect.objectContaining({ code: 'adapter-warning' }));
+    expect(JSON.parse(exportEditorJS(imported.value).value).blocks[0].data).toEqual({ title: 'Note', message: 'Read this' });
+  });
 });
