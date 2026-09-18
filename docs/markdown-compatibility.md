@@ -44,7 +44,32 @@ continuation mismatches and setext example 93 now match. Containers share source
 positions so long alternating marked/unmarked paragraphs are parsed once;
 list/table collectors stop at their explicit quote boundary. General list-contained
 continuation, list-marker interruption and container tab/indentation rules remain
-incomplete. See [blockquote tests](../packages/markdown/test/blockquotes.test.ts).
+incomplete beyond the marker boundaries below. See [blockquote tests](../packages/markdown/test/blockquotes.test.ts).
+
+## Verified scope: list marker boundaries
+
+Thirteen selected, unchanged CommonMark examples cover ordered marker width,
+leading zeros, negative numbers, empty items and paragraph interruption (265–269,
+281–285, 303–305). The tests compare retained ART semantics through HTML import:
+list tightness is not stored and paragraph soft breaks fold to spaces. Twelve
+match under that mapping. Example 267 records the existing model exception:
+zero-start lists normalize to one because ART requires positive starts.
+
+Ordered markers accept one to nine ASCII digits, followed by `.` or `)` and an
+ASCII space/tab or end of line. Nonempty ordered items interrupt paragraphs only
+when their parsed start is one. Empty list markers do not interrupt paragraphs;
+isolated empty items and empty items within lists are retained. A bare `-` after
+paragraph text still follows setext-heading precedence. The same interruption
+rules apply to open quote paragraphs; tables can still end at non-one list starts.
+Unicode line/paragraph separators within item text remain literal content.
+
+When serializing a representable start, subsequent item numbers stop at nine
+digits so a list starting at 999,999,999 can round-trip multiple items. Only the
+first marker determines an ordered list's start. ART starts above 999,999,999 are
+outside this Markdown mapping. General list continuation, marker-style grouping,
+indentation/tab handling and tight/loose rendering remain incomplete. These
+thirteen fixtures are a selected subset, not full List items/Lists coverage.
+See [list-marker tests](../packages/markdown/test/list-markers.test.ts).
 
 ## Verified scope: thematic breaks
 

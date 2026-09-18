@@ -50,6 +50,15 @@ normalization and explicitly unsupported interactions (thematic breaks 57/60/61;
 code spans 344; indented code 109; setext headings 94/99; escapes 21–23;
 emphasis 475–477; hard breaks 642/643; autolink scheme policy 596/598/599/601).
 
+`commonmark-0.31.2-list-markers.json` contains thirteen unchanged examples selected
+from the CommonMark 0.31.2 List items/Lists sections: 265–269, 281–285 and 303–305.
+Source: the spec.json link above, downloaded on 2026-09-18; the CC BY-SA 4.0 license
+above applies. These cover marker width, leading zeros/negative markers, empty
+items and paragraph interruption, not the full sections. The runner compares ART
+semantics through HTML import (tightness is not stored; soft breaks fold). Twelve
+examples match that mapping; example 267 explicitly records zero-start lists
+normalizing to one under ART's positive-start constraint.
+
 ## GFM table fixtures
 
 `gfm-0.29-tables.json` contains the eight unmodified Markdown/HTML examples
