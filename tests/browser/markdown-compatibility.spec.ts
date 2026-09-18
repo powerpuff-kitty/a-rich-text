@@ -1,6 +1,47 @@
 import { expect, test } from '@playwright/test';
 import type { ARichTextElement } from '../../packages/web-component/src/index.js';
 
+test('Markdown thematic breaks separate lists and survive source/visual switching', async ({ page }) => {
+  await page.goto('/dist/browser/');
+  await page.locator('#editor').evaluate(node => {
+    const editor = node as ARichTextElement;
+    editor.setText('Original'); editor.view = 'markdown';
+  });
+  const source = page.locator('#editor [part="source"]');
+  await source.fill('* First\n*\t*\t*\n* Second\n* * * *');
+  await expect.poll(() => page.locator('#editor').evaluate(node => (node as ARichTextElement).sourceDirty)).toBe(false);
+  const document = await page.locator('#editor').evaluate(node => (node as ARichTextElement).getJSON());
+  expect(document.content.map(block => block.type)).toEqual(['list', 'horizontalRule', 'list', 'horizontalRule']);
+  await page.locator('#editor').evaluate(node => { (node as ARichTextElement).view = 'visual'; });
+  await expect(page.locator('#editor [contenteditable] > ul')).toHaveCount(2);
+  await expect(page.locator('#editor [contenteditable] > hr')).toHaveCount(2);
+  await expect(page.locator('#editor [contenteditable] li')).toHaveCount(2);
+  await page.locator('#editor').evaluate(node => { (node as ARichTextElement).view = 'markdown'; });
+  await expect(source).toHaveValue('- First\n\n---\n\n- Second\n\n---');
+  await page.locator('#editor').evaluate(node => {
+    const editor = node as ARichTextElement;
+    editor.setMarkdown(editor.getMarkdown());
+  });
+  expect(await page.locator('#editor').evaluate(node => (node as ARichTextElement).getJSON())).toEqual(document);
+});
+
+test('Markdown export preserves a rule inside a list item', async ({ page }) => {
+  await page.goto('/dist/browser/');
+  await page.locator('#editor').evaluate(node => {
+    const editor = node as ARichTextElement;
+    editor.setMarkdown('- First\n- * * *'); editor.view = 'markdown';
+  });
+  const source = page.locator('#editor [part="source"]');
+  await expect(source).toHaveValue('- First\n- ***');
+  await source.fill('- Updated\n- ***');
+  await expect.poll(() => page.locator('#editor').evaluate(node => (node as ARichTextElement).sourceDirty)).toBe(false);
+  await page.locator('#editor').evaluate(node => { (node as ARichTextElement).view = 'visual'; });
+  await expect(page.locator('#editor [contenteditable] > ul')).toHaveCount(1);
+  await expect(page.locator('#editor [contenteditable] li')).toHaveCount(2);
+  await expect(page.locator('#editor [contenteditable] li hr')).toHaveCount(1);
+  await expect(page.locator('#editor [contenteditable] > hr')).toHaveCount(0);
+});
+
 test('Markdown source preserves code padding and delimiter runs through visual editing', async ({ page }) => {
   await page.goto('/dist/browser/');
   await page.locator('#editor').evaluate(node => {

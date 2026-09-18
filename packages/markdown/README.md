@@ -14,7 +14,7 @@ It is not a fully conforming CommonMark/GFM parser. See the repository
 
 ## Scoped CommonMark checks
 
-The reference target is CommonMark 0.31.2. Vendored examples cover code spans,
+The reference target is CommonMark 0.31.2. Vendored examples cover thematic breaks, code spans,
 ATX/setext headings, indented/fenced code, escapes and line breaks, with explicit
 remaining mismatches.
 The full dialect is not implemented.
