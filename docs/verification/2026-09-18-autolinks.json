@@ -1,0 +1,48 @@
+{
+  "revision": "ea5d8b77410df5232b8893faa9e95db0153cd9e4",
+  "unit": {
+    "passed": 849,
+    "files": 83
+  },
+  "browser": {
+    "scope": "markdown-compatibility, live-source, profiles, autolink",
+    "stats": {
+      "startTime": "2026-09-18T17:49:34.350Z",
+      "duration": 200940.01700000002,
+      "expected": 120,
+      "skipped": 0,
+      "unexpected": 0,
+      "flaky": 0
+    },
+    "projects": {
+      "chromium": 24,
+      "firefox": 24,
+      "webkit": 24,
+      "mobile-chromium": 24,
+      "mobile-webkit": 24
+    },
+    "workers": 2,
+    "retries": 0,
+    "reportSHA256": "51615cf8db73d28db65482251360ca74456a2aa8a964209be5be92491c0ff2ac"
+  },
+  "packages": 27,
+  "gzipBytes": {
+    "minimal": 39411,
+    "standard": 58277
+  },
+  "fixtures": {
+    "section": "Autolinks",
+    "total": 19,
+    "matching": 15,
+    "schemePolicyExceptions": [
+      596,
+      598,
+      599,
+      601
+    ],
+    "previousMismatchesResolved": [
+      20,
+      346
+    ]
+  }
+}
