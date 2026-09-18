@@ -2,6 +2,7 @@ import { serializeDocument, type ARTDocument } from '@arichtext/core';
 import {
   applyTransaction,
   createEditorState,
+  mapMovedBlockPath,
   type ARTPath,
   type ARTTextPoint,
   type EditorOperation,
@@ -160,6 +161,8 @@ function mapPoint(
   caret: ARTTextPoint | null,
 ): AnchoredTextPoint | null {
   switch (operation.type) {
+    case 'moveBlock':
+      return { ...cloneAnchoredPoint(point), blockPath: mapMovedBlockPath(point.blockPath, operation.from, operation.to) };
     case 'addMark':
     case 'removeMark':
     case 'toggleMark':

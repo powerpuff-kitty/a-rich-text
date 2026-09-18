@@ -102,6 +102,18 @@ importers:
         specifier: workspace:*
         version: link:../engine
 
+  packages/block-editor:
+    dependencies:
+      '@arichtext/dom':
+        specifier: workspace:*
+        version: link:../dom
+      '@arichtext/engine':
+        specifier: workspace:*
+        version: link:../engine
+      '@arichtext/web-component':
+        specifier: workspace:*
+        version: link:../web-component
+
   packages/clipboard:
     dependencies:
       '@arichtext/core':
