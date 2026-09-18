@@ -1,4 +1,4 @@
-import { isARTDocument, toPlainText, type ARTDocument, type ARTBlockNode, type ARTTextNode, type ARTTextMark } from '@arichtext/core';
+import { isARTDocument, toPlainText, type ARTDocument, type ARTBlockNode, type ARTTextNode, type ARTInlineNode, type ARTTextMark } from '@arichtext/core';
 import type { ConversionDiagnostic, ConversionOutput, FormatProfile } from '@arichtext/core/profiles';
 
 type Attributes = Record<string, unknown>;
@@ -103,9 +103,10 @@ export function exportQuillDelta(document: ARTDocument): ConversionOutput<string
     if (previous && JSON.stringify(previous.attributes ?? {}) === JSON.stringify(attributes)) previous.insert += text;
     else ops.push({ insert: text, ...(Object.keys(attributes).length ? { attributes } : {}) });
   }
-  function paragraph(nodes: ARTTextNode[], attributes: Attributes = {}) {
+  function paragraph(nodes: ARTInlineNode[], attributes: Attributes = {}) {
     for (const node of nodes) {
-      diagnostics.extra(node, ['type', 'text', 'marks']);
+      if (node.type === 'extensionInline') diagnostics.add('extension-inline', 'Inline extensions become fallback text');
+      else diagnostics.extra(node, ['type', 'text', 'marks']);
       const marks: Attributes = {};
       for (const mark of node.marks ?? []) {
         diagnostics.extra(mark, mark.type === 'link' ? ['type', 'href'] : ['type']);
@@ -113,7 +114,7 @@ export function exportQuillDelta(document: ARTDocument): ConversionOutput<string
         if (mark.type in marks) diagnostics.add('duplicate-marks', 'Repeated marks are collapsed');
         marks[mark.type] = mark.type === 'link' ? mark.href : true;
       }
-      const parts = node.text.split('\n');
+      const parts = (node.type === 'text' ? node.text : node.fallbackText).split('\n');
       if (parts.length > 1) diagnostics.add('inline-newlines', 'Inline newlines become block boundaries');
       parts.forEach((part, index) => { insert(part, marks); if (index < parts.length - 1) insert('\n', attributes); });
     }

@@ -205,3 +205,11 @@ describe('@arichtext/ai text proposals', () => {
     )).rejects.toBeInstanceOf(AIError);
   });
 });
+
+it('rejects text proposals across inline atoms before invoking the provider', async () => {
+  const document = createTextDocument('');
+  document.content = [{ type: 'paragraph', content: [{ type: 'extensionInline', name: 'acme:mention', fallbackText: '@Alice' }] }];
+  const generate = vi.fn(() => 'replacement');
+  await expect(generateTextProposal(document, textSelection(textPoint([0], 0), textPoint([0], 1)), provider(generate), { task: 'rewrite' })).rejects.toMatchObject({ code: 'invalid-selection' });
+  expect(generate).not.toHaveBeenCalled();
+});

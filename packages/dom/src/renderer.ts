@@ -5,7 +5,8 @@ import type {
   ARTExtensionBlockNode,
   ARTExtensionMark,
   ARTTextMark,
-  ARTTextNode,
+  ARTInlineNode,
+  ARTExtensionInlineNode,
 } from '@arichtext/core';
 import type { ARTPath } from '@arichtext/engine';
 
@@ -13,6 +14,7 @@ export const ART_TEXT_BLOCK_ATTRIBUTE = 'data-art-text-block';
 export const ART_BLOCK_PATH_ATTRIBUTE = 'data-art-block-path';
 export const ART_BREAK_ATTRIBUTE = 'data-art-break';
 export const ART_EXTENSION_BLOCK_ATTRIBUTE = 'data-art-extension-block';
+export const ART_EXTENSION_INLINE_ATTRIBUTE = 'data-art-extension-inline';
 export const ART_EXTENSION_MARK_ATTRIBUTE = 'data-art-extension-mark';
 export const ART_EXTENSION_ATTRS_ATTRIBUTE = 'data-art-extension-attrs';
 export const ART_EXTENSION_FALLBACK_ATTRIBUTE = 'data-art-extension-fallback';
@@ -28,6 +30,7 @@ const MARK_ORDER: Record<ARTTextMark['type'], number> = {
 };
 
 export interface DOMExtensionRenderer {
+  renderInline?(node: ARTExtensionInlineNode, context: { document: Document }): Node | undefined;
   renderBlock(
     node: ARTExtensionBlockNode,
     context: { document: Document },
@@ -184,10 +187,22 @@ function markTextBlock(element: HTMLElement, path: ARTPath): void {
 function renderInline(
   owner: Document,
   parent: HTMLElement,
-  content: readonly ARTTextNode[],
+  content: readonly ARTInlineNode[],
   options: ARTDOMRenderOptions,
 ): void {
   for (const textNode of content) {
+    if (textNode.type === 'extensionInline') {
+      const atom = partElement(owner, 'span', 'extension-inline');
+      atom.setAttribute(ART_EXTENSION_INLINE_ATTRIBUTE, textNode.name);
+      atom.setAttribute(ART_EXTENSION_FALLBACK_ATTRIBUTE, textNode.fallbackText);
+      if (textNode.attrs) atom.setAttribute(ART_EXTENSION_ATTRS_ATTRIBUTE, JSON.stringify(textNode.attrs));
+      atom.setAttribute('contenteditable', 'false');
+      atom.setAttribute('aria-label', textNode.fallbackText);
+      const custom = options.extensions?.renderInline?.(textNode, { document: owner });
+      if (custom) atom.append(custom); else atom.textContent = textNode.fallbackText;
+      parent.append(atom);
+      continue;
+    }
     let rendered: Node = renderText(owner, textNode.text);
     const marks = [...(textNode.marks ?? [])].sort((left, right) => {
       const order = MARK_ORDER[left.type] - MARK_ORDER[right.type];

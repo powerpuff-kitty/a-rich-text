@@ -1,3 +1,4 @@
+import { inlineNodeText } from '@arichtext/core';
 import { isARTDocument } from '@arichtext/core';
 import type {
   ARTBlockNode,
@@ -462,7 +463,7 @@ function isDescendantOrSelf(candidate: ARTPath, ancestor: ARTPath): boolean {
 }
 
 function inlineText(block: ARTParagraphNode | ARTHeadingNode): string {
-  return (block.content ?? []).map((node) => node.text).join('');
+  return (block.content ?? []).map(inlineNodeText).join('');
 }
 
 function isInlineBlock(value: unknown): value is ARTParagraphNode | ARTHeadingNode {

@@ -94,7 +94,7 @@ export function insertListParagraph(state: EditorState): EditorTransaction | nul
   const block = item.content[blockIndex];
   if (selection.anchor.blockPath.length !== active.path.length + 2 || !isInlineBlock(block)) return null;
 
-  if (item.content.length === 1 && (block.content ?? []).every((run) => run.text.length === 0)) {
+  if (item.content.length === 1 && (block.content ?? []).every((run) => run.type === 'text' && run.text.length === 0)) {
     return exitEmptyItem(state, active);
   }
 

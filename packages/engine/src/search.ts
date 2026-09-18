@@ -1,3 +1,4 @@
+import { inlineNodeText } from '@arichtext/core';
 import type { ARTDocument } from '@arichtext/core';
 import { listInlineBlocks, marksAtOffset } from './tree.js';
 import { transaction } from './transaction.js';
@@ -12,7 +13,7 @@ export function findText(document: ARTDocument, query: string, options: ARTSearc
   const pattern = new RegExp(query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), options.matchCase ? 'gu' : 'giu');
   const matches: ARTSearchMatch[] = [];
   for (const { path, block } of listInlineBlocks(document)) {
-    const text = (block.content ?? []).map(node => node.text).join('');
+    const text = (block.content ?? []).map(inlineNodeText).join('');
     for (const match of text.matchAll(pattern)) {
       const start = match.index; const end = start + match[0].length;
       if (options.wholeWord && (/[\p{L}\p{N}\p{M}_]$/u.test(text.slice(Math.max(0, start - 2), start))

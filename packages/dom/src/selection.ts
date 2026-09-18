@@ -2,6 +2,7 @@ import { textSelection } from '@arichtext/engine';
 import type { ARTSelection, ARTTextPoint } from '@arichtext/engine';
 import {
   ART_BLOCK_PATH_ATTRIBUTE,
+  ART_EXTENSION_INLINE_ATTRIBUTE,
   ART_TEXT_BLOCK_ATTRIBUTE,
   decodeARTPath,
   encodeARTPath,
@@ -154,6 +155,14 @@ function findBlockByPath(root: HTMLElement, path: readonly number[]): HTMLElemen
 function offsetWithinBlock(block: HTMLElement, node: Node, offset: number): number {
   if (!isInside(block, node)) throw new RangeError('DOM point is outside its ART text block');
 
+  let ancestor: Node | null = node;
+  while (ancestor && ancestor !== block) {
+    if (isInlineAtom(ancestor)) {
+      const boundary = offset === 0 ? boundaryBefore(ancestor) : boundaryAfter(ancestor);
+      return offsetWithinBlock(block, boundary.node, boundary.offset);
+    }
+    ancestor = ancestor.parentNode;
+  }
   let total = localOffsetLength(node, offset);
   let current: Node = node;
 
@@ -221,7 +230,7 @@ function collectLogicalTokens(root: Node): Array<{ node: Node }> {
       tokens.push({ node });
       return;
     }
-    if (isBreak(node)) {
+    if (isBreak(node) || isInlineAtom(node)) {
       tokens.push({ node });
       return;
     }
@@ -234,10 +243,14 @@ function collectLogicalTokens(root: Node): Array<{ node: Node }> {
 function logicalLength(node: Node): number {
   if (isPlaceholder(node)) return 0;
   if (node.nodeType === 3) return node.nodeValue?.length ?? 0;
-  if (isBreak(node)) return 1;
+  if (isBreak(node) || isInlineAtom(node)) return 1;
   let total = 0;
   for (const child of Array.from(node.childNodes)) total += logicalLength(child);
   return total;
+}
+
+function isInlineAtom(node: Node): boolean {
+  return node.nodeType === 1 && (node as Element).hasAttribute(ART_EXTENSION_INLINE_ATTRIBUTE);
 }
 
 function isBreak(node: Node): boolean {

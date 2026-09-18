@@ -271,9 +271,47 @@ The [explicit document migration API](migrations.md) can coordinate root-version
 
 The first extension foundation deliberately does **not** claim that every format can preserve every custom semantic.
 
-- ART JSON preserves extension blocks/marks exactly.
+- ART JSON preserves extension blocks, inline atoms and marks exactly.
 - A Rich Text generic HTML envelopes preserve extension data without a registry.
 - Registered semantic HTML hooks can map extension data to application-specific safe HTML.
 - Markdown currently falls back to block fallback/nested text and strips unknown custom-mark semantics. Registry Markdown hooks exist at the registry layer, but direct `@arichtext/markdown` hook integration remains follow-up work.
-- Rich clipboard paste uses the safe HTML importer. Generic A Rich Text extension envelopes round-trip; semantic custom-HTML paste integration is a follow-up adapter boundary.
-- Custom inline atomic nodes (mentions as atomic cursor units, chips, inline objects) are separate from custom marks and remain future work so they do not weaken the current block-relative selection model.
+- Rich clipboard paste uses the safe HTML importer. Generic A Rich Text extension envelopes round-trip; registered semantic HTML hooks also participate in rich paste.
+- Custom inline atomic nodes use one logical caret position; custom marks remain editable text annotations.
+
+## Atomic inline content
+
+Use `extensionInline` for indivisible mentions, references or inline widgets. Unlike
+an extension mark, it has its own position in the document:
+
+```ts
+import { insertInlineNode } from '@arichtext/engine/commands';
+const command = insertInlineNode({ document: editor.getJSON(), selection: editor.getSelection() }, {
+  type: 'extensionInline', name: 'acme:mention',
+  attrs: { personId: 'alice' }, fallbackText: '@Alice',
+});
+if (command) editor.dispatch(command);
+```
+
+An atom occupies one logical offset, represented as U+FFFC in engine and annotation
+text. Its required nonempty fallback label is used for plain-text/Markdown/Quill
+export. Those exports lose the atom's identity and attributes; the Quill profile
+reports that loss. ART JSON and portable HTML preserve the envelope even without
+an installed runtime. Atoms cannot contain editable children, text or marks.
+Formatting ranges affect surrounding text only. Deletion, insertion, splitting,
+fragment paste and history preserve whole nodes; attributes must be finite JSON.
+Text-only AI proposals reject blocks containing atoms rather than reinterpret
+logical offsets as positions inside the label.
+
+Register an `inlines` definition with a namespaced `name` and optional `validate`,
+`renderDOM`, `toHTML` and `fromHTML` hooks. Custom DOM renderers are trusted installed
+code. The editor wraps their output in a noneditable span with the fallback label
+as its accessible label. HTML hooks use safe descriptors, never executable document
+data. Removing the runtime restores fallback rendering without changing the ART
+payload. Block and inline resource names cannot collide.
+
+The [consumer example](../examples/inline-extensions/index.html) is bundled by
+`pnpm build:distribution` at `/dist/browser/inline-extensions/`. It imports public
+package entry points and supports insertion and runtime removal. This adds a new
+inline variant to unpublished ART v1; older snapshots reject it. See
+[ADR 0005](adr/0005-atomic-inline-extensions.md) before sharing documents with older
+consumers.

@@ -1,4 +1,4 @@
-import type { ARTTextMark } from '@arichtext/core';
+import { inlineNodeText, type ARTInlineNode, type ARTTextMark } from '@arichtext/core';
 import {
   getActiveMarks,
   transaction,
@@ -146,10 +146,10 @@ export function insertAutoLinkBoundary(state: EditorState, text: string, marks =
   const point = selection.anchor;
   let node: unknown = state.document;
   for (const index of point.blockPath) node = (node as { content?: unknown[] })?.content?.[index];
-  const block = node as { type?: string; content?: { text: string; marks?: ARTTextMark[] }[] } | undefined;
+  const block = node as { type?: string; content?: ARTInlineNode[] } | undefined;
   if (!block || (block.type !== 'paragraph' && block.type !== 'heading')) return null;
   const content = block.content ?? [];
-  const before = content.map(run => run.text).join('').slice(0, point.offset);
+  const before = content.map(run => run.type === 'text' ? run.text : ' ').join('').slice(0, point.offset);
   const tokenStart = before.search(/[^\s]+$/);
   if (tokenStart < 0) return null;
   const token = before.slice(tokenStart);
@@ -162,7 +162,7 @@ export function insertAutoLinkBoundary(state: EditorState, text: string, marks =
   const to = tokenStart + match.to;
   let offset = 0;
   for (const run of content) {
-    const end = offset + run.text.length;
+    const end = offset + inlineNodeText(run).length;
     if (offset < to && end > from && run.marks?.some(mark => mark.type === 'link' || mark.type === 'code')) return null;
     offset = end;
   }

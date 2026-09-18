@@ -141,7 +141,7 @@
         "content": {
           "type": "array",
           "items": {
-            "$ref": "#/$defs/text"
+            "$ref": "#/$defs/inline"
           }
         }
       },
@@ -163,7 +163,7 @@
         "content": {
           "type": "array",
           "items": {
-            "$ref": "#/$defs/text"
+            "$ref": "#/$defs/inline"
           }
         }
       },
@@ -580,6 +580,43 @@
           "then": {
             "$ref": "#/$defs/extensionBlock"
           }
+        }
+      ]
+    },
+    "extensionInline": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "extensionInline"
+        },
+        "name": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9._-]*:[a-z0-9][a-z0-9._-]*$"
+        },
+        "attrs": {
+          "$ref": "#/$defs/attrs"
+        },
+        "fallbackText": {
+          "type": "string",
+          "minLength": 1
+        },
+        "marks": false,
+        "content": false,
+        "text": false
+      },
+      "required": [
+        "type",
+        "name",
+        "fallbackText"
+      ]
+    },
+    "inline": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/text"
+        },
+        {
+          "$ref": "#/$defs/extensionInline"
         }
       ]
     }

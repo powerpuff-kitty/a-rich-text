@@ -15,3 +15,7 @@ decisions:
     title: Keep persistence optional and host-controlled
     status: accepted
     path: 0004-optional-local-persistence.md
+  - id: "0005"
+    title: Give inline extensions one atomic position
+    status: accepted
+    path: 0005-atomic-inline-extensions.md
