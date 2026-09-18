@@ -209,8 +209,9 @@ function isClosingFence(line: string, opening: string): boolean {
 }
 
 function isHorizontalRule(line: string): boolean {
-  const compact = line.trim().replaceAll(' ', '');
-  return /^(?:\*{3,}|-{3,}|_{3,})$/.test(compact);
+  // Three or more identical markers, with only ASCII spaces/tabs between or
+  // after them. Four-column indentation belongs to code, not a thematic break.
+  return /^ {0,3}(?:(?:\*[ \t]*){3,}|(?:-[ \t]*){3,}|(?:_[ \t]*){3,})$/.test(line);
 }
 
 function matchListItem(line: string): ListMatch | null {
@@ -234,6 +235,8 @@ function parseList(lines: readonly string[], start: number, first: ListMatch): {
   let index = start;
 
   while (index < lines.length) {
+    // A thematic break wins over a list marker, including between list items.
+    if (isHorizontalRule(lines[index] ?? '')) break;
     const current = matchListItem(lines[index] ?? '');
     if (!current || current.indent !== baseIndent || current.style !== style) break;
     const itemLines = [current.body];
@@ -546,7 +549,11 @@ function serializeList(list: ARTListNode): string {
     const marker = list.style === 'ordered'
       ? `${(list.start ?? 1) + itemIndex}. `
       : list.style === 'task' ? `- [${item.checked ? 'x' : ' '}] ` : '- ';
-    const body = serializeBlocks(item.content);
+    // "- ---" is itself a thematic break. Use a different rule marker when
+    // the first block of a bullet item is a rule so the list survives reimport.
+    const body = item.content.map((block, index) =>
+      index === 0 && list.style === 'bullet' && block.type === 'horizontalRule' ? '***' : serializeBlock(block),
+    ).join('\n\n');
     const indent = ' '.repeat(marker.length);
     return body.split('\n').map((line, lineIndex) => `${lineIndex === 0 ? marker : indent}${line}`).join('\n');
   }).join('\n');

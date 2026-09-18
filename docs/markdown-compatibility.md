@@ -4,6 +4,26 @@ The default `art:markdown-v1` profile remains the **ART Markdown subset**. Its
 CommonMark reference version is **0.31.2**. Naming that reference does not claim
 full CommonMark, GFM, MDX or Pandoc conformance.
 
+## Verified scope: thematic breaks
+
+All 19 upstream thematic-break examples (43–61) are vendored unchanged.
+Fifteen match after normalizing block separators, soft breaks outside code,
+equivalent `<hr>` spelling and ART's omitted final code line terminator.
+Example 55 retains an emphasis-whitespace mismatch; 57, 60 and 61 retain
+tight-list paragraph wrappers. Separate structural assertions verify the
+list/rule boundaries rather than treating these HTML mismatches as skips.
+
+Rules accept three or more identical `*`, `-` or `_` markers separated and
+followed only by ASCII spaces/tabs, with at most three leading spaces. Unicode
+whitespace and other characters do not count as rule separators. Four-column
+indentation still belongs to code; a setext underline still takes precedence
+after paragraph text. A rule at the list's indentation ends that list rather
+than becoming another item. Explicit and indented rules inside list items remain
+inside them. Export uses `***` for a rule at the start of a bullet item, avoiding
+the ambiguous `- ---` spelling. General list/container indentation conformance
+remains outside this increment.
+See [thematic-break tests](../packages/markdown/test/thematic-breaks.test.ts).
+
 ## Verified scope: code spans
 
 All 22 upstream examples in the CommonMark 0.31.2 “Code spans” section are
@@ -110,6 +130,8 @@ are not established by these fixtures.
 
 | Upstream example | Remaining behavior |
 | --- | --- |
+| 55 | Whitespace-delimited underscores incorrectly create emphasis |
+| 57, 60, 61 | Tight-list HTML rendering retains ART paragraph wrappers |
 | 14 | Full emphasis delimiter rules are not implemented |
 | 20 | Autolinks are not implemented |
 | 21, 642, 643 | Raw HTML is literal text rather than interpreted HTML |
