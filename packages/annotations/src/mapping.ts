@@ -447,7 +447,7 @@ function inlineBlockLength(document: ARTDocument, path: ARTPath): number {
   return Array.isArray(content)
     ? content.reduce((length, node) => length + (node && typeof node === 'object' && typeof (node as { text?: unknown }).text === 'string'
       ? ((node as { text: string }).text.length)
-      : 0), 0)
+      : node && typeof node === 'object' && (node as { type?: unknown }).type === 'extensionInline' ? 1 : 0), 0)
     : 0;
 }
 

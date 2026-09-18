@@ -1,4 +1,5 @@
-import type { ARTBlockNode, ARTHeadingNode, ARTImageNode, ARTTextMark } from '@arichtext/core';
+import { isExtensionInlineNode } from '@arichtext/core';
+import type { ARTBlockNode, ARTExtensionInlineNode, ARTHeadingNode, ARTImageNode, ARTTextMark } from '@arichtext/core';
 import { nextGraphemeBoundary, previousGraphemeBoundary } from './grapheme.js';
 import { getInlineBlock, getNodeAtPath, inlineLength, listInlineBlocks, samePath, selectedStyleBlocks } from './tree.js';
 import { transaction } from './transaction.js';
@@ -19,6 +20,12 @@ export function insertFragment(state: EditorState, content: readonly ARTBlockNod
     .replaceFragment(selection.anchor, selection.head, content)
     .setMeta('command', 'insertFragment')
     .build();
+}
+
+/** Insert one indivisible inline extension, replacing the current single-block selection. */
+export function insertInlineNode(state: EditorState, node: ARTExtensionInlineNode): EditorTransaction | null {
+  if (!isExtensionInlineNode(node)) throw new TypeError('Invalid inline extension node');
+  return insertFragment(state, [{ type: 'paragraph', content: [node] }]);
 }
 
 /** Delete the current selection. Collapsed selections are a no-op. */
@@ -107,7 +114,8 @@ function isCollapsed(state: EditorState): boolean {
 }
 
 function inlineText(block: ReturnType<typeof getInlineBlock>): string {
-  return (block.content ?? []).map((node) => node.text).join('');
+  // A control separator forces grapheme boundaries on both sides of each atom.
+  return (block.content ?? []).map(node => node.type === 'text' ? node.text : '\0').join('');
 }
 
 function adjacentSiblingPath(document: EditorState['document'], path: ARTPath, direction: -1 | 1): number[] | null {

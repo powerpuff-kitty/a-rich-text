@@ -4,7 +4,9 @@ Snapshot: 2026-09-18. Initial scope is Project 19's current In progress work:
 12 issues and draft PRs #96–#105. The separate 21-open-issue count also includes
 nine Backlog issues across editor, website and cloud. Do not treat a PR card as
 another independent product ticket. Expand this plan to the Backlog only when that
-scope is selected.
+scope is selected. The owner has now selected #74 and #75 as dependencies of #4,
+expanding the scope to 14 issues (two complete, twelve remaining). For #2 the
+accepted target is full CommonMark/GFM plus broader Quill and Editor.js support.
 
 ## Completed integration — 2026-09-18
 
@@ -37,8 +39,8 @@ deferred from an umbrella issue.
 | 3 | #6 Extensions | Custom inline atomic nodes and adoption contract | Agreed ART/selection/operation semantics, JSON Schema and converters, rendering/cursor/clipboard/history tests, package consumer example; depends on #1's stability policy |
 | 4 | #10 AI | Typed structured-edit proposals, suggestion integration, local WebGPU/WASM example | Review/reject/apply and stale-proposal tests; no required hosted provider; local-model example with actual runtime evidence and documented browser/hardware limits |
 | 5 | #9 Collaboration | Document diff, Yjs concurrency adapter, production review UI/provider integration | Multi-client concurrent edits converge; offline/reconnect/error behavior; comments/suggestions remain valid and host-owned persistence works; transport-independent integration tests |
-| 6 | #4 Editor | Broader structural selection editing and the block/formatting work tracked by #74/#75 | Explicitly include those dependent tickets or obtain a scope decision; selection, keyboard, history, serialization and browser tests for the agreed authoring surface |
-| 7 | #2 Interoperability | Integrate existing Markdown fixes; complete the agreed CommonMark/GFM and foreign-adapter follow-ups | Full-stack regression run; documented mappings/loss reporting; remaining scope must name the target dialect/features/adapters rather than imply universal interchange |
+| 6 | #4 Editor | Broader structural selection editing and the block/formatting work tracked by #74/#75 | Both dependent tickets are explicitly included; selection, keyboard, history, serialization and browser tests for the agreed authoring surface |
+| 7 | #2 Interoperability | Full CommonMark/GFM plus broader Quill and Editor.js support | Full-stack regression run; documented mappings/loss reporting; remaining scope must name the target dialect/features/adapters rather than imply universal interchange |
 | 8 | #8 Media | Physical-browser orientation/image evidence and provider/clipboard end-to-end checks | Recorded browser/device/file matrix, insertion/upload retry/cancel/error evidence; no claim that emulation proves physical-device behavior |
 | 9 | #11 and #46 Quality | Full current browser baseline, accessibility/security/performance/RTL/clipboard checks; real devices, IME and screen readers | Executable local evidence plus named manual records; update compatibility matrix; retain any failed/unverified gate explicitly |
 | 10 | #13 Distribution | Release/version policy, governance/security documents, npm ownership and publication readiness | Verified package contents, explicit release target/ownership and publication decision; repository visibility is a separate action; keep hosted CI disabled |

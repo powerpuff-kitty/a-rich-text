@@ -1,3 +1,4 @@
+import { isExtensionInlineNode } from '@arichtext/core';
 import {
   ART_DOCUMENT_VERSION,
   isARTDocument,
@@ -13,7 +14,8 @@ import type {
   ARTListNode,
   ARTTableNode,
   ARTTextMark,
-  ARTTextNode,
+  ARTInlineNode,
+  ARTExtensionInlineNode,
   ARTJSONObject,
 } from '@arichtext/core';
 
@@ -43,6 +45,8 @@ export interface ExtensionHTMLDescriptorLike {
 
 /** Structural interface implemented by `@arichtext/extensions`. */
 export interface HTMLExtensionHooks {
+  parseInlineHTML?(element: Element): ARTExtensionInlineNode | undefined;
+  serializeInlineHTML?(node: ARTExtensionInlineNode): ExtensionHTMLDescriptorLike | undefined;
   parseBlockHTML(element: Element): ARTExtensionBlockNode | undefined;
   parseMarkHTML(element: Element): ARTExtensionMark | undefined;
   serializeBlockHTML(node: ARTExtensionBlockNode): ExtensionHTMLDescriptorLike | undefined;
@@ -100,7 +104,7 @@ function parseBlocks(nodes: readonly Node[], options: ResolvedOptions): ARTBlock
   const flushInline = (): void => {
     if (inlineBuffer.length === 0) return;
     const content = parseInline(inlineBuffer, options);
-    if (content.some((node) => node.text.length > 0)) blocks.push({ type: 'paragraph', content });
+    if (content.some(node => node.type === 'extensionInline' || node.text.length > 0)) blocks.push({ type: 'paragraph', content });
     inlineBuffer = [];
   };
 
@@ -189,8 +193,8 @@ function parseExtensionBlock(element: Element, options: ResolvedOptions): ARTBlo
   };
 }
 
-function parseInline(nodes: readonly Node[], options: ResolvedOptions, inheritedMarks: readonly ARTTextMark[] = []): ARTTextNode[] {
-  const output: ARTTextNode[] = [];
+function parseInline(nodes: readonly Node[], options: ResolvedOptions, inheritedMarks: readonly ARTTextMark[] = []): ARTInlineNode[] {
+  const output: ARTInlineNode[] = [];
   for (const node of nodes) {
     if (node.nodeType === Node.TEXT_NODE) {
       appendText(output, node.textContent ?? '', inheritedMarks);
@@ -199,6 +203,18 @@ function parseInline(nodes: readonly Node[], options: ResolvedOptions, inherited
     if (node.nodeType !== Node.ELEMENT_NODE) continue;
     const element = node as Element;
     if (DROP_TAGS.has(element.tagName)) continue;
+    if (element.hasAttribute('data-art-extension-inline')) {
+      const rawAttrs = element.getAttribute('data-art-extension-attrs');
+      const attrs = parseAttrs(rawAttrs);
+      const atom = { type: 'extensionInline', name: element.getAttribute('data-art-extension-inline'), fallbackText: element.getAttribute('data-art-extension-fallback'), ...(attrs ? { attrs } : {}) };
+      if (!isExtensionInlineNode(atom) || (rawAttrs !== null && !attrs)) throw new TypeError('Invalid inline extension HTML envelope');
+      output.push(atom); continue;
+    }
+    const customInline = options.extensions?.parseInlineHTML?.(element);
+    if (customInline) {
+      if (!isExtensionInlineNode(customInline)) throw new TypeError('Extension HTML parser returned invalid inline node');
+      output.push(customInline); continue;
+    }
     if (element.tagName === 'BR') { appendText(output, '\n', inheritedMarks); continue; }
     if (element.tagName === 'IMG') {
       const alt = element.getAttribute('alt') ?? '';
@@ -226,7 +242,10 @@ function parseInline(nodes: readonly Node[], options: ResolvedOptions, inherited
       }
     }
     const children = parseInline(Array.from(element.childNodes), options, normalizeMarks(marks));
-    for (const child of children) appendText(output, child.text, child.marks ?? []);
+    for (const child of children) {
+      if (child.type === 'extensionInline') output.push(child);
+      else appendText(output, child.text, child.marks ?? []);
+    }
   }
   return output;
 }
@@ -250,11 +269,11 @@ function parseAttrs(raw: string | null): ARTJSONObject | undefined {
   }
 }
 
-function appendText(output: ARTTextNode[], text: string, marks: readonly ARTTextMark[]): void {
+function appendText(output: ARTInlineNode[], text: string, marks: readonly ARTTextMark[]): void {
   if (!text) return;
   const normalized = normalizeMarks(marks);
   const previous = output.at(-1);
-  if (previous && marksEqual(previous.marks ?? [], normalized)) { previous.text += text; return; }
+  if (previous?.type === 'text' && marksEqual(previous.marks ?? [], normalized)) { previous.text += text; return; }
   output.push({ type: 'text', text, ...(normalized.length > 0 ? { marks: normalized } : {}) });
 }
 
@@ -390,8 +409,14 @@ function serializeExtensionBlock(block: ARTExtensionBlockNode, options: Resolved
   return `<div data-art-extension-block="${escapeAttribute(block.name)}"${attrs}${fallback}>${content}</div>`;
 }
 
-function serializeInline(nodes: readonly ARTTextNode[], options: ResolvedOptions): string {
+function serializeInline(nodes: readonly ARTInlineNode[], options: ResolvedOptions): string {
   return nodes.map((node) => {
+    if (node.type === 'extensionInline') {
+      const attrs = node.attrs ? ` data-art-extension-attrs="${escapeAttribute(stableJSON(node.attrs))}"` : '';
+      const custom = options.extensions?.serializeInlineHTML?.(node);
+      const value = custom ? serializeDescriptor(custom, escapeText(node.fallbackText), options) : escapeText(node.fallbackText);
+      return `<span data-art-extension-inline="${escapeAttribute(node.name)}" data-art-extension-fallback="${escapeAttribute(node.fallbackText)}"${attrs}>${value}</span>`;
+    }
     let value = escapeText(node.text).replaceAll('\n', '<br>');
     for (const mark of normalizeMarks(node.marks ?? [])) {
       switch (mark.type) {

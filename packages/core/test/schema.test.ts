@@ -14,6 +14,7 @@ const table = (...content: unknown[]) => ({ type: 'table', content });
 
 const valid: [string, unknown][] = [
   ['empty document', doc()],
+  ['inline extension', doc({ type: 'paragraph', content: [{ type: 'extensionInline', name: 'acme:mention', fallbackText: '@Alice', attrs: { id: 42 } }] })],
   ['paragraph with omitted content', doc({ type: 'paragraph' })],
   ['all marks', doc({ type: 'paragraph', content: [{ ...text, marks: [
     ...['bold', 'italic', 'underline', 'strike', 'code'].map(type => ({ type })),
@@ -28,6 +29,7 @@ const valid: [string, unknown][] = [
   ['unknown properties remain accepted', { ...doc({ ...paragraph, metadata: 'retained' }), extra: true }],
 ];
 const invalid: [string, unknown][] = [
+  ...[{ name: 'bad' }, { fallbackText: '' }, { marks: [] }, { text: 'x' }, { content: [] }, { attrs: [] }].map((extra, i) => [`invalid inline extension ${i}`, doc({ type: 'paragraph', content: [{ type: 'extensionInline', name: 'acme:mention', fallbackText: '@Alice', ...extra }] })] as [string, unknown]),
   ['unknown version', { ...doc(), version: 2 }], ['missing content', { type: 'doc', version: 1 }],
   ['unknown block', doc({ type: 'video' })], ['inline at root', doc(text)],
   ['block in paragraph', doc({ type: 'paragraph', content: [paragraph] })],

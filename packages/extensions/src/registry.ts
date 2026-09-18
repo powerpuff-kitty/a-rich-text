@@ -3,15 +3,18 @@ import {
   isARTDocument,
   isARTJSONValue,
   isExtensionName,
+  isExtensionInlineNode,
 } from '@arichtext/core';
 import type {
   ARTExtensionBlockNode,
+  ARTExtensionInlineNode,
   ARTExtensionMark,
   ARTJSONValue,
 } from '@arichtext/core';
 import type {
   ARichTextExtension,
   ExtensionBlockDefinition,
+  ExtensionInlineDefinition,
   ExtensionCommandDefinition,
   ExtensionDOMRenderContext,
   ExtensionHTMLDescriptor,
@@ -30,6 +33,7 @@ export class ExtensionConflictError extends Error {
 export class ExtensionRegistry<TContext = unknown> implements ExtensionRegistryView<TContext> {
   #extensions: ARichTextExtension<TContext>[] = [];
   #blocks = new Map<string, ExtensionBlockDefinition>();
+  #inlines = new Map<string, ExtensionInlineDefinition>();
   #marks = new Map<string, ExtensionMarkDefinition>();
   #commands = new Map<string, ExtensionCommandDefinition<TContext>>();
   #keybindings = new Map<string, ExtensionKeyBinding>();
@@ -44,6 +48,30 @@ export class ExtensionRegistry<TContext = unknown> implements ExtensionRegistryV
 
   hasExtension(name: string): boolean {
     return this.#extensions.some((extension) => extension.name === name);
+  }
+
+  getInline(name: string): ExtensionInlineDefinition | undefined { return this.#inlines.get(name); }
+  validateInline(node: ARTExtensionInlineNode): boolean {
+    if (!isExtensionInlineNode(node)) return false;
+    const definition = this.#inlines.get(node.name);
+    return Boolean(definition && (definition.validate?.(node) ?? true));
+  }
+  renderInline(node: ARTExtensionInlineNode, context: ExtensionDOMRenderContext): Node | undefined {
+    const definition = this.#inlines.get(node.name);
+    return definition?.renderDOM && this.validateInline(node) ? definition.renderDOM(node, context) : undefined;
+  }
+  serializeInlineHTML(node: ARTExtensionInlineNode): ExtensionHTMLDescriptor | undefined {
+    const definition = this.#inlines.get(node.name);
+    return definition?.toHTML && this.validateInline(node) ? cloneHTMLDescriptor(definition.toHTML(node)) : undefined;
+  }
+  parseInlineHTML(element: Element): ARTExtensionInlineNode | undefined {
+    for (const definition of this.#inlines.values()) {
+      const node = definition.fromHTML?.(element);
+      if (!node) continue;
+      if (node.name !== definition.name || !this.validateInline(node)) throw new TypeError(`Inline parser ${definition.name} returned invalid extension data`);
+      return cloneValue(node);
+    }
+    return undefined;
   }
 
   getBlock(name: string): ExtensionBlockDefinition | undefined { return this.#blocks.get(name); }
@@ -136,13 +164,15 @@ export class ExtensionRegistry<TContext = unknown> implements ExtensionRegistryV
     if (this.hasExtension(extension.name)) throw new ExtensionConflictError(`Extension already installed: ${extension.name}`);
 
     const blocks = [...(extension.blocks ?? [])];
+    const inlines = [...(extension.inlines ?? [])];
     const marks = [...(extension.marks ?? [])];
     const commands = [...(extension.commands ?? [])];
     const keys = [...(extension.keybindings ?? [])];
-    this.#assertAvailable(extension, blocks, marks, commands, keys);
+    this.#assertAvailable(extension, blocks, inlines, marks, commands, keys);
 
     this.#extensions.push(extension);
     for (const item of blocks) this.#blocks.set(item.name, item);
+    for (const item of inlines) this.#inlines.set(item.name, item);
     for (const item of marks) this.#marks.set(item.name, item);
     for (const item of commands) this.#commands.set(item.name, item);
     for (const item of keys) this.#keybindings.set(normalizeKeyBinding(item.key), item);
@@ -206,19 +236,26 @@ export class ExtensionRegistry<TContext = unknown> implements ExtensionRegistryV
   #assertAvailable(
     extension: ARichTextExtension<TContext>,
     blocks: readonly ExtensionBlockDefinition[],
+    inlines: readonly ExtensionInlineDefinition[],
     marks: readonly ExtensionMarkDefinition[],
     commands: readonly ExtensionCommandDefinition<TContext>[],
     keys: readonly ExtensionKeyBinding[],
   ): void {
     const seenBlocks = new Set<string>();
     const seenMarks = new Set<string>();
+    const seenInlines = new Set<string>();
     const seenCommands = new Set<string>();
     const seenKeys = new Set<string>();
 
     for (const item of blocks) {
       validateNamespaced(item.name, 'block');
-      if (seenBlocks.has(item.name) || this.#blocks.has(item.name)) throw new ExtensionConflictError(`Block name conflict: ${item.name}`);
+      if (seenBlocks.has(item.name) || this.#blocks.has(item.name) || this.#inlines.has(item.name)) throw new ExtensionConflictError(`Block name conflict: ${item.name}`);
       seenBlocks.add(item.name);
+    }
+    for (const item of inlines) {
+      validateNamespaced(item.name, 'inline');
+      if (seenInlines.has(item.name) || this.#inlines.has(item.name) || seenBlocks.has(item.name) || this.#blocks.has(item.name)) throw new ExtensionConflictError(`Inline name conflict: ${item.name}`);
+      seenInlines.add(item.name);
     }
     for (const item of marks) {
       validateNamespaced(item.name, 'mark');
@@ -246,6 +283,7 @@ export class ExtensionRegistry<TContext = unknown> implements ExtensionRegistryV
   #removeOwned(extension: ARichTextExtension<TContext>): void {
     this.#extensions = this.#extensions.filter((candidate) => candidate !== extension);
     for (const item of extension.blocks ?? []) if (this.#blocks.get(item.name) === item) this.#blocks.delete(item.name);
+    for (const item of extension.inlines ?? []) if (this.#inlines.get(item.name) === item) this.#inlines.delete(item.name);
     for (const item of extension.marks ?? []) if (this.#marks.get(item.name) === item) this.#marks.delete(item.name);
     for (const item of extension.commands ?? []) if (this.#commands.get(item.name) === item) this.#commands.delete(item.name);
     for (const item of extension.keybindings ?? []) {

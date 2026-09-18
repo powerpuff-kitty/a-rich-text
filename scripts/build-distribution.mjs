@@ -26,3 +26,7 @@ await mkdir('dist/browser/local-first', { recursive: true });
 await copyFile('examples/local-first/index.html', 'dist/browser/local-first/index.html');
 await copyFile('examples/local-first/sw.js', 'dist/browser/local-first/sw.js');
 await build({ entryPoints: ['examples/local-first/app.js'], external: ['../a-rich-text.js'], outfile: 'dist/browser/local-first/app.js', bundle: true, minify: true, format: 'esm', platform: 'browser', target: 'es2022' });
+
+await mkdir('dist/browser/inline-extensions', { recursive: true });
+await copyFile('examples/inline-extensions/index.html', 'dist/browser/inline-extensions/index.html');
+await build({ entryPoints: ['examples/inline-extensions/app.js'], external: ['../a-rich-text.js'], outfile: 'dist/browser/inline-extensions/app.js', bundle: true, minify: true, format: 'esm', platform: 'browser', target: 'es2022' });

@@ -22,6 +22,8 @@
   },
   "devDependencies": {
     "@arichtext/editor": "workspace:*",
+    "@arichtext/engine": "workspace:*",
+    "@arichtext/extensions": "workspace:*",
     "@arichtext/lists-editor": "workspace:*",
     "@arichtext/ui": "workspace:*",
     "@arichtext/web-component": "workspace:*",

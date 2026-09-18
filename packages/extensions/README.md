@@ -1,6 +1,6 @@
 # @arichtext/extensions
 
-Extension registry, custom ART block/mark definitions and presets for A Rich Text
+Extension registry, custom ART block/inline/mark definitions and presets for A Rich Text
 
 ES modules with TypeScript declarations. MIT licensed. No mandatory hosted service.
 

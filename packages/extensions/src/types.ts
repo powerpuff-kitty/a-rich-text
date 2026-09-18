@@ -1,5 +1,6 @@
 import type {
   ARTExtensionBlockNode,
+  ARTExtensionInlineNode,
   ARTExtensionMark,
   ARTJSONValue,
   ARTJSONObject,
@@ -27,6 +28,14 @@ export interface ExtensionBlockDefinition {
   fromHTML?: (element: Element) => ARTExtensionBlockNode | null;
   /** Markdown is allowed to be lossy; return a portable representation or fallback string. */
   toMarkdown?: (node: ARTExtensionBlockNode) => string;
+}
+
+export interface ExtensionInlineDefinition {
+  name: string;
+  validate?: (node: ARTExtensionInlineNode) => boolean;
+  renderDOM?: (node: ARTExtensionInlineNode, context: ExtensionDOMRenderContext) => Node;
+  toHTML?: (node: ARTExtensionInlineNode) => ExtensionHTMLDescriptor;
+  fromHTML?: (element: Element) => ARTExtensionInlineNode | null;
 }
 
 export interface ExtensionMarkDefinition {
@@ -65,6 +74,7 @@ export interface ARichTextExtension<TContext = unknown> {
   /** Optional opaque, JSON-safe metadata useful to tooling/docs. */
   metadata?: ARTJSONObject;
   blocks?: readonly ExtensionBlockDefinition[];
+  inlines?: readonly ExtensionInlineDefinition[];
   marks?: readonly ExtensionMarkDefinition[];
   commands?: readonly ExtensionCommandDefinition<TContext>[];
   keybindings?: readonly ExtensionKeyBinding[];
@@ -80,6 +90,11 @@ export interface ARichTextExtension<TContext = unknown> {
 export interface ExtensionRegistryView<TContext = unknown> {
   readonly extensions: readonly ARichTextExtension<TContext>[];
   hasExtension(name: string): boolean;
+  getInline(name: string): ExtensionInlineDefinition | undefined;
+  validateInline(node: ARTExtensionInlineNode): boolean;
+  renderInline(node: ARTExtensionInlineNode, context: ExtensionDOMRenderContext): Node | undefined;
+  serializeInlineHTML(node: ARTExtensionInlineNode): ExtensionHTMLDescriptor | undefined;
+  parseInlineHTML(element: Element): ARTExtensionInlineNode | undefined;
   getBlock(name: string): ExtensionBlockDefinition | undefined;
   getMark(name: string): ExtensionMarkDefinition | undefined;
   getCommand(name: string): ExtensionCommandDefinition<TContext> | undefined;

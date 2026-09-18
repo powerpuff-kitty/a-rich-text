@@ -1,3 +1,4 @@
+import { inlineNodeText } from '@arichtext/core';
 import {
   isARTDocument,
   type ARTDocument,
@@ -198,7 +199,7 @@ function isInlineBlock(value: unknown): value is InlineBlock {
 }
 
 function inlineText(block: InlineBlock): string {
-  return (block.content ?? []).map((node) => node.text).join('');
+  return (block.content ?? []).map(inlineNodeText).join('');
 }
 
 function childContent(value: unknown): readonly unknown[] {

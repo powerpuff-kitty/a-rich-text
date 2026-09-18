@@ -5,6 +5,7 @@ import type {
   ARTListNode,
   ARTTextMark,
   ARTTextNode,
+  ARTInlineNode,
 } from '@arichtext/core';
 
 const MARK_ORDER: Record<ARTTextMark['type'], number> = {
@@ -746,7 +747,7 @@ function serializeBlock(block: ARTBlockNode): string {
   }
 }
 
-function serializeInline(nodes: readonly ARTTextNode[]): string {
+function serializeInline(nodes: readonly ARTInlineNode[]): string {
   let output = '';
   let active: ARTTextMark[] = [];
   const delimiter = (mark: ARTTextMark, closing: boolean): string => {
@@ -760,12 +761,13 @@ function serializeInline(nodes: readonly ARTTextNode[]): string {
     }
   };
   for (const node of nodes) {
+    const text = node.type === 'text' ? node.text : node.fallbackText;
     const marks = normalizeMarks(node.marks ?? []);
     const isCode = marks.some(mark => mark.type === 'code');
     const link = marks.find(mark => mark.type === 'link');
-    const autolink = !isCode && link ? matchAutolink(`<${node.text}>`) : null;
+    const autolink = !isCode && link ? matchAutolink(`<${text}>`) : null;
     // Use angle syntax only when it recreates this entire label and exact href.
-    const useAutolink = autolink?.raw === `<${node.text}>` && autolink.href === link?.href;
+    const useAutolink = autolink?.raw === `<${text}>` && autolink.href === link?.href;
     const wrappers = marks.filter(mark => mark.type !== 'code' && mark.type !== 'extensionMark'
       && (mark.type !== 'link' || (!useAutolink && safeUrl(mark.href, false)))).reverse();
     // Keep the shared outer marks open across code and other formatting changes.
@@ -780,7 +782,7 @@ function serializeInline(nodes: readonly ARTTextNode[]): string {
         active.push(mark);
       }
     }
-    output += useAutolink ? autolink.raw : isCode ? codeSpan(node.text) : escapeMarkdown(node.text).replaceAll('\n', '  \n');
+    output += useAutolink ? autolink.raw : isCode ? codeSpan(text) : escapeMarkdown(text).replaceAll('\n', '  \n');
   }
   for (let index = active.length - 1; index >= 0; index -= 1) output += delimiter(active[index]!, true);
   return output;

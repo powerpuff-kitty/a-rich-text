@@ -1221,6 +1221,7 @@ export class ARichTextElement extends HTMLElementBase {
       return;
     }
 
+    if (['Control', 'Meta', 'Alt', 'Shift', 'AltGraph'].includes(event.key)) return;
     if (!this.#extensions?.resolveKeyBinding || !this.#extensions.runCommand) return;
     if (!event.ctrlKey && !event.metaKey && !event.altKey) return;
     const binding = this.#extensions.resolveKeyBinding(keyboardChord(event));
@@ -1244,7 +1245,13 @@ export class ARichTextElement extends HTMLElementBase {
       return;
     }
 
-    const parsed = clipboardToDocument(data);
+    let parsed: ReturnType<typeof clipboardToDocument>;
+    try {
+      parsed = clipboardToDocument(data, this.#extensions ? { html: { extensions: this.#extensions } } : {});
+    } catch (error) {
+      this.#emitError('paste-invalid-payload', error);
+      return;
+    }
     if (!parsed) {
       this.#emitError('paste-unsupported-payload', new TypeError('Clipboard does not contain supported text content'));
       return;
@@ -1467,6 +1474,11 @@ function marksAtARTPoint(document: ARTDocument, point: ARTTextPoint): ARTTextMar
   for (const candidate of block.content) {
     if (!candidate || typeof candidate !== 'object') continue;
     const node = candidate as { type?: unknown; text?: unknown; marks?: unknown };
+    if (node.type === 'extensionInline') {
+      if (point.offset >= cursor && point.offset <= cursor + 1) return [];
+      cursor++;
+      continue;
+    }
     if (node.type !== 'text' || typeof node.text !== 'string') continue;
     const end = cursor + node.text.length;
     if ((point.offset >= cursor && point.offset < end) || (point.offset === end && end > 0)) {

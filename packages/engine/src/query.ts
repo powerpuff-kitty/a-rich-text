@@ -1,3 +1,4 @@
+import { inlineNodeText } from '@arichtext/core';
 import type { ARTHeadingNode, ARTTextMark } from '@arichtext/core';
 import {
   getInlineBlock,
@@ -25,7 +26,7 @@ export function getActiveMarks(state: EditorState): ARTTextMark[] {
   const touched: ARTTextMark[][] = [];
   for (let blockIndex = range.fromIndex; blockIndex <= range.toIndex; blockIndex += 1) {
     const block = range.blocks[blockIndex]!.block;
-    const blockLength = (block.content ?? []).reduce((length, node) => length + node.text.length, 0);
+    const blockLength = (block.content ?? []).reduce((length, node) => length + inlineNodeText(node).length, 0);
     const from = blockIndex === range.fromIndex ? range.from.offset : 0;
     const to = blockIndex === range.toIndex ? range.to.offset : blockLength;
     if (to <= from) continue;
@@ -33,9 +34,9 @@ export function getActiveMarks(state: EditorState): ARTTextMark[] {
     let cursor = 0;
     for (const node of block.content ?? []) {
       const start = cursor;
-      const end = cursor + node.text.length;
+      const end = cursor + inlineNodeText(node).length;
       cursor = end;
-      if (end <= from || start >= to) continue;
+      if (end <= from || start >= to || node.type === 'extensionInline') continue;
       touched.push(node.marks ? node.marks.map(cloneMark) : []);
     }
   }

@@ -31,15 +31,31 @@ export interface ARTTextNode {
   marks?: ARTTextMark[];
 }
 
+/** Portable atomic inline content. Its label is not editable text. */
+export interface ARTExtensionInlineNode {
+  type: 'extensionInline';
+  name: string;
+  attrs?: ARTJSONObject;
+  fallbackText: string;
+  marks?: never;
+}
+
+export type ARTInlineNode = ARTTextNode | ARTExtensionInlineNode;
+
+/** Logical editor text: atoms occupy one object-replacement character. */
+export function inlineNodeText(node: ARTInlineNode): string {
+  return node.type === 'text' ? node.text : '\uFFFC';
+}
+
 export interface ARTParagraphNode {
   type: 'paragraph';
-  content?: ARTTextNode[];
+  content?: ARTInlineNode[];
 }
 
 export interface ARTHeadingNode {
   type: 'heading';
   level: 1 | 2 | 3 | 4 | 5 | 6;
-  content?: ARTTextNode[];
+  content?: ARTInlineNode[];
 }
 
 export interface ARTBlockquoteNode {
@@ -280,8 +296,15 @@ function isTableNode(value: Record<string, unknown>, depth: number): boolean {
   return getTableLayout(value as unknown as ARTTableNode) !== null;
 }
 
-function isInlineContent(value: unknown): value is ARTTextNode[] | undefined {
-  return value === undefined || (Array.isArray(value) && value.every(isTextNode));
+function isInlineContent(value: unknown): value is ARTInlineNode[] | undefined {
+  return value === undefined || (Array.isArray(value) && value.every(node => isTextNode(node) || isExtensionInlineNode(node)));
+}
+
+export function isExtensionInlineNode(value: unknown): value is ARTExtensionInlineNode {
+  return isRecord(value) && value.type === 'extensionInline' && isExtensionName(value.name)
+    && typeof value.fallbackText === 'string' && value.fallbackText.length > 0
+    && value.marks === undefined && value.content === undefined && value.text === undefined
+    && (value.attrs === undefined || (isRecord(value.attrs) && isARTJSONValue(value.attrs)));
 }
 
 function isTextNode(value: unknown): value is ARTTextNode {
@@ -332,7 +355,7 @@ function blockToPlainText(block: ARTBlockNode): string {
   switch (block.type) {
     case 'paragraph':
     case 'heading':
-      return (block.content ?? []).map((node) => node.text).join('');
+      return (block.content ?? []).map(node => node.type === 'text' ? node.text : node.fallbackText).join('');
     case 'blockquote':
       return block.content.map(blockToPlainText).join('\n');
     case 'codeBlock':

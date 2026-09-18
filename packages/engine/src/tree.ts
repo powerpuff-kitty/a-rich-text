@@ -1,11 +1,11 @@
-import { isARTDocument } from '@arichtext/core';
+import { isARTDocument, inlineNodeText } from '@arichtext/core';
 import type {
   ARTBlockNode,
   ARTDocument,
   ARTHeadingNode,
   ARTParagraphNode,
   ARTTextMark,
-  ARTTextNode,
+  ARTInlineNode,
 } from '@arichtext/core';
 import type {
   ARTMarkType,
@@ -69,14 +69,14 @@ export function cloneOperation(operation: EditorOperation): EditorOperation { re
 export function cloneSelection(selection: ARTSelection): ARTSelection { return { anchor: clonePoint(selection.anchor), head: clonePoint(selection.head) }; }
 export function clonePoint(point: ARTTextPoint): ARTTextPoint { return { blockPath: [...point.blockPath], offset: point.offset }; }
 
-export function cloneInline(content: readonly ARTTextNode[]): ARTTextNode[] {
-  return content.map((node) => ({ type: 'text', text: node.text, ...(node.marks ? { marks: cloneMarks(node.marks) } : {}) }));
+export function cloneInline(content: readonly ARTInlineNode[]): ARTInlineNode[] {
+  return content.map(cloneValue);
 }
 
 /** Coalesce adjacent runs with identical marks after structural edits. */
-export function normalizeInline(content: readonly ARTTextNode[]): ARTTextNode[] {
-  const output: ARTTextNode[] = [];
-  for (const node of content) pushTextNode(output, node.text, node.marks ?? []);
+export function normalizeInline(content: readonly ARTInlineNode[]): ARTInlineNode[] {
+  const output: ARTInlineNode[] = [];
+  for (const node of content) pushInlineNode(output, node);
   return output;
 }
 
@@ -151,38 +151,39 @@ export function replaceNodeAtPath(document: ARTDocument, path: ARTPath, replacem
   children[index] = replacement;
 }
 
-export function inlineLength(block: InlineBlock): number { return (block.content ?? []).reduce((length, node) => length + node.text.length, 0); }
+export function inlineLength(block: InlineBlock): number { return (block.content ?? []).reduce((length, node) => length + inlineNodeText(node).length, 0); }
 
 export function mutateInlineRange(
-  content: readonly ARTTextNode[],
+  content: readonly ARTInlineNode[],
   from: number,
   to: number,
   mutateMarks: (marks: ARTTextMark[]) => ARTTextMark[],
-): ARTTextNode[] {
-  const output: ARTTextNode[] = [];
+): ARTInlineNode[] {
+  const output: ARTInlineNode[] = [];
   let cursor = 0;
   for (const node of content) {
     const start = cursor;
-    const end = cursor + node.text.length;
+    const end = cursor + inlineNodeText(node).length;
     cursor = end;
+    if (node.type === 'extensionInline') { output.push(cloneValue(node)); continue; }
     if (end <= from || start >= to) { pushTextNode(output, node.text, node.marks ?? []); continue; }
     const localFrom = Math.max(0, from - start);
-    const localTo = Math.min(node.text.length, to - start);
+    const localTo = Math.min(inlineNodeText(node).length, to - start);
     if (localFrom > 0) pushTextNode(output, node.text.slice(0, localFrom), node.marks ?? []);
     if (localTo > localFrom) pushTextNode(output, node.text.slice(localFrom, localTo), mutateMarks(cloneMarks(node.marks ?? [])));
-    if (localTo < node.text.length) pushTextNode(output, node.text.slice(localTo), node.marks ?? []);
+    if (localTo < inlineNodeText(node).length) pushTextNode(output, node.text.slice(localTo), node.marks ?? []);
   }
   return output;
 }
 
 export function replaceInlineRange(
-  content: readonly ARTTextNode[], from: number, to: number, text: string, marks: readonly ARTTextMark[],
-): ARTTextNode[] {
-  const output: ARTTextNode[] = [];
-  const totalLength = content.reduce((length, node) => length + node.text.length, 0);
-  for (const node of sliceInline(content, 0, from)) pushTextNode(output, node.text, node.marks ?? []);
+  content: readonly ARTInlineNode[], from: number, to: number, text: string, marks: readonly ARTTextMark[],
+): ARTInlineNode[] {
+  const output: ARTInlineNode[] = [];
+  const totalLength = content.reduce((length, node) => length + inlineNodeText(node).length, 0);
+  for (const node of sliceInline(content, 0, from)) pushInlineNode(output, node);
   if (text) pushTextNode(output, text, marks);
-  for (const node of sliceInline(content, to, totalLength)) pushTextNode(output, node.text, node.marks ?? []);
+  for (const node of sliceInline(content, to, totalLength)) pushInlineNode(output, node);
   return output;
 }
 
@@ -191,7 +192,7 @@ export function marksAtOffset(block: InlineBlock, offset: number): ARTTextMark[]
   if (content.length === 0) return [];
   let cursor = 0;
   for (const node of content) {
-    const end = cursor + node.text.length;
+    const end = cursor + inlineNodeText(node).length;
     if (offset >= cursor && offset < end) return cloneMarks(node.marks ?? []);
     if (offset === end && end > 0) return cloneMarks(node.marks ?? []);
     cursor = end;
@@ -210,9 +211,9 @@ export function rangeHasMark(range: NormalizedRange, mark: ARTTextMark): boolean
     let cursor = 0;
     for (const node of block.content ?? []) {
       const start = cursor;
-      const end = cursor + node.text.length;
+      const end = cursor + inlineNodeText(node).length;
       cursor = end;
-      if (end <= from || start >= to) continue;
+      if (end <= from || start >= to || node.type === 'extensionInline') continue;
       sawText = true;
       if (!hasMark(node.marks ?? [], mark)) return false;
     }
@@ -266,17 +267,18 @@ function isInlineBlock(value: unknown): value is InlineBlock {
   return candidate.type === 'paragraph' || candidate.type === 'heading';
 }
 
-function sliceInline(content: readonly ARTTextNode[], from: number, to: number): ARTTextNode[] {
+function sliceInline(content: readonly ARTInlineNode[], from: number, to: number): ARTInlineNode[] {
   if (to <= from) return [];
-  const output: ARTTextNode[] = [];
+  const output: ARTInlineNode[] = [];
   let cursor = 0;
   for (const node of content) {
     const start = cursor;
-    const end = cursor + node.text.length;
+    const end = cursor + inlineNodeText(node).length;
     cursor = end;
     if (end <= from || start >= to) continue;
+    if (node.type === 'extensionInline') { output.push(cloneValue(node)); continue; }
     const localFrom = Math.max(0, from - start);
-    const localTo = Math.min(node.text.length, to - start);
+    const localTo = Math.min(inlineNodeText(node).length, to - start);
     pushTextNode(output, node.text.slice(localFrom, localTo), node.marks ?? []);
   }
   return output;
@@ -298,11 +300,16 @@ function normalizeMarks(marks: readonly ARTTextMark[]): ARTTextMark[] {
   });
 }
 
-function pushTextNode(output: ARTTextNode[], text: string, marks: readonly ARTTextMark[]): void {
+function pushInlineNode(output: ARTInlineNode[], node: ARTInlineNode): void {
+  if (node.type === 'extensionInline') output.push(cloneValue(node));
+  else pushTextNode(output, node.text, node.marks ?? []);
+}
+
+function pushTextNode(output: ARTInlineNode[], text: string, marks: readonly ARTTextMark[]): void {
   if (!text) return;
   const normalized = normalizeMarks(marks);
   const previous = output.at(-1);
-  if (previous && sameMarks(previous.marks ?? [], normalized)) { previous.text += text; return; }
+  if (previous?.type === 'text' && sameMarks(previous.marks ?? [], normalized)) { previous.text += text; return; }
   output.push({ type: 'text', text, ...(normalized.length ? { marks: normalized } : {}) });
 }
 

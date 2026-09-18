@@ -43,9 +43,8 @@ or migrations must not overwrite the original saved data. Foreign formats have
 explicit mappings and loss diagnostics; they are not alternate ART versions.
 
 Extensions are trusted installed code with namespaced, JSON-safe document data.
-Block/mark envelopes, registry hooks and composition presets are supported within
-their [documented boundaries](extensions.md). Custom inline atomic nodes are not
-implemented. Extension authors own payload migrations, including changes made
+Block/inline/mark envelopes, registry hooks and composition presets are supported within
+their [documented boundaries](extensions.md). Atomic inline nodes use the [unpublished v1 compatibility contract](adr/0005-atomic-inline-extensions.md). Extension authors own payload migrations, including changes made
 without changing the ART root version. Never reuse a namespace for incompatible
 semantics or rely on private editor internals as a stable extension API.
 

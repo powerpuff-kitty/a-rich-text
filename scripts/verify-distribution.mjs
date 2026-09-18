@@ -41,6 +41,13 @@ try {
   await writeFile(path.join(consumer, 'smoke.mjs'), imports + `\nconst schema = (await import('@arichtext/core/schema/art-v1.schema.json', { with: { type: 'json' } })).default;\nif (schema.properties.version.const !== 1) throw new Error('Installed ART schema missing');\nconst {createARTMigrationRegistry} = await import('@arichtext/core/migrations');\nif (!createARTMigrationRegistry().migrate(JSON.stringify({type:'doc',version:1,content:[]})).ok) throw new Error('Installed migration API failed');\nconst {quillDeltaProfile} = await import('@arichtext/quill-delta');\nif (quillDeltaProfile.id !== 'quill:delta-v2') throw new Error('Installed Delta profile missing');\nconst {formatSource} = await import('@arichtext/editor/format');\nconst result = await formatSource('{"ok":true}', 'json');\nif (!JSON.parse(result).ok) throw new Error('Installed formatter failed');\n`);
   execFileSync(process.execPath, ['smoke.mjs'], { cwd: consumer, stdio: 'pipe' });
   await writeFile(path.join(consumer, 'consumer.ts'), `
+import { type ARTExtensionInlineNode } from '@arichtext/core';
+import { insertInlineNode } from '@arichtext/engine/commands';
+import { createExtensionRegistry } from '@arichtext/extensions';
+const atom: ARTExtensionInlineNode = { type: 'extensionInline', name: 'consumer:mention', fallbackText: '@Alice' };
+const inlineRegistry = createExtensionRegistry([{ name: 'consumer:people', inlines: [{ name: atom.name }] }]);
+inlineRegistry.validateInline(atom);
+insertInlineNode({ document: { type: 'doc', version: 1, content: [{ type: 'paragraph', content: [] }] }, selection: { anchor: { blockPath: [0], offset: 0 }, head: { blockPath: [0], offset: 0 } } }, atom);
 import { quillDeltaProfile, importQuillDelta } from '@arichtext/quill-delta';
 importQuillDelta(JSON.stringify({ ops: [{ insert: 'Text' + String.fromCharCode(10) }] })).value.content;
 quillDeltaProfile.id;

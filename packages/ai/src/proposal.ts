@@ -192,7 +192,10 @@ function getInlineBlock(document: ARTDocument, path: readonly number[]): InlineB
 }
 
 function blockText(block: InlineBlock): string {
-  return (block.content ?? []).map((node) => node.text).join('');
+  return (block.content ?? []).map((node) => {
+    if (node.type !== 'text') throw new AIError('invalid-selection', 'Text proposals cannot target blocks containing inline extensions');
+    return node.text;
+  }).join('');
 }
 
 function resolveDocumentContextLimit(value: number | undefined): number {
