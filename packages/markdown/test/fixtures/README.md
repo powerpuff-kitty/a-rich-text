@@ -1,5 +1,10 @@
 # CommonMark fixtures
 
+`commonmark-0.31.2-blockquotes.json` contains all 25 unmodified “Block quotes”
+examples (228–252), downloaded from https://spec.commonmark.org/0.31.2/spec.json
+on 2026-09-18. Eighteen match under documented normalization; lazy continuation
+(232/233/238/247/250/251) and tight-list rendering (235) remain explicit mismatches.
+
 `commonmark-0.31.2-paragraphs.json` contains all 12 unmodified examples from
 “Paragraphs”, “Blank lines” and “Textual content”, downloaded from
 https://spec.commonmark.org/0.31.2/spec.json on 2026-09-18. All match under the

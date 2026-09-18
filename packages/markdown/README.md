@@ -14,7 +14,7 @@ It is not a fully conforming CommonMark/GFM parser. See the repository
 
 ## Scoped CommonMark checks
 
-The reference target is CommonMark 0.31.2. Vendored examples cover paragraphs, blank lines, textual content, thematic breaks, code spans,
+The reference target is CommonMark 0.31.2. Vendored examples cover blockquotes, paragraphs, blank lines, textual content, thematic breaks, code spans,
 ATX/setext headings, indented/fenced code, escapes, line breaks and angle-bracket
 autolinks and emphasis delimiter runs, with explicit remaining mismatches and URL-scheme policy exceptions.
 Eight upstream GFM table examples also verify retained ART cell semantics;

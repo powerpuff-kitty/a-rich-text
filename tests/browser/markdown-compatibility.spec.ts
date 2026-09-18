@@ -317,3 +317,50 @@ test('Markdown table code cells retain escaped pipes through source reimport', a
   await expect.poll(() => page.locator('#editor').evaluate(node => (node as ARichTextElement).sourceDirty)).toBe(false);
   expect(await page.locator('#editor').evaluate(node => (node as ARichTextElement).getJSON())).toEqual(doc);
 });
+
+
+test('empty and nested Markdown quotes survive HTML source reimport', async ({ page }) => {
+  await page.goto('/dist/browser/');
+  await page.locator('#editor').evaluate(node => {
+    const editor = node as ARichTextElement;
+    editor.setText('Original'); editor.view = 'markdown';
+  });
+  const source = page.locator('#editor [part="source"]');
+  await source.fill('>\n\n> >\n\nafter');
+  await expect.poll(() => page.locator('#editor').evaluate(node => (node as ARichTextElement).sourceDirty)).toBe(false);
+  const doc = await page.locator('#editor').evaluate(node => (node as ARichTextElement).getJSON());
+  expect(doc.content).toEqual([
+    { type: 'blockquote', content: [] },
+    { type: 'blockquote', content: [{ type: 'blockquote', content: [] }] },
+    { type: 'paragraph', content: [{ type: 'text', text: 'after' }] },
+  ]);
+  await page.locator('#editor').evaluate(node => { (node as ARichTextElement).view = 'visual'; });
+  await expect(page.locator('#editor [contenteditable] blockquote')).toHaveCount(3);
+  await page.locator('#editor').evaluate(node => { (node as ARichTextElement).view = 'html'; });
+  await source.fill((await source.inputValue()) + '\n');
+  await expect.poll(() => page.locator('#editor').evaluate(node => (node as ARichTextElement).sourceDirty)).toBe(false);
+  expect(await page.locator('#editor').evaluate(node => (node as ARichTextElement).getJSON())).toEqual(doc);
+});
+
+test('empty quotes in list items survive Markdown and HTML source views', async ({ page }) => {
+  await page.goto('/dist/browser/');
+  await page.locator('#editor').evaluate(node => {
+    const editor = node as ARichTextElement;
+    editor.setText('Original'); editor.view = 'html';
+  });
+  const source = page.locator('#editor [part="source"]');
+  await source.fill('<ul><li><blockquote></blockquote></li><li><blockquote><blockquote></blockquote></blockquote></li></ul>');
+  await expect.poll(() => page.locator('#editor').evaluate(node => (node as ARichTextElement).sourceDirty)).toBe(false);
+  const doc = await page.locator('#editor').evaluate(node => (node as ARichTextElement).getJSON());
+  expect(doc.content).toEqual([{ type: 'list', style: 'bullet', content: [
+    { type: 'listItem', content: [{ type: 'blockquote', content: [] }] },
+    { type: 'listItem', content: [{ type: 'blockquote', content: [{ type: 'blockquote', content: [] }] }] },
+  ] }]);
+  await page.locator('#editor').evaluate(node => { (node as ARichTextElement).view = 'visual'; });
+  await expect(page.locator('#editor [contenteditable] li')).toHaveCount(2);
+  await expect(page.locator('#editor [contenteditable] blockquote')).toHaveCount(3);
+  await page.locator('#editor').evaluate(node => { (node as ARichTextElement).view = 'markdown'; });
+  await source.fill((await source.inputValue()) + '\n');
+  await expect.poll(() => page.locator('#editor').evaluate(node => (node as ARichTextElement).sourceDirty)).toBe(false);
+  expect(await page.locator('#editor').evaluate(node => (node as ARichTextElement).getJSON())).toEqual(doc);
+});
