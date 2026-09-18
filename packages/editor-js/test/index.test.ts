@@ -19,4 +19,10 @@ describe('Editor.js adapter', () => {
     expect(JSON.parse(result.value).blocks[0]).toMatchObject({ type: 'paragraph' });
     expect(result.diagnostics).toContainEqual(expect.objectContaining({ code: 'unsupported-block', severity: 'loss' }));
   });
+  it('round-trips Editor.js checklist item objects and checked state', () => {
+    const imported = importEditorJS(JSON.stringify({ blocks: [{ type: 'list', data: { style: 'checklist', items: [{ text: 'Done', checked: true }, { text: 'Next', checked: false }] } }] }));
+    expect(imported.value.content[0]).toMatchObject({ style: 'task', content: [{ checked: true }, { checked: false }] });
+    const exported = exportEditorJS(imported.value);
+    expect(JSON.parse(exported.value).blocks[0].data.items).toEqual([{ text: 'Done', checked: true }, { text: 'Next', checked: false }]);
+  });
 });
