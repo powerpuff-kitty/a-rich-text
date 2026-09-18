@@ -73,6 +73,7 @@ function hasEquivalentMark(marks: readonly ARTTextMark[], expected: ARTTextMark)
 
 function cloneMark(mark: ARTTextMark): ARTTextMark {
   if (mark.type === 'link') return { type: 'link', href: mark.href };
+  if (mark.type === 'color' || mark.type === 'background') return { type: mark.type, value: mark.value };
   if (mark.type === 'extensionMark') {
     return {
       type: 'extensionMark',
