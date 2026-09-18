@@ -32,11 +32,19 @@ interface ListMatch {
   number?: number;
 }
 
+let activeReferences = new Map<string, string>();
+
 export function fromMarkdown(markdown: string): ARTDocument {
   const lines = markdown.replaceAll('\r\n', '\n').replaceAll('\r', '\n').split('\n');
   // split() adds a sentinel after the final line ending, not another content line.
   if (lines.at(-1) === '') lines.pop();
+  activeReferences = new Map();
+  for (let index = lines.length - 1; index >= 0; index--) {
+    const definition = lines[index]!.match(/^ {0,3}\[([^\]]+)\]:\s*<?([^\s>]+)>?(?:\s+.*)?$/);
+    if (definition) { activeReferences.set(definition[1]!.trim().toLowerCase(), definition[2]!); lines.splice(index, 1); }
+  }
   const content = parseBlocks(lines);
+  activeReferences = new Map();
   return {
     type: 'doc',
     version: ART_DOCUMENT_VERSION,
@@ -513,6 +521,12 @@ function parseInline(text: string, inherited: readonly ARTTextMark[] = [], prote
       if (end !== -1) { appendParsed(output, text.slice(index + 3, end), [...inherited, { type: 'underline' }], protectedInline); index = end + 4; continue; }
     }
     if (text[index] === '[') {
+      const reference = text.slice(index).match(/^\[([^\]]+)\]\[([^\]]*)\]/);
+      if (reference) {
+        const key = (reference[2] || reference[1]).trim().toLowerCase();
+        const href = activeReferences.get(key);
+        if (href) { appendParsed(output, reference[1]!, [...inherited, { type: 'link', href }], protectedInline); index += reference[0].length; continue; }
+      }
       const labelEnd = text.indexOf('](', index + 1);
       const label = text.slice(index + 1, labelEnd);
       // Links cannot enclose other links. Keep the surrounding bracket syntax

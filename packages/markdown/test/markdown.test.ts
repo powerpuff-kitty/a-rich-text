@@ -2,6 +2,10 @@ import { describe, expect, it } from 'vitest';
 import { fromMarkdown, toMarkdown } from '../src/index.js';
 
 describe('@arichtext/markdown', () => {
+  it('resolves reference-style links', () => {
+    const document = fromMarkdown('[docs][guide]\n\n[guide]: https://example.com/docs');
+    expect(document.content[0]).toMatchObject({ content: [{ marks: [{ type: 'link', href: 'https://example.com/docs' }] }] });
+  });
   it('parses and serializes common document structures', () => {
     const source = [
       '## Hello **world**',
