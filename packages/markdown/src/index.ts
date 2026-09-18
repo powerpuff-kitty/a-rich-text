@@ -527,6 +527,11 @@ function parseInline(text: string, inherited: readonly ARTTextMark[] = [], prote
         const href = activeReferences.get(key);
         if (href) { appendParsed(output, reference[1]!, [...inherited, { type: 'link', href }], protectedInline); index += reference[0].length; continue; }
       }
+      const shortcut = text.slice(index).match(/^\[([^\]]+)\]/);
+      if (shortcut) {
+        const href = activeReferences.get(shortcut[1]!.trim().toLowerCase());
+        if (href) { appendParsed(output, shortcut[1]!, [...inherited, { type: 'link', href }], protectedInline); index += shortcut[0].length; continue; }
+      }
       const labelEnd = text.indexOf('](', index + 1);
       const label = text.slice(index + 1, labelEnd);
       // Links cannot enclose other links. Keep the surrounding bracket syntax

@@ -6,6 +6,10 @@ describe('@arichtext/markdown', () => {
     const document = fromMarkdown('[docs][guide]\n\n[guide]: https://example.com/docs');
     expect(document.content[0]).toMatchObject({ content: [{ marks: [{ type: 'link', href: 'https://example.com/docs' }] }] });
   });
+  it('resolves shortcut reference links', () => {
+    const document = fromMarkdown('[guide]\n\n[guide]: https://example.com/docs');
+    expect(document.content[0]).toMatchObject({ content: [{ marks: [{ type: 'link', href: 'https://example.com/docs' }] }] });
+  });
   it('parses and serializes common document structures', () => {
     const source = [
       '## Hello **world**',
