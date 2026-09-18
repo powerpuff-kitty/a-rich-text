@@ -1,6 +1,6 @@
 # Remaining work
 
-Snapshot: 2026-09-16. GitHub issues and Project 19 remain the task tracker; this
+Snapshot: 2026-09-18. GitHub issues and Project 19 remain the task tracker; this
 page groups the outstanding work so basic integration is distinguishable from
 optional platform features. The editor is locally installable at version 0.0.0;
 there is no public npm release yet.
@@ -49,6 +49,11 @@ The [latest full local run](verification/2026-09-16-surfaces.md) passed 648 unit
 tests, all 470 browser cases without retries/skips, and 27 package installation
 checks. It covers the latest format converters, source/output showcase controls,
 and shared editor surfaces. The manual and release prerequisites below remain.
+
+The [newer thematic-break increment](verification/2026-09-18-thematic-breaks.md)
+passed 800 unit tests, 95 targeted browser cases and 27 package checks. It adds
+scoped CommonMark coverage and preserves list/rule boundaries; it does not
+replace the full browser baseline or complete #2's interoperability scope.
 
 - [Quality #11](https://github.com/powerpuff-kitty/a-rich-text/issues/11) and
   [local gates #46](https://github.com/powerpuff-kitty/a-rich-text/issues/46): real
