@@ -28,3 +28,10 @@ it('preserves Quill font and size as namespaced extension marks', () => {
   const exported = exportQuillDelta(imported.value);
   expect(JSON.parse(exported.value).ops[0].attributes).toMatchObject({ font: 'serif', size: 'large' });
 });
+
+it('preserves supported block alignment and direction', () => {
+  const imported = importQuillDelta(JSON.stringify({ ops: [{ insert: 'RTL' }, { insert: '\n', attributes: { align: 'center', direction: 'rtl' } }] }));
+  expect(imported.value.content[0]).toMatchObject({ type: 'paragraph', attrs: { align: 'center', direction: 'rtl' } });
+  const exported = exportQuillDelta(imported.value);
+  expect(JSON.parse(exported.value).ops.at(-1).attributes).toMatchObject({ align: 'center', direction: 'rtl' });
+});

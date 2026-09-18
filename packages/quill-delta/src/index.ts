@@ -4,7 +4,7 @@ import type { ConversionDiagnostic, ConversionOutput, FormatProfile } from '@ari
 type Attributes = Record<string, unknown>;
 type Operation = { insert: string | Record<string, unknown>; attributes?: Attributes };
 const inline = ['bold', 'italic', 'underline', 'strike', 'code', 'link', 'color', 'background', 'script', 'font', 'size'];
-const blocks = ['header', 'blockquote', 'code-block', 'list'];
+const blocks = ['header', 'blockquote', 'code-block', 'list', 'align', 'direction'];
 const record = (value: unknown): value is Attributes => !!value && typeof value === 'object' && !Array.isArray(value);
 const active = (value: unknown) => value !== undefined && value !== null && value !== false;
 function notes() {
@@ -27,12 +27,22 @@ export function importQuillDelta(source: string): ConversionOutput<ARTDocument> 
   let line: ARTInlineNode[] = [];
   let ended = false;
   function finish(attrs: Attributes) {
-    const enabled = blocks.filter(key => active(attrs[key]));
+    const enabled = blocks.filter(key => !['align', 'direction'].includes(key) && active(attrs[key]));
     if (enabled.length > 1) throw new TypeError('Conflicting Delta line formats');
     const previous = content.at(-1);
+    const blockAttrs: Record<string, string> = {};
+    if (attrs.align !== undefined) {
+      if (typeof attrs.align !== 'string' || !['center', 'right', 'justify'].includes(attrs.align)) diagnostics.add('format-value', 'Invalid Quill alignment is omitted');
+      else blockAttrs.align = attrs.align;
+    }
+    if (attrs.direction !== undefined) {
+      if (attrs.direction !== 'rtl') diagnostics.add('format-value', 'Invalid Quill direction is omitted');
+      else blockAttrs.direction = 'rtl';
+    }
+    const withAttrs = <T extends ARTBlockNode>(block: T): T => Object.keys(blockAttrs).length ? { ...block, attrs: blockAttrs } : block;
     if (active(attrs.header)) {
       if (!Number.isInteger(attrs.header) || (attrs.header as number) < 1 || (attrs.header as number) > 6) throw new TypeError('Invalid Delta header');
-      content.push({ type: 'heading', level: attrs.header as 1 | 2 | 3 | 4 | 5 | 6, content: line });
+      content.push(withAttrs({ type: 'heading', level: attrs.header as 1 | 2 | 3 | 4 | 5 | 6, content: line }));
     } else if (active(attrs.list)) {
       if (!['bullet', 'ordered', 'checked', 'unchecked'].includes(attrs.list as string)) throw new TypeError('Invalid Delta list');
       const style = attrs.list === 'bullet' ? 'bullet' : attrs.list === 'ordered' ? 'ordered' : 'task';
@@ -52,7 +62,7 @@ export function importQuillDelta(source: string): ConversionOutput<ARTDocument> 
       const lang = typeof language === 'string' ? language : undefined;
       if (previous?.type === 'codeBlock' && previous.language === lang) previous.text += '\n' + text;
       else content.push({ type: 'codeBlock', text, ...(lang !== undefined ? { language: lang } : {}) });
-    } else content.push({ type: 'paragraph', content: line });
+    } else content.push(withAttrs({ type: 'paragraph', content: line }));
     line = [];
   }
   for (const op of delta.ops) {
@@ -150,6 +160,14 @@ export function exportQuillDelta(document: ARTDocument): ConversionOutput<string
     }
     insert('\n', attributes);
   }
+  function lineAttributes(block: ARTBlockNode): Attributes {
+    const attrs: Attributes = {};
+    const blockAttrs = (block as ARTBlockNode & { attrs?: Record<string, unknown> }).attrs;
+    if (blockAttrs && typeof blockAttrs.align === 'string') attrs.align = blockAttrs.align;
+    if (blockAttrs && blockAttrs.direction === 'rtl') attrs.direction = 'rtl';
+    if (Object.keys(attrs).length) diagnostics.add('adapter-format', 'Block alignment/direction is exported as Quill line attributes');
+    return attrs;
+  }
   function fallback(block: ARTBlockNode) {
     diagnostics.add('unsupported-structure', 'Unsupported block structure is flattened to plain text');
     const text = toPlainText({ type: 'doc', version: 1, content: [block] });
@@ -162,7 +180,7 @@ export function exportQuillDelta(document: ARTDocument): ConversionOutput<string
     previousGroup = group;
     if (block.type === 'paragraph' || block.type === 'heading') {
       diagnostics.extra(block, block.type === 'heading' ? ['type', 'level', 'content'] : ['type', 'content']);
-      paragraph(block.content ?? [], block.type === 'heading' ? { header: block.level } : {});
+      paragraph(block.content ?? [], { ...(block.type === 'heading' ? { header: block.level } : {}), ...lineAttributes(block) });
     } else if (block.type === 'image') {
       diagnostics.extra(block, ['type', 'src', 'alt', 'title', 'width', 'height']);
       embed({ image: block.src }); insert('\n');
