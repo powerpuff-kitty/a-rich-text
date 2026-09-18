@@ -2,7 +2,7 @@ import { isARTDocument, toPlainText, type ARTDocument, type ARTBlockNode, type A
 import type { ConversionDiagnostic, ConversionOutput, FormatProfile } from '@arichtext/core/profiles';
 
 type Attributes = Record<string, unknown>;
-type Operation = { insert: string; attributes?: Attributes };
+type Operation = { insert: string | Record<string, unknown>; attributes?: Attributes };
 const inline = ['bold', 'italic', 'underline', 'strike', 'code', 'link'];
 const blocks = ['header', 'blockquote', 'code-block', 'list'];
 const record = (value: unknown): value is Attributes => !!value && typeof value === 'object' && !Array.isArray(value);
@@ -57,7 +57,14 @@ export function importQuillDelta(source: string): ConversionOutput<ARTDocument> 
   }
   for (const op of delta.ops) {
     if (!record(op) || 'retain' in op || 'delete' in op) throw new TypeError('Only insert-only document Deltas are supported');
-    if (typeof op.insert !== 'string' || !op.insert.length) throw new TypeError('Only nonempty text inserts are supported; embeds require an adapter');
+    if (typeof op.insert !== 'string') {
+      if (!record(op.insert) || Object.keys(op.insert).length !== 1) throw new TypeError('Invalid Quill embed');
+      const [kind] = Object.keys(op.insert); const value = op.insert[kind!];
+      if (kind === 'image' && typeof value === 'string' && value) content.push({ type: 'image', src: value });
+      else diagnostics.add('unsupported-embed', `Quill ${kind} embed is not represented by ART`);
+      ended = false; continue;
+    }
+    if (!op.insert.length) throw new TypeError('Only nonempty text inserts are supported');
     if (op.attributes !== undefined && !record(op.attributes)) throw new TypeError('Invalid Delta attributes');
     diagnostics.extra(op, ['insert', 'attributes']);
     const attrs = (op.attributes ?? {}) as Attributes;
@@ -100,9 +107,10 @@ export function exportQuillDelta(document: ARTDocument): ConversionOutput<string
   function insert(text: string, attributes: Attributes = {}) {
     if (!text) return;
     const previous = ops.at(-1);
-    if (previous && JSON.stringify(previous.attributes ?? {}) === JSON.stringify(attributes)) previous.insert += text;
+    if (previous && typeof previous.insert === 'string' && JSON.stringify(previous.attributes ?? {}) === JSON.stringify(attributes)) previous.insert += text;
     else ops.push({ insert: text, ...(Object.keys(attributes).length ? { attributes } : {}) });
   }
+  function embed(value: Record<string, unknown>): void { ops.push({ insert: value }); }
   function paragraph(nodes: ARTInlineNode[], attributes: Attributes = {}) {
     for (const node of nodes) {
       if (node.type === 'extensionInline') diagnostics.add('extension-inline', 'Inline extensions become fallback text');
@@ -133,6 +141,9 @@ export function exportQuillDelta(document: ARTDocument): ConversionOutput<string
     if (block.type === 'paragraph' || block.type === 'heading') {
       diagnostics.extra(block, block.type === 'heading' ? ['type', 'level', 'content'] : ['type', 'content']);
       paragraph(block.content ?? [], block.type === 'heading' ? { header: block.level } : {});
+    } else if (block.type === 'image') {
+      diagnostics.extra(block, ['type', 'src', 'alt', 'title', 'width', 'height']);
+      embed({ image: block.src }); insert('\n');
     } else if (block.type === 'codeBlock') {
       diagnostics.extra(block, ['type', 'text', 'language']);
       for (const text of block.text.split('\n')) { insert(text); insert('\n', { 'code-block': block.language ?? true }); }
