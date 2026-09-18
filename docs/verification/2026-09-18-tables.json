@@ -1,0 +1,50 @@
+{
+  "revision": "343395960239c471cd07d25e4d2c3701ef0f6a35",
+  "unit": {
+    "passed": 1062,
+    "files": 86,
+    "command": "pnpm test (final run after adding one table regression)"
+  },
+  "browser": {
+    "scope": "markdown-compatibility, live-source, profiles, autolink",
+    "stats": {
+      "startTime": "2026-09-18T18:41:20.096Z",
+      "duration": 214441.057,
+      "expected": 150,
+      "skipped": 0,
+      "unexpected": 0,
+      "flaky": 0
+    },
+    "projects": {
+      "chromium": 30,
+      "firefox": 30,
+      "webkit": 30,
+      "mobile-chromium": 30,
+      "mobile-webkit": 30
+    },
+    "workers": 2,
+    "retries": 0,
+    "reportSHA256": "53d7ac4fd750b7d01759e4e0322c04cbfdb79dac6ae9a47ce167149f34057198"
+  },
+  "packages": 27,
+  "gzipBytes": {
+    "minimal": 40430,
+    "standard": 59313
+  },
+  "fixtures": {
+    "spec": "GFM 0.29",
+    "section": "Tables (extension)",
+    "total": 8,
+    "matchingRetainedARTSemantics": 8,
+    "examples": [
+      198,
+      199,
+      200,
+      201,
+      202,
+      203,
+      204,
+      205
+    ]
+  }
+}

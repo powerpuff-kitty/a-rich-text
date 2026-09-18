@@ -7,8 +7,8 @@ tests, 470 browser cases across five profiles with two workers and no
 failures/retries/skips, and 27 package installation checks passed on the recorded revision.
 Manual and physical-device gates below remain open.
 
-The newer [paragraph-whitespace increment](verification/2026-09-18-paragraphs.md)
-passed 1,031 unit tests, 140 targeted browser cases and 27 package checks. It does
+The newer [pipe-table increment](verification/2026-09-18-tables.md)
+passed 1,062 unit tests, 150 targeted browser cases and 27 package checks. It does
 not replace the full browser baseline above.
 
 The project should not label a browser, device, accessibility workflow or performance target as supported merely because it appears in documentation. Claims must be backed by an executable test or an explicit manual verification record.

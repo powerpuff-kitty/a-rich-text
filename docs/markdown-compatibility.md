@@ -196,7 +196,8 @@ expected HTML: ART has no header-cell or column-alignment field, and HTML table
 section wrappers are not retained. The ordinary paragraph soft break in example
 203 folds to a space. This is not byte-identical HTML or full GFM conformance.
 
-Header and delimiter rows must have the same cell count. Delimiter cells accept
+The supported form requires an unescaped pipe in the header. Header and
+delimiter rows must have the same cell count. Delimiter cells accept
 one or more hyphens with optional alignment colons. Body rows can omit pipes;
 short rows gain empty cells and excess cells are ignored, as specified by GFM.
 Blank lines and recognized ART block starts end a table. A delimiter-looking
