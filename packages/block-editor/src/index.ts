@@ -16,6 +16,29 @@ export function enableBlockEditing(editor: ARichTextElement): BlockEditingContro
   menu.setAttribute('part', 'block-menu'); menu.setAttribute('role', 'menu'); menu.hidden = true;
   menu.innerHTML = '<button type="button" data-action="move-up">Move up</button><button type="button" data-action="move-down">Move down</button><button type="button" data-action="duplicate">Duplicate</button><button type="button" data-action="delete">Delete</button>';
   root.append(menu);
+  const handles = editor.ownerDocument.createElement('div');
+  handles.setAttribute('part', 'block-handles'); handles.setAttribute('aria-label', 'Block controls');
+  root.append(handles);
+  const renderHandles = (): void => {
+    handles.replaceChildren();
+    if (editor.disabled || editor.readOnly) return;
+    for (const block of surface.querySelectorAll<HTMLElement>('[data-art-text-block]')) {
+      const encoded = block.getAttribute('data-art-block-path'); if (!encoded) continue;
+      const button = editor.ownerDocument.createElement('button');
+      button.type = 'button'; button.textContent = '⋮'; button.setAttribute('aria-label', 'Block actions');
+      button.dataset.blockPath = encoded; button.style.position = 'fixed';
+      const rect = block.getBoundingClientRect(); button.style.left = `${Math.max(2, rect.left - 28)}px`; button.style.top = `${rect.top}px`;
+      button.addEventListener('click', () => {
+        const path = decodeARTPath(encoded); const point = { blockPath: path, offset: 0 };
+        editor.dispatch({ operations: [], selection: { anchor: point, head: point } }); menu.hidden = false; menu.focus();
+      });
+      handles.append(button);
+    }
+  };
+  const observer = new MutationObserver(renderHandles); observer.observe(surface, { childList: true, subtree: true });
+  editor.ownerDocument.defaultView?.addEventListener('resize', renderHandles);
+  editor.ownerDocument.addEventListener('scroll', renderHandles, true);
+  renderHandles();
   let slashOpen = false;
   const openSlash = (): void => {
     slashOpen = true; menu.hidden = false; menu.innerHTML = '<button type="button" data-action="slash-paragraph">Paragraph</button><button type="button" data-action="slash-heading">Heading 1</button>'; menu.focus();
@@ -58,6 +81,6 @@ export function enableBlockEditing(editor: ARichTextElement): BlockEditingContro
   };
   const click = (event: Event): void => { const action = (event.target as HTMLElement).closest<HTMLElement>('[data-action]')?.dataset.action; if (action) run(action); };
   surface.addEventListener('keydown', keydown); menu.addEventListener('click', click);
-  const controller = { destroy() { surface.removeEventListener('keydown', keydown); menu.removeEventListener('click', click); menu.remove(); installed.delete(editor); } };
+  const controller = { destroy() { surface.removeEventListener('keydown', keydown); menu.removeEventListener('click', click); observer.disconnect(); editor.ownerDocument.defaultView?.removeEventListener('resize', renderHandles); editor.ownerDocument.removeEventListener('scroll', renderHandles, true); handles.remove(); menu.remove(); installed.delete(editor); } };
   installed.set(editor, controller); return controller;
 }
