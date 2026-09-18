@@ -235,3 +235,43 @@ test('nested Markdown emphasis and code survive source reimport', async ({ page 
   await expect.poll(() => page.locator('#editor').evaluate(node => (node as ARichTextElement).sourceDirty)).toBe(false);
   expect(await page.locator('#editor').evaluate(node => (node as ARichTextElement).getJSON())).toEqual(document);
 });
+
+
+test('Markdown source retains Unicode spaces across visual/source round trips', async ({ page }) => {
+  await page.goto('/dist/browser/');
+  await page.locator('#editor').evaluate(node => {
+    const editor = node as ARichTextElement;
+    editor.setText('Original'); editor.view = 'markdown';
+  });
+  const source = page.locator('#editor [part="source"]');
+  await source.fill('\u00a0first\u00a0\n\u202f\nlast\u2003');
+  await expect.poll(() => page.locator('#editor').evaluate(node => (node as ARichTextElement).sourceDirty)).toBe(false);
+  const document = await page.locator('#editor').evaluate(node => (node as ARichTextElement).getJSON());
+  expect(document.content).toEqual([{ type: 'paragraph', content: [{ type: 'text', text: '\u00a0first\u00a0 \u202f last\u2003' }] }]);
+  await page.locator('#editor').evaluate(node => { (node as ARichTextElement).view = 'visual'; });
+  expect(await page.locator('#editor [contenteditable] p').textContent()).toBe('\u00a0first\u00a0 \u202f last\u2003');
+  await page.locator('#editor').evaluate(node => { (node as ARichTextElement).view = 'markdown'; });
+  await expect(source).toHaveValue('\u00a0first\u00a0 \u202f last\u2003');
+  await source.fill((await source.inputValue()) + '\n');
+  await expect.poll(() => page.locator('#editor').evaluate(node => (node as ARichTextElement).sourceDirty)).toBe(false);
+  expect(await page.locator('#editor').evaluate(node => (node as ARichTextElement).getJSON())).toEqual(document);
+});
+
+test('Markdown preserves Unicode-only paragraphs and quoted Unicode separators', async ({ page }) => {
+  await page.goto('/dist/browser/');
+  await page.locator('#editor').evaluate(node => {
+    const editor = node as ARichTextElement;
+    editor.setText('Original'); editor.view = 'markdown';
+  });
+  const source = page.locator('#editor [part="source"]');
+  await source.fill('\u00a0\n\n> before\u2028after');
+  await expect.poll(() => page.locator('#editor').evaluate(node => (node as ARichTextElement).sourceDirty)).toBe(false);
+  expect(await page.locator('#editor').evaluate(node => (node as ARichTextElement).getJSON())).toMatchObject({ content: [
+    { type: 'paragraph', content: [{ type: 'text', text: '\u00a0' }] },
+    { type: 'blockquote', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'before\u2028after' }] }] },
+  ] });
+  await page.locator('#editor').evaluate(node => { (node as ARichTextElement).view = 'visual'; });
+  expect(await page.locator('#editor [contenteditable] blockquote p').textContent()).toBe('before\u2028after');
+  await page.locator('#editor').evaluate(node => { (node as ARichTextElement).view = 'markdown'; });
+  await expect(source).toHaveValue('\u00a0\n\n> before\u2028after');
+});
