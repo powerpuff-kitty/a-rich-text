@@ -5,13 +5,13 @@ the selected 14 issues: the original active tickets plus #74 and #75. The separa
 nine Backlog issues across editor, website and cloud. Do not treat a PR card as
 another independent product ticket. Expand this plan to the Backlog only when that
 scope is selected. The owner has now selected #74 and #75 as dependencies of #4,
-expanding the scope to 14 issues (two complete, twelve remaining). For #2 the
+expanding the scope to 14 issues (three complete, eleven remaining). For #2 the
 accepted target is full CommonMark/GFM plus broader Quill and Editor.js support.
 
 ## Completed integration — 2026-09-18
 
 PRs #96–#110 are merged. Foundation #1 and local-first #7 are closed with evidence;
-The selected scope now has eleven open issues remaining: #2, #4, #8, #9, #10, #11, #13, #14, #46, #74 and #75. The full stack passes 585 browser cases,
+The selected scope now has ten open issues remaining: #2, #4, #8, #9, #10, #11, #13, #14, #46 and #74. #75 has a merged increment but remains open for its remaining formatting and embed scope. The full stack passes 585 browser cases,
 with the two browser races discovered during verification fixed in #107. The
 local-first increment adds 25 passing browser cases, 1,243 unit tests and 27 package
 checks. Governance documents and the local project-sync command are integrated.
@@ -37,14 +37,15 @@ deferred from an umbrella issue.
 | 1 | #1 Foundation — Done | Delivered in #106 | Architecture, API policy and indexed ADRs; verified integrated stack |
 | 2 | #7 Local-first — Done | Delivered in #109, including the shared structural diff primitive | 1,243 unit tests, 25 targeted browser cases and 27 package checks; documented offline/quota/recovery boundaries |
 | 3 | #6 Extensions | Custom inline atomic nodes and adoption contract | Agreed ART/selection/operation semantics, JSON Schema and converters, rendering/cursor/clipboard/history tests, package consumer example; depends on #1's stability policy |
-| 4 | #10 AI | Typed structured-edit proposals, suggestion integration, local WebGPU/WASM example | Review/reject/apply and stale-proposal tests; no required hosted provider; local-model example with actual runtime evidence and documented browser/hardware limits |
-| 5 | #9 Collaboration | Document diff, Yjs concurrency adapter, production review UI/provider integration | Multi-client concurrent edits converge; offline/reconnect/error behavior; comments/suggestions remain valid and host-owned persistence works; transport-independent integration tests |
-| 6 | #4 Editor | Broader structural selection editing and the block/formatting work tracked by #74/#75 | Both dependent tickets are explicitly included; selection, keyboard, history, serialization and browser tests for the agreed authoring surface |
-| 7 | #2 Interoperability | Full CommonMark/GFM plus broader Quill and Editor.js support | Full-stack regression run; documented mappings/loss reporting; remaining scope must name the target dialect/features/adapters rather than imply universal interchange |
-| 8 | #8 Media | Physical-browser orientation/image evidence and provider/clipboard end-to-end checks | Recorded browser/device/file matrix, insertion/upload retry/cancel/error evidence; no claim that emulation proves physical-device behavior |
-| 9 | #11 and #46 Quality | Full current browser baseline, accessibility/security/performance/RTL/clipboard checks; real devices, IME and screen readers | Executable local evidence plus named manual records; update compatibility matrix; retain any failed/unverified gate explicitly |
-| 10 | #13 Distribution | Release/version policy, governance/security documents, npm ownership and publication readiness | Verified package contents, explicit release target/ownership and publication decision; repository visibility is a separate action; keep hosted CI disabled |
-| 11 | #14 Project setup | Verify actual auto-add repository/filter coverage or accept an explicit alternative intake process | Authenticated Project workflow settings evidence for all three repositories, including plan limitations; current membership alone is insufficient |
+| 4 | #75 Formatting | Subscript/superscript are integrated in PR #114; colors, fonts, alignment/direction, formulas, video/embeds and full grammar highlighting remain | Explicit schema/provider decisions and cross-browser evidence |
+| 5 | #10 AI | Typed structured-edit proposals, suggestion integration, local WebGPU/WASM example | Review/reject/apply and stale-proposal tests; no required hosted provider; local-model example with actual runtime evidence and documented browser/hardware limits |
+| 6 | #9 Collaboration | Document diff, Yjs concurrency adapter, production review UI/provider integration | Multi-client concurrent edits converge; offline/reconnect/error behavior; comments/suggestions remain valid and host-owned persistence works; transport-independent integration tests |
+| 7 | #4 Editor | Broader structural selection editing and the block/formatting work tracked by #74/#75 | Both dependent tickets are explicitly included; selection, keyboard, history, serialization and browser tests for the agreed authoring surface |
+| 8 | #2 Interoperability | Full CommonMark/GFM plus broader Quill and Editor.js support | Full-stack regression run; documented mappings/loss reporting; remaining scope must name the target dialect/features/adapters rather than imply universal interchange |
+| 9 | #8 Media | Physical-browser orientation/image evidence and provider/clipboard end-to-end checks | Recorded browser/device/file matrix, insertion/upload retry/cancel/error evidence; no claim that emulation proves physical-device behavior |
+| 10 | #11 and #46 Quality | Full current browser baseline, accessibility/security/performance/RTL/clipboard checks; real devices, IME and screen readers | Executable local evidence plus named manual records; update compatibility matrix; retain any failed/unverified gate explicitly |
+| 11 | #13 Distribution | Release/version policy, governance/security documents, npm ownership and publication readiness | Verified package contents, explicit release target/ownership and publication decision; repository visibility is a separate action; keep hosted CI disabled |
+| 12 | #14 Project setup | Verify actual auto-add repository/filter coverage or accept an explicit alternative intake process | Authenticated Project workflow settings evidence for all three repositories, including plan limitations; current membership alone is insufficient |
 
 The code-heavy steps can share prerequisites: document comparison supports #7 and
 #9; selection/operation semantics support #6, #4 and structured AI proposals. Do
