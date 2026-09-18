@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Local drafts — A Rich Text</title>
+<style>
+body { max-width: 60rem; margin: 2rem auto; padding: 0 1rem; font: 1rem/1.5 system-ui; color: #202020; background: #fff; }
+button, select, input { font: inherit; margin: .25rem; max-width: 100%; }
+section { margin-block: 1.5rem; } pre { white-space: pre-wrap; overflow-wrap: anywhere; }
+</style>
+<main>
+<h1>Local drafts and snapshots</h1>
+<p>Your draft is saved in this browser. Snapshots stay here too; clearing site data removes them.</p>
+<button id="offline">Make available offline</button>
+<p id="offline-status" role="status">Offline page not installed.</p>
+<a-rich-text-shell><a-rich-text-toolbar for="editor"></a-rich-text-toolbar><a-rich-text id="editor" aria-label="Document" disabled></a-rich-text></a-rich-text-shell>
+<p id="save-status" role="status">Loading draft…</p>
+<button id="retry" disabled>Retry saving</button>
+<section aria-labelledby="snapshots-heading">
+<h2 id="snapshots-heading">Snapshots</h2>
+<label>Name <input id="name" maxlength="120"></label><button id="snapshot" disabled>Save snapshot</button>
+<div><label for="before">Earlier</label> <select id="before"></select><label for="after">Later</label> <select id="after"></select></div>
+<button id="compare" disabled>Compare snapshots</button><button id="restore" disabled>Restore later snapshot</button>
+<p id="snapshot-status" role="status"></p><pre id="comparison" aria-label="Snapshot differences"></pre>
+</section>
+</main>
+<script type="module" src="../a-rich-text.js"></script>
+<script type="module" src="./app.js"></script>
+</html>
