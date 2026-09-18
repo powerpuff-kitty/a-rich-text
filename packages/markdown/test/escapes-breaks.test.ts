@@ -7,7 +7,7 @@ interface Fixture { example: number; markdown: string; html: string }
 const read = (name: string): Fixture[] => JSON.parse(readFileSync(new URL(`./fixtures/commonmark-0.31.2-${name}.json`, import.meta.url), 'utf8'));
 const escapes = read('backslash-escapes');
 const breaks = read('line-breaks');
-const unsupported = new Map([[14, 'full emphasis delimiter rules'], [20, 'autolinks'], [21, 'raw HTML'], [22, 'link titles'], [23, 'reference links'], [642, 'raw HTML'], [643, 'raw HTML']]);
+const unsupported = new Map([[14, 'full emphasis delimiter rules'], [21, 'raw HTML'], [22, 'link titles'], [23, 'reference links'], [642, 'raw HTML'], [643, 'raw HTML']]);
 const expectedHTML = (html: string) => html.trimEnd().replace(/\n<\/code>/g, '</code>').replaceAll('<br />\n', '<br>').replace(/>\n</g, '><').replace(/(<pre>[\s\S]*?<\/pre>)|\n/g, (match, code: string | undefined) => code ?? ' ').replaceAll('&quot;', '"');
 
 describe('CommonMark escapes and line breaks', () => {

@@ -137,8 +137,8 @@ function parseBlocks(lines: readonly string[]): ARTBlockNode[] {
       paragraph.push(current);
       index += 1;
     }
-    const protectedCode = protectCodeSpans(paragraph.join('\n'));
-    const content = parseInline(joinParagraphLines(protectedCode.text.split('\n')), [], protectedCode);
+    const protectedInline = protectInlineAtoms(paragraph.join('\n'));
+    const content = parseInline(joinParagraphLines(protectedInline.text.split('\n')), [], protectedInline);
     blocks.push(setextLevel ? { type: 'heading', level: setextLevel, content } : { type: 'paragraph', content });
   }
 
@@ -348,25 +348,37 @@ function joinParagraphLines(lines: readonly string[]): string {
   }).join('');
 }
 
-interface ProtectedCode {
+interface ProtectedInline {
   text: string;
   prefix: string;
-  values: string[];
+  values: { text: string; mark?: ARTTextMark }[];
   raw: string[];
 }
 
-// Hide complete code spans before parsing links/emphasis or folding paragraph
-// whitespace. Backticks within a code span are literal unless the whole run matches.
-function protectCodeSpans(text: string): ProtectedCode {
+// Protect code and autolinks in encounter order before parsing links/emphasis
+// or folding paragraph whitespace. Neither atom interprets markup inside itself.
+function protectInlineAtoms(text: string): ProtectedInline {
   let prefix = '\uE000';
   while (text.includes(prefix)) prefix += '\uE000';
-  const values: string[] = [];
+  const values: ProtectedInline['values'] = [];
   const raw: string[] = [];
   let output = '';
   let index = 0;
   while (index < text.length) {
     if (text[index] === '\\' && index + 1 < text.length) {
       output += text.slice(index, index + 2); index += 2; continue;
+    }
+    if (text[index] === '<') {
+      const autolink = matchAutolink(text.slice(index));
+      if (autolink) {
+        output += prefix + values.length + prefix;
+        values.push(autolink.href
+          ? { text: autolink.label, mark: { type: 'link', href: autolink.href } }
+          : { text: autolink.raw });
+        raw.push(autolink.raw);
+        index += autolink.raw.length;
+        continue;
+      }
     }
     if (text[index] !== '`') { output += text[index++]; continue; }
     const length = countRun(text, index, '`');
@@ -384,56 +396,81 @@ function protectCodeSpans(text: string): ProtectedCode {
     let value = text.slice(index + length, end).replaceAll('\n', ' ');
     if (value.startsWith(' ') && value.endsWith(' ') && /[^ ]/.test(value)) value = value.slice(1, -1);
     output += prefix + values.length + prefix;
-    values.push(value);
+    values.push({ text: value, mark: { type: 'code' } });
     raw.push(text.slice(index, end + length));
     index = end + length;
   }
   return { text: output, prefix, values, raw };
 }
 
-function parseInline(text: string, inherited: readonly ARTTextMark[] = [], protectedCode?: ProtectedCode): ARTTextNode[] {
-  if (!protectedCode) { protectedCode = protectCodeSpans(text); text = protectedCode.text; }
+function matchAutolink(text: string): { raw: string; label: string; href: string | null } | null {
+  const uri = text.match(/^<([a-z][a-z0-9+.-]{1,31}:[^\x00-\x20<>\x7f]*)>/i);
+  const email = uri ? null : text.match(/^<([a-z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)*)>/i);
+  const match = uri ?? email;
+  if (!match) return null;
+  const label = match[1]!;
+  let href: string | null = null;
+  try {
+    // Preserve existing percent escapes while encoding literal backslashes,
+    // brackets, backticks and Unicode. Backslash escapes/entities are not parsed.
+    const target = encodeURI((email ? 'mailto:' : '') + label).replace(/%25([\da-f]{2})/gi, '%$1');
+    href = safeUrl(target, false);
+  } catch {
+    // A lone UTF-16 surrogate is invalid URI input, not an import failure.
+  }
+  return { raw: match[0], label, href };
+}
+
+function parseInline(text: string, inherited: readonly ARTTextMark[] = [], protectedInline?: ProtectedInline): ARTTextNode[] {
+  if (!protectedInline) { protectedInline = protectInlineAtoms(text); text = protectedInline.text; }
   const output: ARTTextNode[] = [];
   let index = 0;
   while (index < text.length) {
-    if (text.startsWith(protectedCode.prefix, index)) {
-      const start = index + protectedCode.prefix.length;
-      const end = text.indexOf(protectedCode.prefix, start);
-      const value = protectedCode.values[Number(text.slice(start, end))];
+    if (text.startsWith(protectedInline.prefix, index)) {
+      const start = index + protectedInline.prefix.length;
+      const end = text.indexOf(protectedInline.prefix, start);
+      const value = protectedInline.values[Number(text.slice(start, end))];
       if (end !== -1 && value !== undefined) {
-        appendText(output, value, [...inherited, { type: 'code' }]);
-        index = end + protectedCode.prefix.length; continue;
+        const marks = value.mark?.type === 'link' ? inherited.filter(mark => mark.type !== 'link') : inherited;
+        appendText(output, value.text, value.mark ? [...marks, value.mark] : marks);
+        index = end + protectedInline.prefix.length; continue;
       }
     }
     if (text[index] === '\\' && isEscapable(text[index + 1])) { appendText(output, text[index + 1] ?? '', inherited); index += 2; continue; }
     const strong = text.startsWith('**', index) ? '**' : text.startsWith('__', index) ? '__' : null;
     if (strong) {
       const end = text.indexOf(strong, index + 2);
-      if (end !== -1) { appendParsed(output, text.slice(index + 2, end), [...inherited, { type: 'bold' }], protectedCode); index = end + 2; continue; }
+      if (end !== -1) { appendParsed(output, text.slice(index + 2, end), [...inherited, { type: 'bold' }], protectedInline); index = end + 2; continue; }
     }
     if (text.startsWith('~~', index)) {
       const end = text.indexOf('~~', index + 2);
-      if (end !== -1) { appendParsed(output, text.slice(index + 2, end), [...inherited, { type: 'strike' }], protectedCode); index = end + 2; continue; }
+      if (end !== -1) { appendParsed(output, text.slice(index + 2, end), [...inherited, { type: 'strike' }], protectedInline); index = end + 2; continue; }
     }
     if (text.startsWith('<u>', index)) {
       const end = text.indexOf('</u>', index + 3);
-      if (end !== -1) { appendParsed(output, text.slice(index + 3, end), [...inherited, { type: 'underline' }], protectedCode); index = end + 4; continue; }
+      if (end !== -1) { appendParsed(output, text.slice(index + 3, end), [...inherited, { type: 'underline' }], protectedInline); index = end + 4; continue; }
     }
     if (text[index] === '[') {
       const labelEnd = text.indexOf('](', index + 1);
-      if (labelEnd !== -1) {
+      const label = text.slice(index + 1, labelEnd);
+      // Links cannot enclose other links. Keep the surrounding bracket syntax
+      // literal if an autolink has already claimed part of this label.
+      const containsAutolink = protectedInline.values.some((value, token) =>
+        value.mark?.type === 'link' && label.includes(protectedInline.prefix + token + protectedInline.prefix),
+      );
+      if (labelEnd !== -1 && !containsAutolink) {
         const openParen = labelEnd + 1;
         const targetEnd = findMatchingParen(text, openParen);
         if (targetEnd !== -1) {
           let target = text.slice(openParen + 1, targetEnd).trim();
-          // Backticks in a link destination are URL characters, not code markup.
-          protectedCode.raw.forEach((raw, token) => {
-            target = target.replaceAll(protectedCode.prefix + token + protectedCode.prefix, () => raw);
+          // Protected atoms in a destination retain their literal URL syntax.
+          protectedInline.raw.forEach((raw, token) => {
+            target = target.replaceAll(protectedInline.prefix + token + protectedInline.prefix, () => raw);
           });
-          const href = target.match(/^(\S+?)(?:\s+["'][^"']*["'])?$/)?.[1];
+          const destination = target.match(/^(?:<([^<>\s]+)>|(\S+?))(?:\s+["'][^"']*["'])?$/);
+          const href = destination?.[1] ?? destination?.[2];
           const safe = href ? safeUrl(href, false) : null;
-          const label = text.slice(index + 1, labelEnd);
-          appendParsed(output, label, safe ? [...inherited, { type: 'link', href: safe }] : inherited, protectedCode);
+          appendParsed(output, label, safe ? [...inherited, { type: 'link', href: safe }] : inherited, protectedInline);
           index = targetEnd + 1;
           continue;
         }
@@ -442,7 +479,7 @@ function parseInline(text: string, inherited: readonly ARTTextMark[] = [], prote
     if (text[index] === '*' || text[index] === '_') {
       const delimiter = text[index]!;
       const end = text.indexOf(delimiter, index + 1);
-      if (end > index + 1) { appendParsed(output, text.slice(index + 1, end), [...inherited, { type: 'italic' }], protectedCode); index = end + 1; continue; }
+      if (end > index + 1) { appendParsed(output, text.slice(index + 1, end), [...inherited, { type: 'italic' }], protectedInline); index = end + 1; continue; }
     }
     appendText(output, text[index] ?? '', inherited);
     index += 1;
@@ -463,8 +500,8 @@ function findMatchingParen(text: string, openIndex: number): number {
   return -1;
 }
 
-function appendParsed(output: ARTTextNode[], value: string, marks: readonly ARTTextMark[], protectedCode: ProtectedCode): void {
-  for (const node of parseInline(value, marks, protectedCode)) appendText(output, node.text, node.marks ?? []);
+function appendParsed(output: ARTTextNode[], value: string, marks: readonly ARTTextMark[], protectedInline: ProtectedInline): void {
+  for (const node of parseInline(value, marks, protectedInline)) appendText(output, node.text, node.marks ?? []);
 }
 
 function appendText(output: ARTTextNode[], text: string, marks: readonly ARTTextMark[]): void {
@@ -528,7 +565,13 @@ function serializeBlock(block: ARTBlockNode): string {
 function serializeInline(nodes: readonly ARTTextNode[]): string {
   return nodes.map((node) => {
     const marks = normalizeMarks(node.marks ?? []);
-    let value = marks.some((mark) => mark.type === 'code') ? codeSpan(node.text) : escapeMarkdown(node.text).replaceAll('\n', '  \n');
+    const isCode = marks.some(mark => mark.type === 'code');
+    const link = marks.find(mark => mark.type === 'link');
+    const autolink = !isCode && link ? matchAutolink(`<${node.text}>`) : null;
+    // Use angle syntax only when it recreates this entire label and exact href.
+    // This also avoids bracket/parenthesis ambiguity in URL-shaped link labels.
+    const useAutolink = autolink?.raw === `<${node.text}>` && autolink.href === link?.href;
+    let value = useAutolink ? autolink.raw : isCode ? codeSpan(node.text) : escapeMarkdown(node.text).replaceAll('\n', '  \n');
     for (const mark of marks) {
       switch (mark.type) {
         case 'bold': value = `**${value}**`; break;
@@ -536,7 +579,7 @@ function serializeInline(nodes: readonly ARTTextNode[]): string {
         case 'underline': value = `<u>${value}</u>`; break;
         case 'strike': value = `~~${value}~~`; break;
         case 'code': break;
-        case 'link': { const href = safeUrl(mark.href, false); if (href) value = `[${value}](${href})`; break; }
+        case 'link': { const href = safeUrl(mark.href, false); if (href && !useAutolink) value = `[${value}](${href})`; break; }
         case 'extensionMark': break;
       }
     }

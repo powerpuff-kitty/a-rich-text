@@ -8,7 +8,6 @@ interface Fixture { example: number; markdown: string; html: string; section: st
 const fixtures: Fixture[] = JSON.parse(readFileSync(new URL('./fixtures/commonmark-0.31.2-code-spans.json', import.meta.url), 'utf8'));
 const unsupported = new Map([
   [344, 'Raw HTML precedence is outside the supported Markdown subset'],
-  [346, 'CommonMark autolink precedence is not implemented'],
 ]);
 // ART folds soft breaks to spaces and emits literal quotes in HTML text.
 // These normalizations do not alter code contents or element structure.
@@ -17,7 +16,7 @@ const expectedHTML = (html: string) => html.trimEnd().replace(/<\/code>\n<code>/
 describe('CommonMark 0.31.2 code spans (scoped compatibility)', () => {
   it('accounts for all upstream section examples with explicit exclusions', () => {
     expect(fixtures.map(fixture => fixture.example)).toEqual(Array.from({ length: 22 }, (_, index) => 328 + index));
-    expect(fixtures.filter(fixture => !unsupported.has(fixture.example))).toHaveLength(20);
+    expect(fixtures.filter(fixture => !unsupported.has(fixture.example))).toHaveLength(21);
   });
   for (const fixture of fixtures) {
     const reason = unsupported.get(fixture.example);

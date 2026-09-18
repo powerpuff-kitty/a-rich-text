@@ -1,6 +1,47 @@
 import { expect, test } from '@playwright/test';
 import type { ARichTextElement } from '../../packages/web-component/src/index.js';
 
+test('Markdown autolinks preserve literal URL punctuation and email targets across source views', async ({ page }) => {
+  await page.goto('/dist/browser/');
+  await page.locator('#editor').evaluate(node => {
+    const editor = node as ARichTextElement;
+    editor.setText('Original'); editor.view = 'markdown';
+  });
+  const source = page.locator('#editor [part="source"]');
+  const markdown = '<https://example.com/`code`/*literal*> <person+tag@example.com>';
+  await source.fill(markdown);
+  await expect.poll(() => page.locator('#editor').evaluate(node => (node as ARichTextElement).sourceDirty)).toBe(false);
+  const document = await page.locator('#editor').evaluate(node => (node as ARichTextElement).getJSON());
+  await page.locator('#editor').evaluate(node => { (node as ARichTextElement).view = 'visual'; });
+  const links = page.locator('#editor [contenteditable] a');
+  await expect(links).toHaveCount(2);
+  await expect(links.nth(0)).toHaveText('https://example.com/`code`/*literal*');
+  await expect(links.nth(0)).toHaveAttribute('href', 'https://example.com/%60code%60/*literal*');
+  await expect(links.nth(1)).toHaveAttribute('href', 'mailto:person+tag@example.com');
+  await expect(page.locator('#editor [contenteditable] code, #editor [contenteditable] em')).toHaveCount(0);
+  await page.locator('#editor').evaluate(node => { (node as ARichTextElement).view = 'markdown'; });
+  await expect(source).toHaveValue(markdown);
+  await page.locator('#editor').evaluate(node => {
+    const editor = node as ARichTextElement;
+    editor.setMarkdown(editor.getMarkdown());
+  });
+  expect(await page.locator('#editor').evaluate(node => (node as ARichTextElement).getJSON())).toEqual(document);
+});
+
+test('Markdown autolinks keep unsafe schemes and code contents non-interactive', async ({ page }) => {
+  await page.goto('/dist/browser/');
+  await page.locator('#editor').evaluate(node => {
+    const editor = node as ARichTextElement;
+    editor.setMarkdown('<javascript:alert(1)> `<https://example.com>` <https://safe.example>');
+    editor.view = 'visual';
+  });
+  const surface = page.locator('#editor [contenteditable]');
+  await expect(surface.locator('a')).toHaveCount(1);
+  await expect(surface.locator('a')).toHaveAttribute('href', 'https://safe.example');
+  await expect(surface.locator('code')).toHaveText('<https://example.com>');
+  await expect(surface).toContainText('<javascript:alert(1)>');
+});
+
 test('Markdown thematic breaks separate lists and survive source/visual switching', async ({ page }) => {
   await page.goto('/dist/browser/');
   await page.locator('#editor').evaluate(node => {
