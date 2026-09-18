@@ -675,28 +675,43 @@ function serializeBlock(block: ARTBlockNode): string {
 }
 
 function serializeInline(nodes: readonly ARTTextNode[]): string {
-  return nodes.map((node) => {
+  let output = '';
+  let active: ARTTextMark[] = [];
+  const delimiter = (mark: ARTTextMark, closing: boolean): string => {
+    switch (mark.type) {
+      case 'bold': return '**';
+      case 'italic': return '*';
+      case 'underline': return closing ? '</u>' : '<u>';
+      case 'strike': return '~~';
+      case 'link': return closing ? `](${mark.href})` : '[';
+      default: return '';
+    }
+  };
+  for (const node of nodes) {
     const marks = normalizeMarks(node.marks ?? []);
     const isCode = marks.some(mark => mark.type === 'code');
     const link = marks.find(mark => mark.type === 'link');
     const autolink = !isCode && link ? matchAutolink(`<${node.text}>`) : null;
     // Use angle syntax only when it recreates this entire label and exact href.
-    // This also avoids bracket/parenthesis ambiguity in URL-shaped link labels.
     const useAutolink = autolink?.raw === `<${node.text}>` && autolink.href === link?.href;
-    let value = useAutolink ? autolink.raw : isCode ? codeSpan(node.text) : escapeMarkdown(node.text).replaceAll('\n', '  \n');
-    for (const mark of marks) {
-      switch (mark.type) {
-        case 'bold': value = `**${value}**`; break;
-        case 'italic': value = `*${value}*`; break;
-        case 'underline': value = `<u>${value}</u>`; break;
-        case 'strike': value = `~~${value}~~`; break;
-        case 'code': break;
-        case 'link': { const href = safeUrl(mark.href, false); if (href && !useAutolink) value = `[${value}](${href})`; break; }
-        case 'extensionMark': break;
+    const wrappers = marks.filter(mark => mark.type !== 'code' && mark.type !== 'extensionMark'
+      && (mark.type !== 'link' || (!useAutolink && safeUrl(mark.href, false)))).reverse();
+    // Keep the shared outer marks open across code and other formatting changes.
+    // Reopening bold on every text node can create ambiguous adjacent star runs.
+    let shared = 0;
+    while (shared < active.length && wrappers.some(mark => markKey(mark) === markKey(active[shared]!))) shared += 1;
+    for (let index = active.length - 1; index >= shared; index -= 1) output += delimiter(active[index]!, true);
+    active = active.slice(0, shared);
+    for (const mark of wrappers) {
+      if (!active.some(open => markKey(open) === markKey(mark))) {
+        output += delimiter(mark, false);
+        active.push(mark);
       }
     }
-    return value;
-  }).join('');
+    output += useAutolink ? autolink.raw : isCode ? codeSpan(node.text) : escapeMarkdown(node.text).replaceAll('\n', '  \n');
+  }
+  for (let index = active.length - 1; index >= 0; index -= 1) output += delimiter(active[index]!, true);
+  return output;
 }
 
 function serializeList(list: ARTListNode): string {

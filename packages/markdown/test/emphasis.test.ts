@@ -30,7 +30,7 @@ describe('CommonMark emphasis delimiter runs', () => {
     expect(fromMarkdown(source).content).toEqual([{ type: 'paragraph', content: [{ type: 'text', text: source }] }]);
   });
 
-  it.each(['**bold *italic* bold**', '*italic **bold** italic*', '***both***', '**a `code` b**', '*[label](/path)*', '**<https://example.com/*literal*>**'])('round-trips supported mixed emphasis: %j', source => {
+  it.each(['**bold *italic* bold**', '**bold *italic* and `code`**', '*italic **bold** italic*', '***both***', '**a `code` b**', '*[label](/path)*', '**<https://example.com/*literal*>**'])('round-trips supported mixed emphasis: %j', source => {
     const doc = fromMarkdown(source);
     expect(fromMarkdown(toMarkdown(doc))).toEqual(doc);
   });

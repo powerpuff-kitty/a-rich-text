@@ -165,7 +165,9 @@ remain literal, and code/autolink atoms retain their original boundary punctuati
 Explicit link labels resolve their own emphasis. List marker whitespace is ASCII
 space/tab, preventing non-breaking spaces from turning an emphasis example into
 a list. Examples 14 and 55 from earlier fixture sections now match as well.
-Round-trip regressions cover mixed bold/italic, code and links; they do not
+Export keeps shared outer marks open across adjacent text nodes, avoiding
+ambiguous delimiter runs around nested italics and code. Round-trip regressions
+cover mixed bold/italic, code and links; they do not
 establish arbitrary ART whitespace/mark-boundary fidelity. See
 [emphasis tests](../packages/markdown/test/emphasis.test.ts).
 
