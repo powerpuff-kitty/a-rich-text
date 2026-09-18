@@ -8,6 +8,11 @@ no failures/retries/skips, and 27 package installation checks passed on the reco
 runtime revision. The full browser run covers the complete compatibility stack;
 unit/package checks were rerun after the toolbar focus fix. Manual and physical-device gates below remain open.
 
+The later [local-first increment](verification/2026-09-18-local-first.md) passes
+1,243 unit tests, 25 targeted browser cases and 27 package checks. It adds native
+IndexedDB/offline recovery coverage with explicit WebKit and quota-test limits;
+it does not replace the full-suite baseline with an unrun 610-case claim.
+
 The project should not label a browser, device, accessibility workflow or performance target as supported merely because it appears in documentation. Claims must be backed by an executable test or an explicit manual verification record.
 
 ## Verification commands
