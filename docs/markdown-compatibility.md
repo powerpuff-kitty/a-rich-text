@@ -272,6 +272,7 @@ precedence interactions remain unverified. See
 | 22, 23 | Link titles/reference definitions are not supported |
 | 109, 235 | Tight-list HTML rendering retains ART paragraph wrappers |
 | 94, 99 | Tight-list HTML rendering retains ART paragraph wrappers |
+| 267 | Zero-start ordered lists normalize to one under ART's positive-start constraint |
 | 344 | Raw HTML tag precedence over backticks is not implemented; HTML remains literal text |
 | 596, 598, 599, 601 | URI schemes outside ART's URL allowlist remain literal text |
 

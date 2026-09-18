@@ -1,0 +1,64 @@
+{
+  "revision": "0a4302f63289d282b672eaaa28fa7bf8804375d1",
+  "unit": {
+    "passed": 1160,
+    "files": 88
+  },
+  "browser": {
+    "scope": "markdown-compatibility, live-source, profiles, autolink",
+    "stats": {
+      "startTime": "2026-09-18T19:14:09.772Z",
+      "duration": 131120.448,
+      "expected": 180,
+      "skipped": 0,
+      "unexpected": 0,
+      "flaky": 0
+    },
+    "projects": {
+      "chromium": 36,
+      "firefox": 36,
+      "webkit": 36,
+      "mobile-chromium": 36,
+      "mobile-webkit": 36
+    },
+    "workers": 2,
+    "retries": 0,
+    "reportSHA256": "840f58b81d80bee92657d3a46a4fae37efd0db2860d50cab47ac3c682136cb3e"
+  },
+  "packages": 27,
+  "gzipBytes": {
+    "minimal": 40629,
+    "standard": 59525
+  },
+  "fixtures": {
+    "spec": "CommonMark 0.31.2",
+    "sections": [
+      "List items",
+      "Lists"
+    ],
+    "scope": "selected marker examples only",
+    "total": 13,
+    "examples": [
+      265,
+      266,
+      267,
+      268,
+      269,
+      281,
+      282,
+      283,
+      284,
+      285,
+      303,
+      304,
+      305
+    ],
+    "matchingRetainedSemantics": 12,
+    "normalization": "HTML import removes list-tightness differences; paragraph soft breaks fold",
+    "modelExceptions": {
+      "positiveListStarts": [
+        267
+      ]
+    }
+  }
+}
