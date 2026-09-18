@@ -6,6 +6,19 @@ nine Backlog issues across editor, website and cloud. Do not treat a PR card as
 another independent product ticket. Expand this plan to the Backlog only when that
 scope is selected.
 
+## Completed integration — 2026-09-18
+
+PRs #96–#110 are merged. Foundation #1 and local-first #7 are closed with evidence;
+ten of the original active issues remain. The full stack passes 585 browser cases,
+with the two browser races discovered during verification fixed in #107. The
+local-first increment adds 25 passing browser cases, 1,243 unit tests and 27 package
+checks. Governance documents and the local project-sync command are integrated.
+See [full-stack evidence](../verification/2026-09-18-integrated-stack.md),
+[local-first evidence](../verification/2026-09-18-local-first.md),
+[release checklist](../release-checklist.md) and [roadmap maintenance](../project-maintenance.md).
+The table below preserves the selected scope; completed prerequisites are no longer
+pending work, and the remaining tickets retain their stated closing conditions.
+
 ## Completion rule
 
 Close an issue only when its accepted deliverables are implemented, verified and
@@ -19,8 +32,8 @@ deferred from an umbrella issue.
 
 | Order | Ticket | Concrete remaining work | Closing evidence / dependency |
 | --- | --- | --- | --- |
-| 1 | #1 Foundation | API stability policy; schema-versioning and persistence ADRs; current package boundaries | Linked/indexed documents agree with implementation; local dependency policy and zero-network baseline; integrate the documentation change |
-| 2 | #7 Local-first | Snapshot comparison; offline reload/recovery; quota and corrupt/incompatible record paths | Real-browser integration tests with no required remote data service, plus explicit failure/recovery behavior; comparison can reuse the document-diff contract needed by #9 |
+| 1 | #1 Foundation — Done | Delivered in #106 | Architecture, API policy and indexed ADRs; verified integrated stack |
+| 2 | #7 Local-first — Done | Delivered in #109, including the shared structural diff primitive | 1,243 unit tests, 25 targeted browser cases and 27 package checks; documented offline/quota/recovery boundaries |
 | 3 | #6 Extensions | Custom inline atomic nodes and adoption contract | Agreed ART/selection/operation semantics, JSON Schema and converters, rendering/cursor/clipboard/history tests, package consumer example; depends on #1's stability policy |
 | 4 | #10 AI | Typed structured-edit proposals, suggestion integration, local WebGPU/WASM example | Review/reject/apply and stale-proposal tests; no required hosted provider; local-model example with actual runtime evidence and documented browser/hardware limits |
 | 5 | #9 Collaboration | Document diff, Yjs concurrency adapter, production review UI/provider integration | Multi-client concurrent edits converge; offline/reconnect/error behavior; comments/suggestions remain valid and host-owned persistence works; transport-independent integration tests |
@@ -36,8 +49,9 @@ The code-heavy steps can share prerequisites: document comparison supports #7 an
 not implement incompatible versions independently. No new provider credentials or
 paid infrastructure are assumed.
 
-## Existing draft stack
+## Initial draft-stack plan (completed)
 
+The stack has been integrated; this paragraph records the initial verification plan.
 Validate the complete #96 → #105 stack before integration, keeping runtime/build
 inputs fixed during verification. The latest increment already has 1,232 unit
 tests, 200 targeted browser cases and 27 package checks; run the full browser suite

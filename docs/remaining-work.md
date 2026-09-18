@@ -30,12 +30,12 @@ and the [editor format catalogue](editor-formats.md).
   the optional media adapters. The image dialog now supports local previews,
   host-provided uploads, progress, retry and cancellation.
 - [Extensions #6](https://github.com/powerpuff-kitty/a-rich-text/issues/6):
-  custom inline atomic nodes and public API stability guarantees. The component
+  custom inline atomic nodes and their complete authoring/serialization behavior.
+  [Public API stability](api-stability.md) is documented. The component
   now includes Default, Minimal and Document appearance presets; these are
   independent of extension feature bundles and tool allowlists.
 - [Format profiles #77](https://github.com/powerpuff-kitty/a-rich-text/issues/77): the registry, developer-selected defaults/allowlists and diagnostic review are implemented; see [the contract](format-profiles.md). An optional [Quill text-block adapter](quill-delta.md) is implemented. Other adapters and broader Quill fidelity remain open; detection hints do not implement converters.
-- [Schema #2](https://github.com/powerpuff-kitty/a-rich-text/issues/2) and
-  [foundation #1](https://github.com/powerpuff-kitty/a-rich-text/issues/1): broader [CommonMark 0.31.2 compatibility](markdown-compatibility.md), foreign-editor adapters, versioning/persistence decisions and stability policy. The
+- [Schema #2](https://github.com/powerpuff-kitty/a-rich-text/issues/2): broader [CommonMark 0.31.2 compatibility](markdown-compatibility.md) and foreign-editor adapters. Foundation #1 is complete: architecture, stability policy and schema/persistence ADRs are integrated. The
   [ART v1 JSON Schema artifact](json-schema.md), structural parity checks and
   [explicit migration API](migrations.md) are implemented. No historical migrations are bundled.
 
@@ -60,23 +60,31 @@ observable closing conditions.
   synthetic paste are not substitutes for those checks. Composition/native
   reconciliation and source import currently reset history.
 - [Distribution #13](https://github.com/powerpuff-kitty/a-rich-text/issues/13):
-  release/version policy, npm scope/ownership, publication and public governance
-  prerequisites. The 27 local package tarballs and standalone bundle already
+  npm scope/ownership, operational provenance/release configuration, verified private
+  reporting routes and publication/visibility prerequisites. Version policy and
+  contribution/security/conduct documents are delivered; see the [release checklist](release-checklist.md). The 27 local package tarballs and standalone bundle already
   have reproducible verification. GitHub Actions remains disabled by request.
 
 ## Optional capabilities
 
 These do not need to block an ordinary embedded rich-text field:
 
-- [Local-first #7](https://github.com/powerpuff-kitty/a-rich-text/issues/7): browser
-  offline recovery/quota evidence and snapshot comparison.
+Local-first #7 is complete: [snapshot comparison and browser recovery](local-first.md)
+are integrated. Its [verification](verification/2026-09-18-local-first.md) records
+1,243 unit tests, 25 targeted browser cases and 27 package checks, with explicit
+WebKit offline-emulation and injected-quota limits. This adds targeted coverage to
+the full 585-case baseline above; it is not a new full 610-case run.
+
 - [Collaboration #9](https://github.com/powerpuff-kitty/a-rich-text/issues/9):
-  concurrent/Yjs providers, diff primitives and production review UI. Existing
+  concurrent/Yjs providers and production review UI. Structural document diff is
+  delivered through `@arichtext/core/diff`; it is not a CRDT. Existing
   snapshot synchronization is not concurrent conflict-free collaboration.
 - [AI #10](https://github.com/powerpuff-kitty/a-rich-text/issues/10): structured
   edits, suggestion integration and browser-local model examples.
 - [Roadmap #14](https://github.com/powerpuff-kitty/a-rich-text/issues/14): manually
-  verify Project auto-add filters and saved views not exposed by the public API.
+  verify automatic intake repository/filter coverage or resolve its limitations.
+  Saved views are complete. A [tested local reconciliation command](project-maintenance.md)
+  now keeps existing/open work aligned without claiming scheduled automatic intake.
 
 Website and cloud work lives in separate repositories on the same project; it
 is not a dependency of the browser component. The next practical editor work is
