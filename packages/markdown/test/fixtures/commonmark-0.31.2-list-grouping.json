@@ -1,0 +1,26 @@
+[
+  {
+    "markdown": "- foo\n- bar\n+ baz\n",
+    "html": "<ul>\n<li>foo</li>\n<li>bar</li>\n</ul>\n<ul>\n<li>baz</li>\n</ul>\n",
+    "example": 301,
+    "start_line": 5249,
+    "end_line": 5261,
+    "section": "Lists"
+  },
+  {
+    "markdown": "1. foo\n2. bar\n3) baz\n",
+    "html": "<ol>\n<li>foo</li>\n<li>bar</li>\n</ol>\n<ol start=\"3\">\n<li>baz</li>\n</ol>\n",
+    "example": 302,
+    "start_line": 5264,
+    "end_line": 5276,
+    "section": "Lists"
+  },
+  {
+    "markdown": "- foo\n\n- bar\n\n\n- baz\n",
+    "html": "<ul>\n<li>\n<p>foo</p>\n</li>\n<li>\n<p>bar</p>\n</li>\n<li>\n<p>baz</p>\n</li>\n</ul>\n",
+    "example": 306,
+    "start_line": 5384,
+    "end_line": 5403,
+    "section": "Lists"
+  }
+]

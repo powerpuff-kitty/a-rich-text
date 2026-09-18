@@ -66,10 +66,27 @@ Unicode line/paragraph separators within item text remain literal content.
 When serializing a representable start, subsequent item numbers stop at nine
 digits so a list starting at 999,999,999 can round-trip multiple items. Only the
 first marker determines an ordered list's start. ART starts above 999,999,999 are
-outside this Markdown mapping. General list continuation, marker-style grouping,
+outside this Markdown mapping. General list continuation,
 indentation/tab handling and tight/loose rendering remain incomplete. These
 thirteen fixtures are a selected subset, not full List items/Lists coverage.
 See [list-marker tests](../packages/markdown/test/list-markers.test.ts).
+
+## Verified scope: list grouping
+
+Three unchanged CommonMark examples (301, 302 and 306) cover changed bullet
+characters, changed ordered delimiters and blank lines between matching markers.
+They match retained ART semantics through HTML import; tight/loose paragraph
+wrappers are not stored. Changing `-`, `+` or `*`, or changing an ordered delimiter
+between `.` and `)`, starts a separate list. Matching markers retain one list
+across blank lines. Existing ART task lists apply the same bullet-marker boundary.
+
+Export alternates `-`/`+` or `.`/`)` between adjacent lists of the same ART style
+to retain separate list nodes on reimport. This works at the document root and
+inside blockquotes and list items, including three consecutive lists and bullet
+items beginning with a thematic break. Original marker spelling is not stored.
+General list indentation, lazy continuation and tight/loose rendering remain
+outside this increment; these are three selected fixtures, not full Lists coverage.
+See [list-grouping tests](../packages/markdown/test/list-grouping.test.ts).
 
 ## Verified scope: thematic breaks
 
