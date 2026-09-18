@@ -525,13 +525,15 @@ function parseInline(text: string, inherited: readonly ARTTextMark[] = [], prote
       if (reference) {
         const key = (reference[2] || reference[1]).trim().toLowerCase();
         const href = activeReferences.get(key);
-        if (href) { appendParsed(output, reference[1]!, [...inherited, { type: 'link', href }], protectedInline); index += reference[0].length; continue; }
+        const safe = href ? safeUrl(href, false) : null;
+        if (safe) { appendParsed(output, reference[1]!, [...inherited, { type: 'link', href: safe }], protectedInline); index += reference[0].length; continue; }
       }
       const shortcut = text.slice(index).match(/^\[([^\]]+)\]/);
       if (shortcut) {
         const href = activeReferences.get(shortcut[1]!.trim().toLowerCase());
         const next = text[index + shortcut[0].length];
-        if (href && next !== '(' && next !== '[') { appendParsed(output, shortcut[1]!, [...inherited, { type: 'link', href }], protectedInline); index += shortcut[0].length; continue; }
+        const safe = href ? safeUrl(href, false) : null;
+        if (safe && next !== '(' && next !== '[') { appendParsed(output, shortcut[1]!, [...inherited, { type: 'link', href: safe }], protectedInline); index += shortcut[0].length; continue; }
       }
       const labelEnd = text.indexOf('](', index + 1);
       const label = text.slice(index + 1, labelEnd);

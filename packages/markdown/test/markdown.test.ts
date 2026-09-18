@@ -14,6 +14,10 @@ describe('@arichtext/markdown', () => {
     const document = fromMarkdown('[guide](https://inline.example)\n\n[guide]: https://reference.example');
     expect(document.content[0]).toMatchObject({ content: [{ marks: [{ type: 'link', href: 'https://inline.example' }] }] });
   });
+  it('applies the link URL allowlist to reference definitions', () => {
+    const document = fromMarkdown('[bad]\n\n[bad]: javascript:alert(1)');
+    expect(document.content[0]).toMatchObject({ content: [{ text: '[bad]' }] });
+  });
   it('parses and serializes common document structures', () => {
     const source = [
       '## Hello **world**',
