@@ -39,4 +39,11 @@ describe('Editor.js adapter', () => {
     const exported = exportEditorJS(imported.value);
     expect(JSON.parse(exported.value).blocks[0].data).toMatchObject({ service: 'youtube', embed: 'https://youtu.be/demo' });
   });
+  it('round-trips common Editor.js table content', () => {
+    const imported = importEditorJS(JSON.stringify({ blocks: [{ type: 'table', data: { content: [['A', 'B'], ['1', '2']] } }] }));
+    expect(imported.value.content[0]).toMatchObject({ type: 'table' });
+    expect((imported.value.content[0] as any).content[0].content).toHaveLength(2);
+    const exported = exportEditorJS(imported.value);
+    expect(JSON.parse(exported.value).blocks[0].data.content).toEqual([['A', 'B'], ['1', '2']]);
+  });
 });
