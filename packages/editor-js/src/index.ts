@@ -22,6 +22,7 @@ export function importEditorJS(source: string): ConversionOutput<ARTDocument> {
       case 'quote': { if (!text(data.text)) throw new TypeError('Invalid Editor.js quote'); content.push({ type: 'blockquote', content: [inlineHTML(data.text)] }); break; }
       case 'code': { if (!text(data.code)) throw new TypeError('Invalid Editor.js code block'); content.push({ type: 'codeBlock', text: data.code }); break; }
       case 'delimiter': content.push({ type: 'horizontalRule' }); break;
+      case 'image': { const file = record(data.file) ? data.file : data; const url = file.url; if (!text(url) || !url) throw new TypeError('Invalid Editor.js image'); content.push({ type: 'image', src: url, ...(text(data.caption) ? { alt: data.caption } : {}) }); break; }
       case 'list': { if (!Array.isArray(data.items)) throw new TypeError('Invalid Editor.js list'); const style = data.style === 'ordered' ? 'ordered' : data.style === 'unordered' ? 'bullet' : data.style === 'checklist' ? 'task' : undefined; if (!style) notes.add('list-style', 'Unknown Editor.js list style becomes a bullet list'); const items = data.items.map(item => { if (style === 'task' && record(item)) { if (!text(item.text) || (item.checked !== undefined && typeof item.checked !== 'boolean')) throw new TypeError('Invalid Editor.js checklist item'); return { type: 'listItem' as const, checked: item.checked ?? false, content: [inlineHTML(item.text)] }; } if (!text(item)) throw new TypeError('Invalid Editor.js list item'); return { type: 'listItem' as const, ...(style === 'task' ? { checked: false } : {}), content: [inlineHTML(item)] }; }); content.push({ type: 'list', style: style ?? 'bullet', content: items }); break; }
       default: notes.add('unsupported-block', `Editor.js ${block.type} block is omitted`);
     }
@@ -37,9 +38,10 @@ export function exportEditorJS(document: ARTDocument): ConversionOutput<string> 
     else if (block.type === 'heading') blocks.push({ type: 'header', data: { text: toHTML({ type: 'doc', version: 1, content: [block] }).replace(/^<h[1-6]>|<\/h[1-6]>$/g, ''), level: block.level } });
     else if (block.type === 'codeBlock') blocks.push({ type: 'code', data: { code: block.text } });
     else if (block.type === 'horizontalRule') blocks.push({ type: 'delimiter', data: {} });
+    else if (block.type === 'image') blocks.push({ type: 'image', data: { file: { url: block.src }, ...(block.alt ? { caption: block.alt } : {}) } });
     else if (block.type === 'blockquote' && block.content.length === 1 && block.content[0]?.type === 'paragraph') blocks.push({ type: 'quote', data: { text: toHTML({ type: 'doc', version: 1, content: [block.content[0]] }).replace(/^<p>|<\/p>$/g, '') } });
     else if (block.type === 'list' && block.content.every(item => item.content.length === 1 && item.content[0]?.type === 'paragraph')) blocks.push({ type: 'list', data: { style: block.style === 'ordered' ? 'ordered' : block.style === 'task' ? 'checklist' : 'unordered', items: block.content.map(item => { const value = toHTML({ type: 'doc', version: 1, content: [item.content[0]!] }).replace(/^<p>|<\/p>$/g, ''); return block.style === 'task' ? { text: value, checked: item.checked ?? false } : value; }) } });
-    else { notes.add('unsupported-block', `ART ${block.type} block is flattened to fallback text`); blocks.push({ type: 'paragraph', data: { text: block.type === 'image' ? block.alt : '' } }); }
+    else { notes.add('unsupported-block', `ART ${block.type} block is flattened to fallback text`); blocks.push({ type: 'paragraph', data: { text: '' } }); }
   }
   return { value: JSON.stringify({ time: Date.now(), blocks }), diagnostics: notes.value };
 }

@@ -17,12 +17,19 @@ describe('Editor.js adapter', () => {
       { type: 'image', src: 'https://example.com/x.png', alt: 'photo' },
     ] });
     expect(JSON.parse(result.value).blocks[0]).toMatchObject({ type: 'paragraph' });
-    expect(result.diagnostics).toContainEqual(expect.objectContaining({ code: 'unsupported-block', severity: 'loss' }));
+    expect(JSON.parse(result.value).blocks[1]).toMatchObject({ type: 'image' });
+    expect(result.diagnostics).toEqual([]);
   });
   it('round-trips Editor.js checklist item objects and checked state', () => {
     const imported = importEditorJS(JSON.stringify({ blocks: [{ type: 'list', data: { style: 'checklist', items: [{ text: 'Done', checked: true }, { text: 'Next', checked: false }] } }] }));
     expect(imported.value.content[0]).toMatchObject({ style: 'task', content: [{ checked: true }, { checked: false }] });
     const exported = exportEditorJS(imported.value);
     expect(JSON.parse(exported.value).blocks[0].data.items).toEqual([{ text: 'Done', checked: true }, { text: 'Next', checked: false }]);
+  });
+  it('round-trips the common Editor.js image block shape', () => {
+    const imported = importEditorJS(JSON.stringify({ blocks: [{ type: 'image', data: { file: { url: 'https://example.com/image.png' }, caption: 'Photo' } }] }));
+    expect(imported.value.content[0]).toMatchObject({ type: 'image', src: 'https://example.com/image.png', alt: 'Photo' });
+    const exported = exportEditorJS(imported.value);
+    expect(JSON.parse(exported.value).blocks[0].data).toMatchObject({ file: { url: 'https://example.com/image.png' }, caption: 'Photo' });
   });
 });
