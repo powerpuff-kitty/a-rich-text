@@ -1,5 +1,7 @@
 import { readDOMSelection, decodeARTPath } from '@arichtext/dom';
 import { deleteBlock, duplicateBlock, moveBlock } from '@arichtext/engine/blocks';
+import { insertText } from '@arichtext/engine/commands';
+import { transaction } from '@arichtext/engine';
 import type { ARichTextElement } from '@arichtext/web-component';
 
 export interface BlockEditingController { destroy(): void; }
@@ -14,11 +16,28 @@ export function enableBlockEditing(editor: ARichTextElement): BlockEditingContro
   menu.setAttribute('part', 'block-menu'); menu.setAttribute('role', 'menu'); menu.hidden = true;
   menu.innerHTML = '<button type="button" data-action="move-up">Move up</button><button type="button" data-action="move-down">Move down</button><button type="button" data-action="duplicate">Duplicate</button><button type="button" data-action="delete">Delete</button>';
   root.append(menu);
+  let slashOpen = false;
+  const openSlash = (): void => {
+    slashOpen = true; menu.hidden = false; menu.innerHTML = '<button type="button" data-action="slash-paragraph">Paragraph</button><button type="button" data-action="slash-heading">Heading 1</button>'; menu.focus();
+  };
+  const closeSlash = (literal: boolean): void => {
+    if (!slashOpen) return; slashOpen = false; menu.hidden = true;
+    if (literal) { const state = { document: editor.getJSON(), selection: editor.getSelection() }; const command = insertText(state, '/'); if (command) editor.dispatch(command); }
+    surface.focus();
+  };
   const selectedBlock = (): number | null => {
     const selection = readDOMSelection(surface) ?? editor.getSelection(); const index = selection?.anchor.blockPath[0];
     return index === undefined ? null : index;
   };
   const run = (action: string): void => {
+    if (action.startsWith('slash-')) {
+      const selection = editor.getSelection(); const path = selection?.anchor.blockPath;
+      if (path) {
+        const command = transaction().setBlockType(path, action === 'slash-heading' ? 'heading' : 'paragraph', action === 'slash-heading' ? 1 : undefined).setMeta('command', 'slashInsert').build();
+        editor.dispatch(command);
+      }
+      slashOpen = false; menu.hidden = true; editor.focus(); return;
+    }
     const index = selectedBlock(); if (index === null) return;
     const state = { document: editor.getJSON(), selection: editor.getSelection() };
     const command = action === 'duplicate' ? duplicateBlock(state, index) : action === 'delete' ? deleteBlock(state, index) : moveBlock(state, index, action === 'move-up' ? index - 1 : index + 1);
@@ -27,7 +46,13 @@ export function enableBlockEditing(editor: ARichTextElement): BlockEditingContro
   };
   const keydown = (event: KeyboardEvent): void => {
     if (editor.disabled || editor.readOnly || event.defaultPrevented) return;
+    if (event.key === 'Escape' && slashOpen) { event.preventDefault(); closeSlash(true); return; }
     if (event.key === 'Escape' && !menu.hidden) { event.preventDefault(); menu.hidden = true; surface.focus(); return; }
+    if (event.key === '/' && !slashOpen) {
+      const selection = editor.getSelection(); const point = selection?.anchor;
+      const node = point ? editor.getJSON().content[point.blockPath[0]!] : undefined;
+      if (selection && point && selection.head.offset === 0 && node?.type === 'paragraph' && (!node.content || node.content.length === 0)) { event.preventDefault(); openSlash(); return; }
+    }
     if (event.key === 'F2') { event.preventDefault(); menu.hidden = false; menu.focus(); return; }
     if (!menu.hidden && (event.key === 'ArrowDown' || event.key === 'ArrowUp')) { event.preventDefault(); run(event.key === 'ArrowUp' ? 'move-up' : 'move-down'); }
   };
