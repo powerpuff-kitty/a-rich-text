@@ -65,6 +65,14 @@ bullet/ordered markers and blank lines between matching markers. All three match
 retained ART semantics through HTML import; tight/loose paragraph wrappers are
 not stored. This is a selected subset, not full Lists coverage.
 
+`commonmark-0.31.2-list-indentation.json` contains 31 unchanged examples from the
+same source, date and license: 253–264, 270–280, 290–294, 296, 298–299. They cover
+selected item indentation and continuation cases, not the full sections. All match
+retained ART semantics through HTML import after removing block-separator whitespace
+(including before nested lists), folding paragraph soft breaks and omitting the
+final code line terminator. Internal code whitespace is preserved; list tightness
+is not stored.
+
 ## GFM table fixtures
 
 `gfm-0.29-tables.json` contains the eight unmodified Markdown/HTML examples
