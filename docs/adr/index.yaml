@@ -7,3 +7,11 @@ decisions:
     title: Validate occupied table grids
     status: accepted
     path: 0002-table-grid-validation.md
+  - id: "0003"
+    title: Version ART documents independently and migrate explicitly
+    status: accepted
+    path: 0003-document-versioning.md
+  - id: "0004"
+    title: Keep persistence optional and host-controlled
+    status: accepted
+    path: 0004-optional-local-persistence.md

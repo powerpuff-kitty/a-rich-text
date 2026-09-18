@@ -20,6 +20,32 @@ framework adapters (later)
 
 Core must remain DOM-light and framework-independent. Browser-specific rendering and Custom Elements APIs live in `@arichtext/web-component`.
 
+The implemented package layers refine this initial direction:
+
+- `core` owns document validation, serialization, profile contracts and explicit migrations.
+- `engine` owns immutable state/transactions; `dom` translates browser editing and selection.
+- `html`, `markdown` and `clipboard` provide conversion and paste boundaries; `extensions` supplies optional trusted hooks and composition presets.
+- `web-component` exposes the browser control; `ui` and `editor` compose its toolbar and distribution surface.
+- Lists, links, tables, media, annotations, comments, suggestions, persistence, collaboration and AI remain feature/provider packages with optional editor adapters.
+- Framework examples/adapters consume these contracts; core does not depend on a framework runtime. Optional hosted services live outside the editor runtime.
+
+Package manifests are the executable dependency graph. The
+[dependency policy](../quality/dependency-policy.json) and local package-policy
+verification enforce framework and optional-provider boundaries. Provider-driven
+features may use host-supplied network services; base initialization/editing does
+not require them.
+
+## Stability and recorded decisions
+
+The [public API stability policy](api-stability.md) defines the exported and
+documented surface, the unpublished `0.0.0` boundary and compatibility obligations.
+The decision index records [ART-first editing](adr/0001-editing-engine.md),
+[table-grid validation](adr/0002-table-grid-validation.md),
+[document versioning](adr/0003-document-versioning.md) and
+[optional local persistence](adr/0004-optional-local-persistence.md).
+These architecture decisions do not complete the separate implementation and
+physical-device/release gates tracked by their feature tickets.
+
 ## Canonical data
 
 ART JSON is the canonical persisted document representation. HTML, Markdown and plain text are conversion formats. ART documents are versioned so future migrations can be explicit and testable.
