@@ -48,6 +48,7 @@ JSON so you can review what the imported Delta becomes.
 | Newline `list: bullet/ordered/checked/unchecked` | Flat lists and task items |
 | Newline `blockquote: true` | Quotes containing paragraphs |
 | Newline `code-block: true` or a language string | Code blocks, optionally with language |
+| Newline `align: center/right/justify` or `direction: rtl` | Paragraph/heading block attributes with explicit adapter-format diagnostics |
 
 Consecutive matching list/quote/code lines are grouped. Equal adjacent text runs
 and Delta operations are coalesced; mark order, optional empty content and op
