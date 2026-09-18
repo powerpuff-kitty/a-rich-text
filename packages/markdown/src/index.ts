@@ -16,6 +16,8 @@ const MARK_ORDER: Record<ARTTextMark['type'], number> = {
   code: 4,
   link: 5,
   extensionMark: 6,
+  subscript: 7,
+  superscript: 8,
 };
 
 interface ListMatch {
@@ -757,6 +759,8 @@ function serializeInline(nodes: readonly ARTInlineNode[]): string {
       case 'underline': return closing ? '</u>' : '<u>';
       case 'strike': return '~~';
       case 'link': return closing ? `](${safeUrl(mark.href, false)})` : '[';
+      case 'subscript': return closing ? '</sub>' : '<sub>';
+      case 'superscript': return closing ? '</sup>' : '<sup>';
       default: return '';
     }
   };

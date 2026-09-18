@@ -22,6 +22,8 @@ export type ARTTextMark =
   | { type: 'underline' }
   | { type: 'strike' }
   | { type: 'code' }
+  | { type: 'subscript' }
+  | { type: 'superscript' }
   | { type: 'link'; href: string }
   | ARTExtensionMark;
 
@@ -321,6 +323,8 @@ function isTextMark(value: unknown): value is ARTTextMark {
     case 'underline':
     case 'strike':
     case 'code':
+    case 'subscript':
+    case 'superscript':
       return true;
     case 'link':
       return typeof value.href === 'string' && value.href.length > 0;

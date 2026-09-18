@@ -27,6 +27,8 @@ const MARK_ORDER: Record<ARTTextMark['type'], number> = {
   code: 4,
   link: 5,
   extensionMark: 6,
+  subscript: 7,
+  superscript: 8,
 };
 
 export interface DOMExtensionRenderer {
@@ -253,6 +255,10 @@ function markElement(
       return partElement(owner, 's', 'strike');
     case 'code':
       return partElement(owner, 'code', 'inline-code');
+    case 'subscript':
+      return partElement(owner, 'sub', 'subscript');
+    case 'superscript':
+      return partElement(owner, 'sup', 'superscript');
     case 'link': {
       const href = safeUrl(mark.href, false);
       if (!href) return null;
