@@ -44,9 +44,11 @@ For example, this is an ART v1 document:
 
 `setJSON()` validates ART, not any arbitrary JSON document. The format/view API
 value remains `json`; the menu labels it **ART JSON** to make this explicit.
-The optional [Quill Delta profile](quill-delta.md) maps supported text blocks and
-reports losses when explicitly registered. Default JSON import still accepts only
-ART. Editor.js and other foreign shapes require separate adapters.
+The optional [Quill Delta profile](quill-delta.md) maps supported text blocks,
+embeds and inline formats and reports losses when explicitly registered. The
+optional `@arichtext/editor-js` adapter accepts Editor.js OutputData blocks and
+reports unsupported tools. Default JSON import still accepts only ART; foreign
+shapes require an explicit adapter.
 HTML can be an exchange bridge when both applications support the relevant content,
 but it cannot promise preservation of editor-specific features.
 
@@ -81,6 +83,8 @@ semantics. See [schema usage and limits](json-schema.md) and the separate
 | `@arichtext/core` | ART JSON | ART JSON / plain text | JavaScript |
 | `@arichtext/html` | HTML → ART | ART → HTML | Browser import; export is DOM-independent |
 | `@arichtext/markdown` | Markdown → ART | ART → Markdown | JavaScript |
+| `@arichtext/quill-delta` | Quill Delta → ART | ART → Quill Delta | JavaScript |
+| `@arichtext/editor-js` | Editor.js OutputData → ART | ART → Editor.js OutputData | JavaScript |
 | `@arichtext/web-component` | all of the above | all of the above | Browser |
 
 ## Security boundary

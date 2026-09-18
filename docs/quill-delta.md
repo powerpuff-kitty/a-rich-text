@@ -39,6 +39,11 @@ JSON so you can review what the imported Delta becomes.
 | --- | --- |
 | Text and unformatted line breaks | Paragraphs |
 | `bold`, `italic`, `underline`, `strike`, `code`, `link` | Corresponding inline marks |
+| `color`, `background`, `script: sub/super` | Constrained color/background marks and sub/sup marks |
+| `font`, `size` | `quill:font` and `quill:size` extension marks with explicit format diagnostics |
+| `image` embed | ART image block |
+| `video` embed | `quill:video` extension block with source preserved |
+| `formula` embed | `quill:formula` extension mark with formula value preserved |
 | Newline `header: 1` through `6` | Heading levels |
 | Newline `list: bullet/ordered/checked/unchecked` | Flat lists and task items |
 | Newline `blockquote: true` | Quotes containing paragraphs |
@@ -52,19 +57,22 @@ byte-identical or arbitrary ART-tree round trips.
 ## Losses and rejection
 
 Import requires an object with `ops`, nonempty string inserts and a final newline.
-It rejects `retain`/`delete`, embeds (including images, formulas and videos), bad
-attribute types and conflicting supported line formats. Exceptions become failed
-imports through the profile registry; the editor retains its canonical document.
+It rejects `retain`/`delete`, bad attribute types and conflicting supported line
+formats. Unsupported custom embeds receive explicit diagnostics; supported image,
+video and formula embeds are preserved using native or extension ART nodes.
+Exceptions become failed imports through the profile registry; the editor retains
+its canonical document.
 
 Unknown attributes, indentation/style, misplaced line formats, unmapped object
 fields and inline marks within code blocks produce `loss` diagnostics. Readable
 text is retained. Unsupported indentation is flattened, so nested-list hierarchy
 is not preserved.
 
-On export, images, tables, rules, extension blocks, nested/multi-block lists and
-complex quotes fall back to ART plain-text extraction with a loss diagnostic.
-Extension marks, repeated marks, custom numbering, non-task checked state and
-unknown fields are reported when omitted. Inline newlines become block boundaries;
+On export, tables, rules, nested/multi-block lists and complex quotes fall back to
+ART plain-text extraction with a loss diagnostic. Supported image, video and
+formula extension nodes are emitted as Quill embeds; other extension blocks/marks,
+repeated marks, custom numbering, non-task checked state and unknown fields are
+reported when omitted. Inline newlines become block boundaries;
 adjacent matching groups can merge; an empty ART document becomes one empty line.
 Those changes also report loss. Inspect diagnostics before accepting the result.
 
