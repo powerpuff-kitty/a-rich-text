@@ -1,7 +1,7 @@
 # Finish the active project work
 
 Snapshot: 2026-09-18. Initial scope is Project 19's current In progress work:
-12 issues and draft PRs #96–#105. The separate 21-open-issue count also includes
+the selected 14 issues: the original active tickets plus #74 and #75. The separate 21-open-issue count also includes
 nine Backlog issues across editor, website and cloud. Do not treat a PR card as
 another independent product ticket. Expand this plan to the Backlog only when that
 scope is selected. The owner has now selected #74 and #75 as dependencies of #4,
@@ -11,7 +11,7 @@ accepted target is full CommonMark/GFM plus broader Quill and Editor.js support.
 ## Completed integration — 2026-09-18
 
 PRs #96–#110 are merged. Foundation #1 and local-first #7 are closed with evidence;
-ten of the original active issues remain. The full stack passes 585 browser cases,
+The selected scope now has eleven open issues remaining: #2, #4, #8, #9, #10, #11, #13, #14, #46, #74 and #75. The full stack passes 585 browser cases,
 with the two browser races discovered during verification fixed in #107. The
 local-first increment adds 25 passing browser cases, 1,243 unit tests and 27 package
 checks. Governance documents and the local project-sync command are integrated.
