@@ -209,6 +209,15 @@ importers:
         specifier: 3.9.7
         version: 3.9.7
 
+  packages/editor-js:
+    dependencies:
+      '@arichtext/core':
+        specifier: workspace:*
+        version: link:../core
+      '@arichtext/html':
+        specifier: workspace:*
+        version: link:../html
+
   packages/engine:
     dependencies:
       '@arichtext/core':
