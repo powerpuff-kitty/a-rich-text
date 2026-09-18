@@ -45,19 +45,13 @@ separate Vue editing engine is unnecessary; the wrapper is optional.
 
 ## Production release gates
 
-The [latest full local run](verification/2026-09-16-surfaces.md) passed 648 unit
-tests, all 470 browser cases without retries/skips, and 27 package installation
-checks. It covers the latest format converters, source/output showcase controls,
-and shared editor surfaces. The manual and release prerequisites below remain.
-
-The [newer list-indentation increment](verification/2026-09-18-list-indentation.md)
-passed 1,232 unit tests, 200 targeted browser cases and 27 package checks. It covers
-thematic-break/list boundaries, safe URI/email links and emphasis delimiter runs,
-including mixed-formatting export round trips, Unicode paragraph preservation,
-GFM pipe-table cell semantics, empty-quote preservation across HTML/Markdown,
-nested quote paragraph continuation, list-marker/empty-item boundaries, adjacent
-list grouping and per-item content indentation with paragraph continuation.
-It does not replace the full browser baseline or complete #2's interoperability scope.
+The [latest full local run](verification/2026-09-18-integrated-stack.md) records
+1,233 unit tests, all 585 browser cases with no failures/retries/skips, and 27
+package checks. The new full browser run covers the entire Markdown compatibility
+stack and editor surfaces; unit/package checks were rerun after the toolbar
+focus fix. The manual and release prerequisites below remain. See the
+[active-ticket completion plan](plans/board-completion.md) for dependencies and
+observable closing conditions.
 
 - [Quality #11](https://github.com/powerpuff-kitty/a-rich-text/issues/11) and
   [local gates #46](https://github.com/powerpuff-kitty/a-rich-text/issues/46): real

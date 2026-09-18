@@ -1,0 +1,47 @@
+{
+  "revision": "4fa29f5fdd911165fec1f16f03bf044436f26d45",
+  "stackTip": "4fa29f5fdd911165fec1f16f03bf044436f26d45",
+  "unit": {
+    "passed": 1233,
+    "files": 90,
+    "command": "pnpm verify",
+    "verifiedRevision": "2341a894f45f134ff70e020254a058af5f63802c",
+    "rerunAfterFocusFix": true
+  },
+  "browser": {
+    "scope": "full Playwright suite",
+    "stats": {
+      "startTime": "2026-09-18T20:27:23.455Z",
+      "duration": 485590.63,
+      "expected": 585,
+      "skipped": 0,
+      "unexpected": 0,
+      "flaky": 0
+    },
+    "projects": {
+      "chromium": 117,
+      "firefox": 117,
+      "webkit": 117,
+      "mobile-chromium": 117,
+      "mobile-webkit": 117
+    },
+    "versions": {
+      "chromium": "153.0.8010.12",
+      "firefox": "155.0",
+      "webkit": "26.6"
+    },
+    "workers": 2,
+    "retries": 0,
+    "reportSHA256": "ed9ae9d625406b1043bbf6f787c399dc019ed3394dec98cf00291fdf627eaa4a"
+  },
+  "packages": {
+    "verifiedTarballs": 27,
+    "command": "pnpm verify:distribution",
+    "verifiedRevision": "2341a894f45f134ff70e020254a058af5f63802c",
+    "packagePolicyRechecked": true
+  },
+  "gzipBytes": {
+    "minimal": 40881,
+    "standard": 59819
+  }
+}

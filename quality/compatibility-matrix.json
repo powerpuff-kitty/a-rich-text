@@ -5,46 +5,46 @@
       "target": "Chromium desktop",
       "project": "chromium",
       "status": "verified-local",
-      "verifiedAt": "2026-09-16",
+      "verifiedAt": "2026-09-18",
       "browserVersion": "153.0.8010.12",
-      "evidence": "docs/verification/2026-09-16-surfaces.md",
-      "verifiedRevision": "e3ef33ddbba388aa4fc51221824ede8ab0858306"
+      "evidence": "docs/verification/2026-09-18-integrated-stack.md",
+      "verifiedRevision": "4fa29f5fdd911165fec1f16f03bf044436f26d45"
     },
     {
       "target": "Firefox desktop",
       "project": "firefox",
       "status": "verified-local",
-      "verifiedAt": "2026-09-16",
+      "verifiedAt": "2026-09-18",
       "browserVersion": "155.0",
-      "evidence": "docs/verification/2026-09-16-surfaces.md",
-      "verifiedRevision": "e3ef33ddbba388aa4fc51221824ede8ab0858306"
+      "evidence": "docs/verification/2026-09-18-integrated-stack.md",
+      "verifiedRevision": "4fa29f5fdd911165fec1f16f03bf044436f26d45"
     },
     {
       "target": "WebKit desktop",
       "project": "webkit",
       "status": "verified-local",
-      "verifiedAt": "2026-09-16",
+      "verifiedAt": "2026-09-18",
       "browserVersion": "26.6",
-      "evidence": "docs/verification/2026-09-16-surfaces.md",
-      "verifiedRevision": "e3ef33ddbba388aa4fc51221824ede8ab0858306"
+      "evidence": "docs/verification/2026-09-18-integrated-stack.md",
+      "verifiedRevision": "4fa29f5fdd911165fec1f16f03bf044436f26d45"
     },
     {
       "target": "Android-class Chromium emulation (Pixel 7)",
       "project": "mobile-chromium",
       "status": "verified-local",
-      "verifiedAt": "2026-09-16",
+      "verifiedAt": "2026-09-18",
       "browserVersion": "153.0.8010.12",
-      "evidence": "docs/verification/2026-09-16-surfaces.md",
-      "verifiedRevision": "e3ef33ddbba388aa4fc51221824ede8ab0858306"
+      "evidence": "docs/verification/2026-09-18-integrated-stack.md",
+      "verifiedRevision": "4fa29f5fdd911165fec1f16f03bf044436f26d45"
     },
     {
       "target": "iOS-class WebKit emulation (iPhone 15)",
       "project": "mobile-webkit",
       "status": "verified-local",
-      "verifiedAt": "2026-09-16",
+      "verifiedAt": "2026-09-18",
       "browserVersion": "26.6",
-      "evidence": "docs/verification/2026-09-16-surfaces.md",
-      "verifiedRevision": "e3ef33ddbba388aa4fc51221824ede8ab0858306"
+      "evidence": "docs/verification/2026-09-18-integrated-stack.md",
+      "verifiedRevision": "4fa29f5fdd911165fec1f16f03bf044436f26d45"
     }
   ],
   "manual": [
