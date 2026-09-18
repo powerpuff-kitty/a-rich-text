@@ -21,3 +21,8 @@ await copyFile('packages/editor/node_modules/prettier/THIRD-PARTY-NOTICES.md', '
 console.log('Standalone ESM bundle and showcase: dist/browser/index.html');
 
 await import('./build-examples.mjs');
+
+await mkdir('dist/browser/local-first', { recursive: true });
+await copyFile('examples/local-first/index.html', 'dist/browser/local-first/index.html');
+await copyFile('examples/local-first/sw.js', 'dist/browser/local-first/sw.js');
+await build({ entryPoints: ['examples/local-first/app.js'], external: ['../a-rich-text.js'], outfile: 'dist/browser/local-first/app.js', bundle: true, minify: true, format: 'esm', platform: 'browser', target: 'es2022' });

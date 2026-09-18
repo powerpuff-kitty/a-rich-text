@@ -1,0 +1,36 @@
+{
+  "revision": "aa70d6ab158b4b64845ec7456515bb49caf00edd",
+  "unit": {
+    "passed": 1243,
+    "files": 91,
+    "command": "pnpm verify"
+  },
+  "browser": {
+    "scope": "local-first targeted browser suite using keyboard input",
+    "stats": {
+      "startTime": "2026-09-18T20:34:05.653Z",
+      "duration": 69274.223,
+      "expected": 25,
+      "skipped": 0,
+      "unexpected": 0,
+      "flaky": 0
+    },
+    "workers": 1,
+    "retries": 0,
+    "casesPerProfile": 5,
+    "reportSHA256": "b450f246c9d6cb078f0870162e50abf3db8b17524f90019be2eff669afc91d8b",
+    "networkDisruption": {
+      "allProfiles": "origin server stopped; uncached fetch required to fail; navigation served by service worker",
+      "chromiumAndFirefox": "context.setOffline(true) also enabled",
+      "webkit": "offline emulation not used because upstream issue 42775 rejects service-worker navigation"
+    }
+  },
+  "packages": {
+    "verifiedTarballs": 27,
+    "command": "pnpm verify:distribution"
+  },
+  "gzipBytes": {
+    "minimal": 40881,
+    "standard": 59819
+  }
+}

@@ -1,4 +1,5 @@
 import { isARTDocument, type ARTDocument } from '@arichtext/core';
+import { diffDocuments, type ARTDocumentDifference } from '@arichtext/core/diff';
 
 const DATABASE_VERSION = 1;
 const DOCUMENT_STORE = 'documents';
@@ -20,6 +21,12 @@ export interface SnapshotMetadata {
   documentId: string;
   createdAt: number;
   name?: string;
+}
+
+export interface SnapshotComparison {
+  before: SnapshotMetadata;
+  after: SnapshotMetadata;
+  changes: ARTDocumentDifference[];
 }
 
 interface DocumentRecord extends StoredDocumentMetadata {
@@ -60,34 +67,34 @@ export class IndexedDBPersistence {
     const updatedAt = Date.now();
     const database = await this.#open();
     const transaction = database.transaction(DOCUMENT_STORE, 'readwrite');
-    const done = transactionDone(transaction);
-    transaction.objectStore(DOCUMENT_STORE).put({ id, updatedAt, document: copy } satisfies DocumentRecord);
-    await done;
-    return { id, updatedAt };
+    return runTransaction(transaction, async () => {
+      transaction.objectStore(DOCUMENT_STORE).put({ id, updatedAt, document: copy } satisfies DocumentRecord);
+      return { id, updatedAt };
+    });
   }
 
   async loadDocument(id: string): Promise<ARTDocument | null> {
     assertDocumentId(id);
     const database = await this.#open();
     const transaction = database.transaction(DOCUMENT_STORE, 'readonly');
-    const done = transactionDone(transaction);
-    const record = await requestResult<DocumentRecord | undefined>(
-      transaction.objectStore(DOCUMENT_STORE).get(id),
-    );
-    await done;
-    return record ? validateStoredDocument(record.document, `document:${id}`) : null;
+    return runTransaction(transaction, async () => {
+      const record = await requestResult<DocumentRecord | undefined>(
+        transaction.objectStore(DOCUMENT_STORE).get(id),
+      );
+      return record ? validateStoredDocument(record.document, `document:${id}`) : null;
+    });
   }
 
   async getDocumentMetadata(id: string): Promise<StoredDocumentMetadata | null> {
     assertDocumentId(id);
     const database = await this.#open();
     const transaction = database.transaction(DOCUMENT_STORE, 'readonly');
-    const done = transactionDone(transaction);
-    const record = await requestResult<DocumentRecord | undefined>(
-      transaction.objectStore(DOCUMENT_STORE).get(id),
-    );
-    await done;
-    return record ? { id: record.id, updatedAt: record.updatedAt } : null;
+    return runTransaction(transaction, async () => {
+      const record = await requestResult<DocumentRecord | undefined>(
+        transaction.objectStore(DOCUMENT_STORE).get(id),
+      );
+      return record ? { id: record.id, updatedAt: record.updatedAt } : null;
+    });
   }
 
   async deleteDocument(id: string, deleteSnapshots = true): Promise<void> {
@@ -95,16 +102,15 @@ export class IndexedDBPersistence {
     const database = await this.#open();
     const stores = deleteSnapshots ? [DOCUMENT_STORE, SNAPSHOT_STORE] : [DOCUMENT_STORE];
     const transaction = database.transaction(stores, 'readwrite');
-    const done = transactionDone(transaction);
-    transaction.objectStore(DOCUMENT_STORE).delete(id);
+    return runTransaction(transaction, async () => {
+      transaction.objectStore(DOCUMENT_STORE).delete(id);
 
-    if (deleteSnapshots) {
-      const snapshots = transaction.objectStore(SNAPSHOT_STORE);
-      const keys = await requestResult<IDBValidKey[]>(snapshots.index(SNAPSHOT_DOCUMENT_INDEX).getAllKeys(id));
-      for (const key of keys) snapshots.delete(key);
-    }
-
-    await done;
+      if (deleteSnapshots) {
+        const snapshots = transaction.objectStore(SNAPSHOT_STORE);
+        const keys = await requestResult<IDBValidKey[]>(snapshots.index(SNAPSHOT_DOCUMENT_INDEX).getAllKeys(id));
+        for (const key of keys) snapshots.delete(key);
+      }
+    });
   }
 
   async createSnapshot(documentId: string, document: ARTDocument, name?: string): Promise<SnapshotMetadata> {
@@ -122,36 +128,56 @@ export class IndexedDBPersistence {
 
     const database = await this.#open();
     const transaction = database.transaction(SNAPSHOT_STORE, 'readwrite');
-    const done = transactionDone(transaction);
-    transaction.objectStore(SNAPSHOT_STORE).add(record);
-    await done;
-    return snapshotMetadata(record);
+    return runTransaction(transaction, async () => {
+      transaction.objectStore(SNAPSHOT_STORE).add(record);
+      return snapshotMetadata(record);
+    });
   }
 
   async listSnapshots(documentId: string): Promise<SnapshotMetadata[]> {
     assertDocumentId(documentId);
     const database = await this.#open();
     const transaction = database.transaction(SNAPSHOT_STORE, 'readonly');
-    const done = transactionDone(transaction);
-    const records = await requestResult<SnapshotRecord[]>(
-      transaction.objectStore(SNAPSHOT_STORE).index(SNAPSHOT_DOCUMENT_INDEX).getAll(documentId),
-    );
-    await done;
-    return records
-      .map(snapshotMetadata)
-      .sort((left, right) => right.createdAt - left.createdAt || right.id.localeCompare(left.id));
+    return runTransaction(transaction, async () => {
+      const records = await requestResult<SnapshotRecord[]>(
+        transaction.objectStore(SNAPSHOT_STORE).index(SNAPSHOT_DOCUMENT_INDEX).getAll(documentId),
+      );
+      return records
+        .map(snapshotMetadata)
+        .sort((left, right) => right.createdAt - left.createdAt || right.id.localeCompare(left.id));
+    });
   }
 
   async loadSnapshot(snapshotId: string): Promise<ARTDocument | null> {
     assertDocumentId(snapshotId);
     const database = await this.#open();
     const transaction = database.transaction(SNAPSHOT_STORE, 'readonly');
-    const done = transactionDone(transaction);
-    const record = await requestResult<SnapshotRecord | undefined>(
-      transaction.objectStore(SNAPSHOT_STORE).get(snapshotId),
-    );
-    await done;
-    return record ? validateStoredDocument(record.document, `snapshot:${snapshotId}`) : null;
+    return runTransaction(transaction, async () => {
+      const record = await requestResult<SnapshotRecord | undefined>(
+        transaction.objectStore(SNAPSHOT_STORE).get(snapshotId),
+      );
+      return record ? validateStoredDocument(record.document, `snapshot:${snapshotId}`) : null;
+    });
+  }
+
+  /** Compare two snapshots of the same document without changing the saved draft. */
+  async compareSnapshots(beforeId: string, afterId: string): Promise<SnapshotComparison | null> {
+    assertDocumentId(beforeId); assertDocumentId(afterId);
+    const database = await this.#open();
+    const transaction = database.transaction(SNAPSHOT_STORE, 'readonly');
+    return runTransaction(transaction, async () => {
+      const store = transaction.objectStore(SNAPSHOT_STORE);
+      const [before, after] = await Promise.all([
+        requestResult<SnapshotRecord | undefined>(store.get(beforeId)),
+        requestResult<SnapshotRecord | undefined>(store.get(afterId)),
+      ]);
+      if (!before || !after) return null;
+      if (before.documentId !== after.documentId) throw new TypeError('Snapshots belong to different documents');
+      return {
+        before: snapshotMetadata(before), after: snapshotMetadata(after),
+        changes: diffDocuments(validateStoredDocument(before.document, `snapshot:${beforeId}`), validateStoredDocument(after.document, `snapshot:${afterId}`)),
+      };
+    });
   }
 
   async restoreSnapshot(snapshotId: string): Promise<ARTDocument | null> {
@@ -162,16 +188,17 @@ export class IndexedDBPersistence {
     assertDocumentId(snapshotId);
     const database = await this.#open();
     const transaction = database.transaction(SNAPSHOT_STORE, 'readwrite');
-    const done = transactionDone(transaction);
-    transaction.objectStore(SNAPSHOT_STORE).delete(snapshotId);
-    await done;
+    return runTransaction(transaction, async () => {
+      transaction.objectStore(SNAPSHOT_STORE).delete(snapshotId);
+    });
   }
 
   async close(): Promise<void> {
-    if (!this.#database) return;
-    const database = await this.#database;
+    const opening = this.#database;
+    if (!opening) return;
+    const database = await opening;
     database.close();
-    this.#database = undefined;
+    if (this.#database === opening) this.#database = undefined;
   }
 
   #open(): Promise<IDBDatabase> {
@@ -180,7 +207,8 @@ export class IndexedDBPersistence {
     const factory = this.#factory ?? globalThis.indexedDB;
     if (!factory) return Promise.reject(new Error('@arichtext/persistence-indexeddb requires IndexedDB'));
 
-    this.#database = new Promise<IDBDatabase>((resolve, reject) => {
+    const opening = new Promise<IDBDatabase>((resolve, reject) => {
+      let blocked = false;
       const request = factory.open(this.databaseName, DATABASE_VERSION);
 
       request.onupgradeneeded = () => {
@@ -195,18 +223,25 @@ export class IndexedDBPersistence {
       };
 
       request.onerror = () => reject(request.error ?? new Error('Failed to open IndexedDB'));
-      request.onblocked = () => reject(new Error('IndexedDB upgrade blocked by another open connection'));
+      request.onblocked = () => { blocked = true; reject(new Error('IndexedDB upgrade blocked by another open connection')); };
       request.onsuccess = () => {
         const database = request.result;
-        database.onversionchange = () => database.close();
+        if (blocked) { database.close(); return; }
+        const invalidate = (): void => {
+          database.close();
+          if (this.#database === opening) this.#database = undefined;
+        };
+        database.onversionchange = invalidate;
+        database.onclose = invalidate;
         resolve(database);
       };
     }).catch((error) => {
-      this.#database = undefined;
+      if (this.#database === opening) this.#database = undefined;
       throw error;
     });
 
-    return this.#database;
+    this.#database = opening;
+    return opening;
   }
 }
 
@@ -300,10 +335,28 @@ function requestResult<T>(request: IDBRequest<T>): Promise<T> {
   });
 }
 
+async function runTransaction<T>(transaction: IDBTransaction, work: () => Promise<T>): Promise<T> {
+  // Install both success and failure handlers before issuing any requests.
+  const settled = transactionDone(transaction).then(
+    () => ({ ok: true as const }),
+    error => ({ ok: false as const, error: error as unknown }),
+  );
+  let result: T;
+  try {
+    result = await work();
+  } catch (error) {
+    try { transaction.abort(); } catch { /* Already completed or aborted. */ }
+    await settled;
+    throw error;
+  }
+  const outcome = await settled;
+  if (!outcome.ok) throw outcome.error;
+  return result;
+}
+
 function transactionDone(transaction: IDBTransaction): Promise<void> {
   return new Promise<void>((resolve, reject) => {
     transaction.oncomplete = () => resolve();
-    transaction.onerror = () => reject(transaction.error ?? new Error('IndexedDB transaction failed'));
     transaction.onabort = () => reject(transaction.error ?? new Error('IndexedDB transaction aborted'));
   });
 }
