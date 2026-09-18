@@ -215,15 +215,15 @@ function isHorizontalRule(line: string): boolean {
 }
 
 function matchListItem(line: string): ListMatch | null {
-  const task = line.match(/^(\s*)[-+*]\s+\[([ xX])\]\s+(.*)$/);
+  const task = line.match(/^([ \t]*)[-+*][ \t]+\[([ xX])\][ \t]+(.*)$/);
   if (task) {
     return { indent: indentationWidth(task[1] ?? ''), style: 'task', checked: (task[2] ?? '').toLowerCase() === 'x', body: task[3] ?? '' };
   }
-  const ordered = line.match(/^(\s*)(\d+)[.)]\s+(.*)$/);
+  const ordered = line.match(/^([ \t]*)(\d+)[.)][ \t]+(.*)$/);
   if (ordered) {
     return { indent: indentationWidth(ordered[1] ?? ''), style: 'ordered', number: Number.parseInt(ordered[2] ?? '1', 10), body: ordered[3] ?? '' };
   }
-  const bullet = line.match(/^(\s*)[-+*]\s+(.*)$/);
+  const bullet = line.match(/^([ \t]*)[-+*][ \t]+(.*)$/);
   if (bullet) return { indent: indentationWidth(bullet[1] ?? ''), style: 'bullet', body: bullet[2] ?? '' };
   return null;
 }
@@ -423,7 +423,9 @@ function matchAutolink(text: string): { raw: string; label: string; href: string
 
 function parseInline(text: string, inherited: readonly ARTTextMark[] = [], protectedInline?: ProtectedInline): ARTTextNode[] {
   if (!protectedInline) { protectedInline = protectInlineAtoms(text); text = protectedInline.text; }
-  const output: ARTTextNode[] = [];
+  const chunks: ARTTextNode[][] = [[]];
+  let output = chunks[0]!;
+  const delimiters: EmphasisDelimiter[] = [];
   let index = 0;
   while (index < text.length) {
     if (text.startsWith(protectedInline.prefix, index)) {
@@ -437,11 +439,6 @@ function parseInline(text: string, inherited: readonly ARTTextMark[] = [], prote
       }
     }
     if (text[index] === '\\' && isEscapable(text[index + 1])) { appendText(output, text[index + 1] ?? '', inherited); index += 2; continue; }
-    const strong = text.startsWith('**', index) ? '**' : text.startsWith('__', index) ? '__' : null;
-    if (strong) {
-      const end = text.indexOf(strong, index + 2);
-      if (end !== -1) { appendParsed(output, text.slice(index + 2, end), [...inherited, { type: 'bold' }], protectedInline); index = end + 2; continue; }
-    }
     if (text.startsWith('~~', index)) {
       const end = text.indexOf('~~', index + 2);
       if (end !== -1) { appendParsed(output, text.slice(index + 2, end), [...inherited, { type: 'strike' }], protectedInline); index = end + 2; continue; }
@@ -477,13 +474,128 @@ function parseInline(text: string, inherited: readonly ARTTextMark[] = [], prote
       }
     }
     if (text[index] === '*' || text[index] === '_') {
-      const delimiter = text[index]!;
-      const end = text.indexOf(delimiter, index + 1);
-      if (end > index + 1) { appendParsed(output, text.slice(index + 1, end), [...inherited, { type: 'italic' }], protectedInline); index = end + 1; continue; }
+      const character = text[index]!;
+      const length = countRun(text, index, character);
+      const before = emphasisNeighbor(text, index, -1, protectedInline);
+      const after = emphasisNeighbor(text, index + length, 1, protectedInline);
+      const whitespace = (value: string) => !value || /[\p{Zs}\t\n\f\r]/u.test(value);
+      const punctuation = (value: string) => /[\p{P}\p{S}]/u.test(value);
+      const left = !whitespace(after) && (!punctuation(after) || whitespace(before) || punctuation(before));
+      const right = !whitespace(before) && (!punctuation(before) || whitespace(after) || punctuation(after));
+      const node: ARTTextNode = { type: 'text', text: character.repeat(length), ...(inherited.length ? { marks: normalizeMarks(inherited) } : {}) };
+      chunks.push([node]);
+      delimiters.push({ character, length, original: length, node, chunk: chunks.length - 1,
+        open: left && (character === '*' || !right || punctuation(before)),
+        close: right && (character === '*' || !left || punctuation(after)) });
+      output = [];
+      chunks.push(output);
+      index += length;
+      continue;
     }
     appendText(output, text[index] ?? '', inherited);
     index += 1;
   }
+  return resolveEmphasis(chunks, delimiters);
+}
+
+interface EmphasisDelimiter {
+  character: string;
+  length: number;
+  original: number;
+  node: ARTTextNode;
+  chunk: number;
+  open: boolean;
+  close: boolean;
+}
+
+// Protected atoms retain the punctuation at their original source boundaries.
+function emphasisNeighbor(text: string, index: number, direction: -1 | 1, atoms: ProtectedInline): string {
+  const prefix = atoms.prefix;
+  if (direction === 1 && text.startsWith(prefix, index)) {
+    const end = text.indexOf(prefix, index + prefix.length);
+    const raw = atoms.raw[Number(text.slice(index + prefix.length, end))];
+    if (end !== -1 && raw) return [...raw][0]!;
+  }
+  if (direction === -1 && text.endsWith(prefix, index)) {
+    const start = text.lastIndexOf(prefix, index - prefix.length - 1);
+    const raw = atoms.raw[Number(text.slice(start + prefix.length, index - prefix.length))];
+    if (start !== -1 && raw) return [...raw].at(-1)!;
+  }
+  if (direction === 1) return index < text.length ? String.fromCodePoint(text.codePointAt(index)!) : '';
+  if (!index) return '';
+  const last = text.charCodeAt(index - 1);
+  return text.slice(last >= 0xdc00 && last <= 0xdfff && index > 1 ? index - 2 : index - 1, index);
+}
+
+function resolveEmphasis(chunks: ARTTextNode[][], delimiters: EmphasisDelimiter[]): ARTTextNode[] {
+  const previous = delimiters.map((_, index) => index - 1);
+  const next = delimiters.map((_, index) => index + 1);
+  const bounds = new Map<string, number>();
+  const events = new Map<number, { bold: number; italic: number }>();
+  const event = (chunk: number, type: 'bold' | 'italic', delta: number) => {
+    const value = events.get(chunk) ?? { bold: 0, italic: 0 };
+    value[type] += delta;
+    events.set(chunk, value);
+  };
+  const remove = (index: number) => {
+    const before = previous[index]!;
+    const after = next[index]!;
+    if (before >= 0) next[before] = after;
+    if (after < delimiters.length) previous[after] = before;
+  };
+  let closerIndex = 0;
+  while (closerIndex < delimiters.length) {
+    const closer = delimiters[closerIndex]!;
+    if (!closer.close) { closerIndex = next[closerIndex]!; continue; }
+    const key = `${closer.character}:${closer.open}:${closer.original % 3}`;
+    const bound = bounds.get(key) ?? -1;
+    let openerIndex = previous[closerIndex]!;
+    while (openerIndex > bound) {
+      const opener = delimiters[openerIndex]!;
+      const odd = (closer.open || opener.close) && closer.original % 3 !== 0 && (opener.original + closer.original) % 3 === 0;
+      if (opener.open && opener.character === closer.character && !odd) break;
+      openerIndex = previous[openerIndex]!;
+    }
+    if (openerIndex <= bound) {
+      bounds.set(key, previous[closerIndex]!);
+      const after = next[closerIndex]!;
+      if (!closer.open) remove(closerIndex);
+      closerIndex = after;
+      continue;
+    }
+    const opener = delimiters[openerIndex]!;
+    const count = opener.length >= 2 && closer.length >= 2 ? 2 : 1;
+    const type = count === 2 ? 'bold' : 'italic';
+    event(opener.chunk + 1, type, 1);
+    event(closer.chunk, type, -1);
+    opener.length -= count;
+    closer.length -= count;
+    opener.node.text = opener.character.repeat(opener.length);
+    closer.node.text = closer.character.repeat(closer.length);
+    // Delimiters inside a resolved pair cannot subsequently cross its boundary.
+    next[openerIndex] = closerIndex;
+    previous[closerIndex] = openerIndex;
+    if (!opener.length) remove(openerIndex);
+    if (!closer.length) {
+      const after = next[closerIndex]!;
+      remove(closerIndex);
+      closerIndex = after;
+    }
+  }
+  const output: ARTTextNode[] = [];
+  let bold = 0;
+  let italic = 0;
+  chunks.forEach((chunk, index) => {
+    const change = events.get(index);
+    bold += change?.bold ?? 0;
+    italic += change?.italic ?? 0;
+    for (const node of chunk) {
+      const marks: ARTTextMark[] = [...(node.marks ?? [])];
+      if (bold > 0) marks.push({ type: 'bold' });
+      if (italic > 0) marks.push({ type: 'italic' });
+      appendText(output, node.text, marks);
+    }
+  });
   return output;
 }
 
@@ -563,28 +675,43 @@ function serializeBlock(block: ARTBlockNode): string {
 }
 
 function serializeInline(nodes: readonly ARTTextNode[]): string {
-  return nodes.map((node) => {
+  let output = '';
+  let active: ARTTextMark[] = [];
+  const delimiter = (mark: ARTTextMark, closing: boolean): string => {
+    switch (mark.type) {
+      case 'bold': return '**';
+      case 'italic': return '*';
+      case 'underline': return closing ? '</u>' : '<u>';
+      case 'strike': return '~~';
+      case 'link': return closing ? `](${safeUrl(mark.href, false)})` : '[';
+      default: return '';
+    }
+  };
+  for (const node of nodes) {
     const marks = normalizeMarks(node.marks ?? []);
     const isCode = marks.some(mark => mark.type === 'code');
     const link = marks.find(mark => mark.type === 'link');
     const autolink = !isCode && link ? matchAutolink(`<${node.text}>`) : null;
     // Use angle syntax only when it recreates this entire label and exact href.
-    // This also avoids bracket/parenthesis ambiguity in URL-shaped link labels.
     const useAutolink = autolink?.raw === `<${node.text}>` && autolink.href === link?.href;
-    let value = useAutolink ? autolink.raw : isCode ? codeSpan(node.text) : escapeMarkdown(node.text).replaceAll('\n', '  \n');
-    for (const mark of marks) {
-      switch (mark.type) {
-        case 'bold': value = `**${value}**`; break;
-        case 'italic': value = `*${value}*`; break;
-        case 'underline': value = `<u>${value}</u>`; break;
-        case 'strike': value = `~~${value}~~`; break;
-        case 'code': break;
-        case 'link': { const href = safeUrl(mark.href, false); if (href && !useAutolink) value = `[${value}](${href})`; break; }
-        case 'extensionMark': break;
+    const wrappers = marks.filter(mark => mark.type !== 'code' && mark.type !== 'extensionMark'
+      && (mark.type !== 'link' || (!useAutolink && safeUrl(mark.href, false)))).reverse();
+    // Keep the shared outer marks open across code and other formatting changes.
+    // Reopening bold on every text node can create ambiguous adjacent star runs.
+    let shared = 0;
+    while (shared < active.length && wrappers.some(mark => markKey(mark) === markKey(active[shared]!))) shared += 1;
+    for (let index = active.length - 1; index >= shared; index -= 1) output += delimiter(active[index]!, true);
+    active = active.slice(0, shared);
+    for (const mark of wrappers) {
+      if (!active.some(open => markKey(open) === markKey(mark))) {
+        output += delimiter(mark, false);
+        active.push(mark);
       }
     }
-    return value;
-  }).join('');
+    output += useAutolink ? autolink.raw : isCode ? codeSpan(node.text) : escapeMarkdown(node.text).replaceAll('\n', '  \n');
+  }
+  for (let index = active.length - 1; index >= 0; index -= 1) output += delimiter(active[index]!, true);
+  return output;
 }
 
 function serializeList(list: ARTListNode): string {

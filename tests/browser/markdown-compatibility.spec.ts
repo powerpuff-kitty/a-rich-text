@@ -198,3 +198,40 @@ test('Markdown hard breaks and literal backslashes survive visual/source switchi
   await expect.poll(() => page.locator('#editor').evaluate(node => (node as ARichTextElement).sourceDirty)).toBe(false);
   expect(await page.locator('#editor').evaluate(node => (node as ARichTextElement).getJSON())).toMatchObject({ content: [{ type: 'paragraph', content: [{ text: 'C:\\Users\\name\nupdated line' }] }] });
 });
+
+
+test('Markdown emphasis respects intraword and whitespace boundaries', async ({ page }) => {
+  await page.goto('/dist/browser/');
+  await page.locator('#editor').evaluate(node => {
+    const editor = node as ARichTextElement;
+    editor.setText('Original'); editor.view = 'markdown';
+  });
+  const source = page.locator('#editor [part="source"]');
+  await source.fill('snake_case_word and * spaced * and ***both***');
+  await expect.poll(() => page.locator('#editor').evaluate(node => (node as ARichTextElement).sourceDirty)).toBe(false);
+  await page.locator('#editor').evaluate(node => { (node as ARichTextElement).view = 'visual'; });
+  await expect(page.locator('#editor [contenteditable] p')).toHaveText('snake_case_word and * spaced * and both');
+  await expect(page.locator('#editor [contenteditable] em')).toHaveText('both');
+  await expect(page.locator('#editor [contenteditable] strong')).toHaveText('both');
+});
+
+test('nested Markdown emphasis and code survive source reimport', async ({ page }) => {
+  await page.goto('/dist/browser/');
+  await page.locator('#editor').evaluate(node => {
+    const editor = node as ARichTextElement;
+    editor.setText('Original'); editor.view = 'markdown';
+  });
+  const source = page.locator('#editor [part="source"]');
+  await source.fill('**bold *italic* and `code`**');
+  await expect.poll(() => page.locator('#editor').evaluate(node => (node as ARichTextElement).sourceDirty)).toBe(false);
+  const document = await page.locator('#editor').evaluate(node => (node as ARichTextElement).getJSON());
+  await page.locator('#editor').evaluate(node => { (node as ARichTextElement).view = 'visual'; });
+  await expect(page.locator('#editor [contenteditable] p')).toHaveText('bold italic and code');
+  await expect(page.locator('#editor [contenteditable] em')).toHaveText('italic');
+  await expect(page.locator('#editor [contenteditable] code')).toHaveText('code');
+  await page.locator('#editor').evaluate(node => { (node as ARichTextElement).view = 'markdown'; });
+  const canonical = await source.inputValue();
+  await source.fill(canonical + ' ');
+  await expect.poll(() => page.locator('#editor').evaluate(node => (node as ARichTextElement).sourceDirty)).toBe(false);
+  expect(await page.locator('#editor').evaluate(node => (node as ARichTextElement).getJSON())).toEqual(document);
+});

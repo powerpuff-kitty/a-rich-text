@@ -7,9 +7,9 @@ full CommonMark, GFM, MDX or Pandoc conformance.
 ## Verified scope: thematic breaks
 
 All 19 upstream thematic-break examples (43–61) are vendored unchanged.
-Fifteen match after normalizing block separators, soft breaks outside code,
+Sixteen match after normalizing block separators, soft breaks outside code,
 equivalent `<hr>` spelling and ART's omitted final code line terminator.
-Example 55 retains an emphasis-whitespace mismatch; 57, 60 and 61 retain
+Examples 57, 60 and 61 retain
 tight-list paragraph wrappers. Separate structural assertions verify the
 list/rule boundaries rather than treating these HTML mismatches as skips.
 
@@ -112,9 +112,9 @@ See [fenced-code tests](../packages/markdown/test/fenced-code.test.ts).
 
 All 13 upstream backslash-escape examples (12–24), 15 hard-break examples
 (633–647) and two soft-break examples (648–649) are vendored unchanged.
-Nine escape, thirteen hard-break and both soft-break examples match after
+Ten escape, thirteen hard-break and both soft-break examples match after
 normalizing equivalent HTML quotes, `<br>` spelling, soft breaks and ART's final
-code line convention. The six remaining interactions are explicit mismatches
+code line convention. The five remaining interactions are explicit mismatches
 in [the tests](../packages/markdown/test/escapes-breaks.test.ts).
 
 Backslashes escape ASCII punctuation, not ordinary letters, digits or Unicode
@@ -150,14 +150,33 @@ link; the surrounding bracket syntax stays literal. General link/reference
 parsing remains incomplete. The formerly excluded code-span example 346 and
 backslash example 20 now match. See [autolink tests](../packages/markdown/test/autolinks.test.ts).
 
+## Verified scope: emphasis delimiter runs
+
+All 132 upstream emphasis/strong-emphasis examples (350–481) are vendored
+unchanged. 129 match canonical ART semantics; three raw-HTML interactions
+(475–477) remain explicit mismatches. The test oracle imports the upstream HTML
+into ART, so duplicate nested emphasis collapses to one mark, nesting order
+becomes canonical mark order, and soft breaks fold to spaces. This is semantic
+coverage, not a claim of byte-identical HTML output.
+
+Delimiter runs use Unicode whitespace/punctuation flanking, intraword underscore
+restrictions and the rule of three. Matched pairs cannot cross, escaped markers
+remain literal, and code/autolink atoms retain their original boundary punctuation.
+Explicit link labels resolve their own emphasis. List marker whitespace is ASCII
+space/tab, preventing non-breaking spaces from turning an emphasis example into
+a list. Examples 14 and 55 from earlier fixture sections now match as well.
+Export keeps shared outer marks open across adjacent text nodes, avoiding
+ambiguous delimiter runs around nested italics and code. Round-trip regressions
+cover mixed bold/italic, code and links; they do not
+establish arbitrary ART whitespace/mark-boundary fidelity. See
+[emphasis tests](../packages/markdown/test/emphasis.test.ts).
+
 ### Known exclusions
 
 | Upstream example | Remaining behavior |
 | --- | --- |
-| 55 | Whitespace-delimited underscores incorrectly create emphasis |
 | 57, 60, 61 | Tight-list HTML rendering retains ART paragraph wrappers |
-| 14 | Full emphasis delimiter rules are not implemented |
-| 21, 642, 643 | Raw HTML is literal text rather than interpreted HTML |
+| 21, 475–477, 642, 643 | Raw HTML is literal text rather than interpreted HTML |
 | 22, 23 | Link titles/reference definitions are not supported |
 | 109 | Tight-list HTML rendering retains ART paragraph wrappers |
 | 93 | Lazy blockquote continuation is not implemented |
@@ -165,8 +184,7 @@ backslash example 20 now match. See [autolink tests](../packages/markdown/test/a
 | 344 | Raw HTML tag precedence over backticks is not implemented; HTML remains literal text |
 | 596, 598, 599, 601 | URI schemes outside ART's URL allowlist remain literal text |
 
-Other unverified/incomplete areas include the complete emphasis delimiter
-algorithm, reference links, raw HTML, GFM bare-URL autolinking,
+Other unverified/incomplete areas include reference links, raw HTML, GFM bare-URL autolinking,
 list/container edge cases and full GFM extensions. Existing tasks, pipe tables,
 strike and underline are ART subset features, not evidence of full GFM conformance.
 

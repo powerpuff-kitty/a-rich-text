@@ -7,6 +7,10 @@ https://spec.commonmark.org/0.31.2/spec.json on 2026-09-18.
 `commonmark-0.31.2-autolinks.json` contains all 19 unmodified “Autolinks” examples
 from the same source on 2026-09-18. Four scheme-policy exceptions remain explicit.
 
+`commonmark-0.31.2-emphasis.json` contains all 132 unmodified “Emphasis and strong
+emphasis” examples from the same source on 2026-09-18. Tests compare canonical
+ART semantics, with three raw-HTML exceptions (475–477).
+
 `commonmark-0.31.2-code-spans.json` contains all 22 unmodified examples from the
 “Code spans” section of CommonMark 0.31.2, downloaded from
 https://spec.commonmark.org/0.31.2/spec.json on 2026-09-16.
@@ -32,6 +36,6 @@ Attribution-ShareAlike 4.0 International:
 https://creativecommons.org/licenses/by-sa/4.0/ . These upstream fixtures retain
 that license; the repository MIT license does not replace it. No example text
 or expected HTML was altered. The test runner documents its soft-break and equivalent HTML quote-escaping
-normalization and explicitly unsupported interactions (thematic breaks 55/57/60/61;
-code spans 344; indented code 109; setext headings 93/94/99; escapes 14/21–23;
-hard breaks 642/643; autolink scheme policy 596/598/599/601).
+normalization and explicitly unsupported interactions (thematic breaks 57/60/61;
+code spans 344; indented code 109; setext headings 93/94/99; escapes 21–23;
+emphasis 475–477; hard breaks 642/643; autolink scheme policy 596/598/599/601).

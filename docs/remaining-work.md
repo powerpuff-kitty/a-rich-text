@@ -50,9 +50,10 @@ tests, all 470 browser cases without retries/skips, and 27 package installation
 checks. It covers the latest format converters, source/output showcase controls,
 and shared editor surfaces. The manual and release prerequisites below remain.
 
-The [newer autolink increment](verification/2026-09-18-autolinks.md)
-passed 849 unit tests, 120 targeted browser cases and 27 package checks. It covers
-thematic-break/list boundaries and safe angle-bracket URI/email links; it does not
+The [newer emphasis increment](verification/2026-09-18-emphasis.md)
+passed 999 unit tests, 130 targeted browser cases and 27 package checks. It covers
+thematic-break/list boundaries, safe URI/email links and emphasis delimiter runs,
+including mixed-formatting export round trips; it does not
 replace the full browser baseline or complete #2's interoperability scope.
 
 - [Quality #11](https://github.com/powerpuff-kitty/a-rich-text/issues/11) and
