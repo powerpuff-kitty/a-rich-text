@@ -33,6 +33,24 @@ for (const frame of document.querySelectorAll('iframe')) {
 const navigation = document.querySelector('nav[aria-label="Component examples"]');
 const sections = Array.from(document.querySelectorAll('.gallery > div > section[id]'));
 const links = Array.from(navigation.querySelectorAll('a[href^="#"]'));
+// Keep a requested section aligned while lazy examples above it resize. Release
+// the anchor on explicit user interaction so reading/editing never fights scroll.
+let requestedSection = sections.find(section => `#${section.id}` === location.hash);
+let anchorFrame;
+const alignRequestedSection = () => {
+  cancelAnimationFrame(anchorFrame);
+  if (requestedSection) anchorFrame = requestAnimationFrame(() => requestedSection?.scrollIntoView({ block: 'start', behavior: 'instant' }));
+};
+const releaseAnchor = () => { requestedSection = undefined; cancelAnimationFrame(anchorFrame); };
+for (const event of ['wheel', 'touchstart', 'pointerdown']) window.addEventListener(event, releaseAnchor, { passive: true, capture: true });
+window.addEventListener('keydown', event => {
+  if (['ArrowDown', 'ArrowUp', 'PageDown', 'PageUp', 'Home', 'End', ' ', 'Tab'].includes(event.key)) releaseAnchor();
+});
+window.addEventListener('hashchange', () => {
+  requestedSection = sections.find(section => `#${section.id}` === location.hash);
+  alignRequestedSection();
+});
+alignRequestedSection();
 let navigationFrame;
 const updateNavigation = () => {
   cancelAnimationFrame(navigationFrame);
@@ -51,6 +69,6 @@ window.addEventListener('scroll', updateNavigation, { passive: true });
 window.addEventListener('resize', updateNavigation);
 window.addEventListener('hashchange', updateNavigation);
 // A lazy frame changing height can move section boundaries without scrolling.
-const sectionObserver = new ResizeObserver(updateNavigation);
+const sectionObserver = new ResizeObserver(() => { alignRequestedSection(); updateNavigation(); });
 for (const section of sections) sectionObserver.observe(section);
 updateNavigation();

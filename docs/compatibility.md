@@ -16,13 +16,13 @@ The Playwright configuration currently targets:
 
 | Target | Evidence source | Current status |
 |---|---|---|
-| Chromium desktop | `chromium` Playwright project | verified locally, 2026-09-16 |
-| Firefox desktop | `firefox` Playwright project | verified locally, 2026-09-16 |
-| WebKit desktop | `webkit` Playwright project | verified locally, 2026-09-16 |
-| Pixel 7 Chromium emulation | `mobile-chromium` | verified locally, 2026-09-16 |
-| iPhone 15 WebKit emulation | `mobile-webkit` | verified locally, 2026-09-16 |
+| Chromium desktop | `chromium` Playwright project | verified locally, 2026-09-18 |
+| Firefox desktop | `firefox` Playwright project | verified locally, 2026-09-18 |
+| WebKit desktop | `webkit` Playwright project | verified locally, 2026-09-18 |
+| Pixel 7 Chromium emulation | `mobile-chromium` | verified locally, 2026-09-18 |
+| iPhone 15 WebKit emulation | `mobile-webkit` | verified locally, 2026-09-18 |
 
-See [local verification evidence](verification/2026-09-16-live-source.md) for versions, commands and scope. These results cover the automated smoke suite on the tested revision; they do not establish physical-device, screen-reader or IME support. Validation runs locally without requiring GitHub Actions.
+See [local verification evidence](verification/2026-09-18-integrated-stack.md) for versions, commands and scope. These results cover the full 585-case automated suite on the tested runtime revision; they do not establish physical-device, screen-reader or IME support. Validation runs locally without requiring GitHub Actions.
 
 ## Browser smoke contract
 

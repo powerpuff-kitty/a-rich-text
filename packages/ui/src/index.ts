@@ -262,6 +262,7 @@ export class ARichTextToolbarElement extends HTMLElementBase {
   #releaseViewToolbar?: () => void;
   #inlineRequested = false;
   #inlineDismissed = false;
+  #inlineFocusing = false;
   #linkEditor: HTMLFormElement;
   #linkInput: HTMLInputElement;
   #linkError: HTMLSpanElement;
@@ -443,7 +444,7 @@ export class ARichTextToolbarElement extends HTMLElementBase {
       // after Alt+F10 has moved focus into its controls.
       const root = this.getRootNode() as Document | ShadowRoot;
       const toolbarFocused = root.activeElement === this && this.#toolbar.contains(this.shadowRoot?.activeElement ?? null);
-      if (!toolbarFocused) this.#inlineRequested = false;
+      if (!toolbarFocused && !this.#inlineFocusing) this.#inlineRequested = false;
     }
     this.#refresh();
   };
@@ -454,7 +455,15 @@ export class ARichTextToolbarElement extends HTMLElementBase {
     if (keyboard.key === 'Escape' && this.getAttribute('mode') === 'inline' && !this.#toolbar.hidden) { keyboard.preventDefault(); this.#inlineDismissed = true; this.#inlineRequested = false; this.#syncInline(); return; }
     if (keyboard.altKey && keyboard.key === 'F10' && this.getAttribute('mode') === 'inline') {
       keyboard.preventDefault(); this.#inlineRequested = true; this.#inlineDismissed = false; this.#refresh();
-      this.#toolbar.querySelector<HTMLButtonElement>('button:not([hidden]):not(:disabled)')?.focus(); return;
+      // focus() first blurs the editor, which can synchronously report its final
+      // selection before the toolbar becomes the active element.
+      this.#inlineFocusing = true;
+      try {
+        this.#toolbar.querySelector<HTMLButtonElement>('button:not([hidden]):not(:disabled)')?.focus();
+      } finally {
+        this.#inlineFocusing = false;
+      }
+      return;
     }
     if (!this.#editor || this.#editor.disabled || this.#editor.readOnly || this.#editor.view !== 'visual' || !this.#editor.isToolEnabled('link')) return;
     if (!(keyboard.ctrlKey || keyboard.metaKey) || keyboard.altKey || keyboard.shiftKey) return;

@@ -2,14 +2,11 @@
 
 A Rich Text treats reliability evidence as part of the product.
 
-Latest [full local verification](verification/2026-09-16-surfaces.md): 648 unit
-tests, 470 browser cases across five profiles with two workers and no
-failures/retries/skips, and 27 package installation checks passed on the recorded revision.
-Manual and physical-device gates below remain open.
-
-The newer [list-indentation increment](verification/2026-09-18-list-indentation.md)
-passed 1,232 unit tests, 200 targeted browser cases and 27 package checks. It does
-not replace the full browser baseline above.
+Latest [full local verification](verification/2026-09-18-integrated-stack.md):
+1,233 unit tests, all 585 browser cases across five profiles with two workers and
+no failures/retries/skips, and 27 package installation checks passed on the recorded
+runtime revision. The full browser run covers the complete compatibility stack;
+unit/package checks were rerun after the toolbar focus fix. Manual and physical-device gates below remain open.
 
 The project should not label a browser, device, accessibility workflow or performance target as supported merely because it appears in documentation. Claims must be backed by an executable test or an explicit manual verification record.
 
