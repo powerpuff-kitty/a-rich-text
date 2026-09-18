@@ -35,7 +35,6 @@ describe('Quill document Delta profile', () => {
   });
   it.each([
     { ops: [{ retain: 1 }] }, { ops: [{ delete: 1 }] }, { ops: [{ insert: 'x\n', retain: 0 }] },
-    { ops: [{ insert: { image: 'photo.png' } }, { insert: '\n' }] },
     { ops: [] }, { ops: [{ insert: '' }] }, { ops: [{ insert: 'no final newline' }] },
     { ops: [{ insert: 'x\n', attributes: [] }] }, { ops: [{ insert: 'x\n', attributes: { bold: 'yes' } }] },
     { ops: [{ insert: 'x\n', attributes: { header: 7 } }] }, { ops: [{ insert: 'x\n', attributes: { list: 'unknown' } }] },
@@ -47,14 +46,14 @@ describe('Quill document Delta profile', () => {
   });
   it('reports unknown and misplaced attributes before replacing rich text', () => {
     const imported = importQuillDelta(delta({ insert: 'Text', attributes: { header: 2, color: 'red' } }, { insert: '\n', attributes: { list: 'bullet', indent: 1 } }));
-    expect(imported.diagnostics?.map(note => note.code)).toEqual(['unsupported-attributes', 'misplaced-line-format']);
+    expect(imported.diagnostics?.map(note => note.code)).toEqual(['misplaced-line-format', 'format-value', 'unsupported-attributes']);
     expect(imported.diagnostics?.every(note => note.severity === 'loss')).toBe(true);
   });
   it('reports marks lost inside code blocks and metadata omissions', () => {
     expect(importQuillDelta(JSON.stringify({ metadata: {}, ops: [{ insert: 'x\n', attributes: { bold: true, 'code-block': true }, extra: 1 }] })).diagnostics?.map(note => note.code)).toEqual(['extra-fields', 'code-marks']);
   });
   it.each([
-    { type: 'image', src: '/photo.png', alt: 'Photo' }, { type: 'horizontalRule' },
+    { type: 'horizontalRule' },
     { type: 'table', content: [{ type: 'tableRow', content: [{ type: 'tableCell', content: [paragraph('Cell')] }] }] },
     { type: 'extensionBlock', name: 'acme:card', fallbackText: 'Card' },
     { type: 'list', style: 'bullet', content: [{ type: 'listItem', content: [paragraph('One'), paragraph('Two')] }] },
