@@ -114,7 +114,7 @@ Conversion is deterministic for the supported ART model, but external formats ar
 - HTML covers the initial ART v1 block/mark model closely.
 - Markdown uses standard syntax where possible; underline is represented with inline `<u>` markup.
 - Markdown code fences retain the first info-string word as language; extra metadata is not retained.
-- Markdown tables flatten cell spans because pipe-table syntax cannot represent `rowspan`/`colspan` faithfully.
+- Markdown tables flatten cell spans because pipe-table syntax cannot represent `rowspan`/`colspan` faithfully. GFM header roles and column alignment are not represented in ART; short body rows are padded and excess cells are ignored according to GFM rules. See [verified table scope and limits](markdown-compatibility.md#verified-gfm-extension-scope-pipe-tables).
 - Unsupported HTML nodes are unwrapped or dropped rather than stored as opaque executable markup.
 
 High-fidelity office document conversion belongs to optional A Rich Text Cloud services, not the browser core.
