@@ -1,4 +1,4 @@
-import { isARTDocument, toPlainText, type ARTDocument, type ARTBlockNode, type ARTTextNode, type ARTInlineNode, type ARTTextMark } from '@arichtext/core';
+import { isARTDocument, toPlainText, type ARTDocument, type ARTBlockNode, type ARTInlineNode, type ARTTextMark } from '@arichtext/core';
 import type { ConversionDiagnostic, ConversionOutput, FormatProfile } from '@arichtext/core/profiles';
 
 type Attributes = Record<string, unknown>;
@@ -24,7 +24,7 @@ export function importQuillDelta(source: string): ConversionOutput<ARTDocument> 
   if (!record(delta) || !Array.isArray(delta.ops)) throw new TypeError('Expected a Delta object with an ops array');
   const diagnostics = notes(); diagnostics.extra(delta, ['ops']);
   const content: ARTBlockNode[] = [];
-  let line: ARTTextNode[] = [];
+  let line: ARTInlineNode[] = [];
   let ended = false;
   function finish(attrs: Attributes) {
     const enabled = blocks.filter(key => active(attrs[key]));
@@ -48,7 +48,7 @@ export function importQuillDelta(source: string): ConversionOutput<ARTDocument> 
       const language = attrs['code-block'];
       if (language !== true && typeof language !== 'string') throw new TypeError('Invalid Delta code block');
       if (line.some(node => node.marks?.length)) diagnostics.add('code-marks', 'Code block inline marks are omitted');
-      const text = line.map(node => node.text).join('');
+      const text = line.map(node => node.type === 'text' ? node.text : node.fallbackText).join('');
       const lang = typeof language === 'string' ? language : undefined;
       if (previous?.type === 'codeBlock' && previous.language === lang) previous.text += '\n' + text;
       else content.push({ type: 'codeBlock', text, ...(lang !== undefined ? { language: lang } : {}) });
@@ -61,6 +61,8 @@ export function importQuillDelta(source: string): ConversionOutput<ARTDocument> 
       if (!record(op.insert) || Object.keys(op.insert).length !== 1) throw new TypeError('Invalid Quill embed');
       const [kind] = Object.keys(op.insert); const value = op.insert[kind!];
       if (kind === 'image' && typeof value === 'string' && value) content.push({ type: 'image', src: value });
+      else if (kind === 'video' && typeof value === 'string' && value) { content.push({ type: 'extensionBlock', name: 'quill:video', attrs: { src: value }, fallbackText: value }); diagnostics.add('adapter-embed', 'Quill video is preserved as a quill:video extension block'); }
+      else if (kind === 'formula' && typeof value === 'string') { line.push({ type: 'extensionInline', name: 'quill:formula', attrs: { formula: value }, fallbackText: value }); diagnostics.add('adapter-embed', 'Quill formula is preserved as a quill:formula inline extension'); }
       else diagnostics.add('unsupported-embed', `Quill ${kind} embed is not represented by ART`);
       ended = false; continue;
     }
@@ -86,7 +88,7 @@ export function importQuillDelta(source: string): ConversionOutput<ARTDocument> 
       const text = parts[index];
       if (text) {
         const previous = line.at(-1);
-        if (previous && JSON.stringify(previous.marks ?? []) === JSON.stringify(marks)) previous.text += text;
+        if (previous?.type === 'text' && JSON.stringify(previous.marks ?? []) === JSON.stringify(marks)) previous.text += text;
         else line.push({ type: 'text', text, ...(marks.length ? { marks: marks.map(mark => ({ ...mark })) } : {}) });
       }
       if (index < parts.length - 1) finish(attrs);
@@ -113,6 +115,11 @@ export function exportQuillDelta(document: ARTDocument): ConversionOutput<string
   function embed(value: Record<string, unknown>): void { ops.push({ insert: value }); }
   function paragraph(nodes: ARTInlineNode[], attributes: Attributes = {}) {
     for (const node of nodes) {
+      if (node.type === 'extensionInline' && node.name === 'quill:formula') {
+        embed({ formula: typeof node.attrs?.formula === 'string' ? node.attrs.formula : node.fallbackText });
+        diagnostics.add('adapter-embed', 'quill:formula is exported as a Quill formula embed');
+        continue;
+      }
       if (node.type === 'extensionInline') diagnostics.add('extension-inline', 'Inline extensions become fallback text');
       else diagnostics.extra(node, ['type', 'text', 'marks']);
       const marks: Attributes = {};
@@ -144,6 +151,8 @@ export function exportQuillDelta(document: ARTDocument): ConversionOutput<string
     } else if (block.type === 'image') {
       diagnostics.extra(block, ['type', 'src', 'alt', 'title', 'width', 'height']);
       embed({ image: block.src }); insert('\n');
+    } else if (block.type === 'extensionBlock' && block.name === 'quill:video' && typeof block.attrs?.src === 'string') {
+      embed({ video: block.attrs.src }); insert('\n'); diagnostics.add('adapter-embed', 'quill:video is exported as a Quill video embed');
     } else if (block.type === 'codeBlock') {
       diagnostics.extra(block, ['type', 'text', 'language']);
       for (const text of block.text.split('\n')) { insert(text); insert('\n', { 'code-block': block.language ?? true }); }
