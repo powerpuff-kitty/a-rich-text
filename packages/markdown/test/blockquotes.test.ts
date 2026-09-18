@@ -8,10 +8,7 @@ import { fromMarkdown, toMarkdown } from '../src/index.js';
 
 interface Fixture { example: number; markdown: string; html: string }
 const fixtures: Fixture[] = JSON.parse(readFileSync('packages/markdown/test/fixtures/commonmark-0.31.2-blockquotes.json', 'utf8'));
-const unsupported = new Map([
-  [232, 'lazy continuation'], [233, 'lazy continuation'], [235, 'tight-list paragraph wrappers'],
-  [238, 'lazy continuation'], [247, 'lazy continuation'], [250, 'nested lazy continuation'], [251, 'nested lazy continuation'],
-]);
+const unsupported = new Map([[235, 'tight-list paragraph wrappers']]);
 const expectedHTML = (html: string) => html.trimEnd().replace(/\n<\/code>/g, '</code>').replaceAll('<hr />', '<hr>').replace(/>\n</g, '><').replace(/(<pre>[\s\S]*?<\/pre>)|\n/g, (match, code: string | undefined) => code ?? ' ');
 const emptyQuote: ARTBlockNode = { type: 'blockquote', content: [] };
 
@@ -45,4 +42,37 @@ describe('CommonMark blockquote structure', () => {
     expect(fromHTML(toHTML(doc))).toEqual(doc);
     expect(fromMarkdown(toMarkdown(fromHTML(toHTML(doc))))).toEqual(doc);
   });
+
+  it.each(['> *first\nsecond*', '> `first\nsecond`', '>>> first\n> second\n>> third', '> first\n    - continuation', '> first\nsecond\n==='])('round-trips lazy paragraph continuation: %j', source => {
+    const doc = fromMarkdown(source);
+    expect(doc.content).toHaveLength(1);
+    expect(doc.content[0]?.type).toBe('blockquote');
+    expect(fromMarkdown(toMarkdown(doc))).toEqual(doc);
+  });
+  it.each(['> # heading\noutside', '>     code\noutside', '> ```\noutside', '> first\n>\noutside', '> first\n\noutside', '> first\n> ===\noutside'])('does not extend a closed paragraph: %j', source => {
+    const doc = fromMarkdown(source);
+    expect(doc.content).toHaveLength(2);
+    expect(doc.content[0]?.type).toBe('blockquote');
+    expect(doc.content[1]).toEqual({ type: 'paragraph', content: [{ type: 'text', text: 'outside' }] });
+  });
+  it('closes only the quote levels missing from a new block', () => {
+    expect(toHTML(fromMarkdown('>>> first\n> # heading\n> next\noutside'))).toBe('<blockquote><blockquote><blockquote><p>first</p></blockquote></blockquote><h1>heading</h1><p>next outside</p></blockquote>');
+  });
+  it('parses inline markup across omitted markers once for the whole paragraph', () => {
+    expect(toHTML(fromMarkdown('> *first\nsecond* and `code\ncontinued`'))).toBe('<blockquote><p><em>first second</em> and <code>code continued</code></p></blockquote>');
+  });
+  it('handles long paragraphs with alternating explicit and omitted markers', () => {
+    const source = Array.from({ length: 2000 }, (_, i) => (i % 2 ? '' : '> ') + 'word').join('\n');
+    expect(fromMarkdown(source).content).toEqual([{ type: 'blockquote', content: [{ type: 'paragraph', content: [{ type: 'text', text: Array(2000).fill('word').join(' ') }] }] }]);
+  });
+
+
+  it.each(['> - item\n>\noutside\n> later', '> | head |\n> | --- |\noutside\n> later'])('keeps list/table collectors inside their explicit quote boundary: %j', source => {
+    const doc = fromMarkdown(source);
+    expect(doc.content).toHaveLength(3);
+    expect(doc.content[0]?.type).toBe('blockquote');
+    expect(doc.content[1]).toEqual({ type: 'paragraph', content: [{ type: 'text', text: 'outside' }] });
+    expect(doc.content[2]).toEqual({ type: 'blockquote', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'later' }] }] });
+  });
+
 });
