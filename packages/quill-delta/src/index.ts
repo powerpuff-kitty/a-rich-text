@@ -3,7 +3,7 @@ import type { ConversionDiagnostic, ConversionOutput, FormatProfile } from '@ari
 
 type Attributes = Record<string, unknown>;
 type Operation = { insert: string | Record<string, unknown>; attributes?: Attributes };
-const inline = ['bold', 'italic', 'underline', 'strike', 'code', 'link'];
+const inline = ['bold', 'italic', 'underline', 'strike', 'code', 'link', 'color', 'background', 'script'];
 const blocks = ['header', 'blockquote', 'code-block', 'list'];
 const record = (value: unknown): value is Attributes => !!value && typeof value === 'object' && !Array.isArray(value);
 const active = (value: unknown) => value !== undefined && value !== null && value !== false;
@@ -78,6 +78,13 @@ export function importQuillDelta(source: string): ConversionOutput<ARTDocument> 
       if (key === 'link') {
         if (typeof attrs[key] !== 'string' || !attrs[key]) throw new TypeError('Invalid Delta link');
         marks.push({ type: 'link', href: attrs[key] as string });
+      } else if (key === 'color' || key === 'background') {
+        if (typeof attrs[key] !== 'string' || !/^(?:#[0-9a-f]{3,8}|(?:rgb|hsl)a?\([^)]{1,80}\))$/i.test(attrs[key] as string)) diagnostics.add('format-value', `Invalid Quill ${key} value is omitted`);
+        else marks.push({ type: key, value: attrs[key] as string });
+      } else if (key === 'script') {
+        if (attrs[key] === 'sub') marks.push({ type: 'subscript' });
+        else if (attrs[key] === 'super') marks.push({ type: 'superscript' });
+        else diagnostics.add('format-value', 'Invalid Quill script value is omitted');
       } else {
         if (attrs[key] !== true) throw new TypeError('Invalid Delta inline mark');
         marks.push({ type: key as 'bold' | 'italic' | 'underline' | 'strike' | 'code' });
@@ -127,7 +134,11 @@ export function exportQuillDelta(document: ARTDocument): ConversionOutput<string
         diagnostics.extra(mark, mark.type === 'link' ? ['type', 'href'] : ['type']);
         if (mark.type === 'extensionMark') { diagnostics.add('extension-marks', 'Extension marks are omitted'); continue; }
         if (mark.type in marks) diagnostics.add('duplicate-marks', 'Repeated marks are collapsed');
-        marks[mark.type] = mark.type === 'link' ? mark.href : true;
+        if (mark.type === 'link') marks.link = mark.href;
+        else if (mark.type === 'color' || mark.type === 'background') marks[mark.type] = mark.value;
+        else if (mark.type === 'subscript') marks.script = 'sub';
+        else if (mark.type === 'superscript') marks.script = 'super';
+        else marks[mark.type] = true;
       }
       const parts = (node.type === 'text' ? node.text : node.fallbackText).split('\n');
       if (parts.length > 1) diagnostics.add('inline-newlines', 'Inline newlines become block boundaries');

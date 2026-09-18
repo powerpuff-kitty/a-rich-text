@@ -14,3 +14,10 @@ it('imports and exports Quill image embeds while diagnosing unsupported embeds',
   const exported = exportQuillDelta({ type: 'doc', version: 1, content: [{ type: 'image', src: 'https://example.com/a.png' }] });
   expect(JSON.parse(exported.value).ops[0]).toEqual({ insert: { image: 'https://example.com/a.png' } });
 });
+
+it('maps Quill inline color, background and script formats', () => {
+  const imported = importQuillDelta(JSON.stringify({ ops: [{ insert: 'H2O', attributes: { color: '#f00', background: '#000', script: 'sub' } }, { insert: '\n' }] }));
+  expect(imported.value.content[0]).toMatchObject({ content: [{ marks: [{ type: 'color', value: '#f00' }, { type: 'background', value: '#000' }, { type: 'subscript' }] }] });
+  const exported = exportQuillDelta(imported.value);
+  expect(JSON.parse(exported.value).ops[0].attributes).toMatchObject({ color: '#f00', background: '#000', script: 'sub' });
+});
