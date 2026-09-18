@@ -7,8 +7,8 @@ tests, 470 browser cases across five profiles with two workers and no
 failures/retries/skips, and 27 package installation checks passed on the recorded revision.
 Manual and physical-device gates below remain open.
 
-The newer [list-marker increment](verification/2026-09-18-list-markers.md)
-passed 1,160 unit tests, 180 targeted browser cases and 27 package checks. It does
+The newer [list-grouping increment](verification/2026-09-18-list-grouping.md)
+passed 1,180 unit tests, 190 targeted browser cases and 27 package checks. It does
 not replace the full browser baseline above.
 
 The project should not label a browser, device, accessibility workflow or performance target as supported merely because it appears in documentation. Claims must be backed by an executable test or an explicit manual verification record.
