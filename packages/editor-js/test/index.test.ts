@@ -32,4 +32,11 @@ describe('Editor.js adapter', () => {
     const exported = exportEditorJS(imported.value);
     expect(JSON.parse(exported.value).blocks[0].data).toMatchObject({ file: { url: 'https://example.com/image.png' }, caption: 'Photo' });
   });
+  it('preserves Editor.js embeds as extension blocks with diagnostics', () => {
+    const imported = importEditorJS(JSON.stringify({ blocks: [{ type: 'embed', data: { service: 'youtube', embed: 'https://youtu.be/demo' } }] }));
+    expect(imported.value.content[0]).toMatchObject({ type: 'extensionBlock', name: 'editorjs:embed', attrs: { service: 'youtube', url: 'https://youtu.be/demo' } });
+    expect(imported.diagnostics).toContainEqual(expect.objectContaining({ code: 'adapter-embed' }));
+    const exported = exportEditorJS(imported.value);
+    expect(JSON.parse(exported.value).blocks[0].data).toMatchObject({ service: 'youtube', embed: 'https://youtu.be/demo' });
+  });
 });
