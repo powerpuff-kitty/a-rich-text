@@ -40,7 +40,7 @@ export function fromMarkdown(markdown: string): ARTDocument {
   if (lines.at(-1) === '') lines.pop();
   activeReferences = new Map();
   for (let index = lines.length - 1; index >= 0; index--) {
-    const definition = lines[index]!.match(/^ {0,3}\[([^\]]+)\]:\s*<?([^\s>]+)>?(?:\s+.*)?$/);
+    const definition = lines[index]!.match(/^ {0,3}(?:(?:> ?)+)?\[([^\]]+)\]:\s*<?([^\s>]+)>?(?:\s+.*)?$/);
     if (definition) { activeReferences.set(definition[1]!.trim().toLowerCase(), definition[2]!); lines.splice(index, 1); }
   }
   const content = parseBlocks(lines);
