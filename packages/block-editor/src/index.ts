@@ -19,6 +19,26 @@ export function enableBlockEditing(editor: ARichTextElement): BlockEditingContro
   const handles = editor.ownerDocument.createElement('div');
   handles.setAttribute('part', 'block-handles'); handles.setAttribute('aria-label', 'Block controls');
   root.append(handles);
+  let dragFrom: number | null = null;
+  let dragged = false;
+  const finishDrag = (): void => {
+    if (dragFrom === null) return;
+    const from = dragFrom; dragFrom = null;
+    if (dragged) {
+      const state = { document: editor.getJSON(), selection: editor.getSelection() };
+      const blocks = [...surface.querySelectorAll<HTMLElement>('[data-art-text-block]')];
+      const y = lastPointerY ?? 0;
+      const target = blocks.find(block => { const rect = block.getBoundingClientRect(); return rect.top <= y && y <= rect.bottom; });
+      const to = target?.getAttribute('data-art-block-path'); const index = to ? decodeARTPath(to)[0] : undefined;
+      if (index !== undefined && index !== from) { const command = moveBlock(state, from, index); if (command) editor.dispatch(command); }
+    }
+    dragged = false; renderHandles();
+  };
+  let lastPointerY: number | null = null;
+  const pointerMove = (event: PointerEvent): void => { if (dragFrom === null) return; dragged = true; lastPointerY = event.clientY; };
+  const pointerUp = (): void => finishDrag();
+  editor.ownerDocument.addEventListener('pointermove', pointerMove, true);
+  editor.ownerDocument.addEventListener('pointerup', pointerUp, true);
   const renderHandles = (): void => {
     handles.replaceChildren();
     if (editor.disabled || editor.readOnly) return;
@@ -28,7 +48,9 @@ export function enableBlockEditing(editor: ARichTextElement): BlockEditingContro
       button.type = 'button'; button.textContent = '⋮'; button.setAttribute('aria-label', 'Block actions');
       button.dataset.blockPath = encoded; button.style.position = 'fixed';
       const rect = block.getBoundingClientRect(); button.style.left = `${Math.max(2, rect.left - 28)}px`; button.style.top = `${rect.top}px`;
+      button.addEventListener('pointerdown', event => { if (event.button !== 0) return; dragFrom = decodeARTPath(encoded)[0] ?? null; lastPointerY = event.clientY; dragged = false; event.preventDefault(); });
       button.addEventListener('click', () => {
+        if (dragged) return;
         const path = decodeARTPath(encoded); const point = { blockPath: path, offset: 0 };
         editor.dispatch({ operations: [], selection: { anchor: point, head: point } }); menu.hidden = false; menu.focus();
       });
@@ -81,6 +103,6 @@ export function enableBlockEditing(editor: ARichTextElement): BlockEditingContro
   };
   const click = (event: Event): void => { const action = (event.target as HTMLElement).closest<HTMLElement>('[data-action]')?.dataset.action; if (action) run(action); };
   surface.addEventListener('keydown', keydown); menu.addEventListener('click', click);
-  const controller = { destroy() { surface.removeEventListener('keydown', keydown); menu.removeEventListener('click', click); observer.disconnect(); editor.ownerDocument.defaultView?.removeEventListener('resize', renderHandles); editor.ownerDocument.removeEventListener('scroll', renderHandles, true); handles.remove(); menu.remove(); installed.delete(editor); } };
+  const controller = { destroy() { surface.removeEventListener('keydown', keydown); menu.removeEventListener('click', click); observer.disconnect(); editor.ownerDocument.defaultView?.removeEventListener('resize', renderHandles); editor.ownerDocument.removeEventListener('scroll', renderHandles, true); editor.ownerDocument.removeEventListener('pointermove', pointerMove, true); editor.ownerDocument.removeEventListener('pointerup', pointerUp, true); handles.remove(); menu.remove(); installed.delete(editor); } };
   installed.set(editor, controller); return controller;
 }
