@@ -275,3 +275,45 @@ test('Markdown preserves Unicode-only paragraphs and quoted Unicode separators',
   await page.locator('#editor').evaluate(node => { (node as ARichTextElement).view = 'markdown'; });
   await expect(source).toHaveValue('\u00a0\n\n> before\u2028after');
 });
+
+
+test('Markdown tables normalize ragged rows and stop before block markers', async ({ page }) => {
+  await page.goto('/dist/browser/');
+  await page.locator('#editor').evaluate(node => {
+    const editor = node as ARichTextElement;
+    editor.setText('Original'); editor.view = 'markdown';
+  });
+  const source = page.locator('#editor [part="source"]');
+  await source.fill('| Name | Value |\n| - | - |\n| short |\n| a | b | ignored |\nlast\n# End | title');
+  await expect.poll(() => page.locator('#editor').evaluate(node => (node as ARichTextElement).sourceDirty)).toBe(false);
+  const doc = await page.locator('#editor').evaluate(node => (node as ARichTextElement).getJSON());
+  const table = doc.content[0]!;
+  expect(table.type).toBe('table');
+  if (table.type !== 'table') throw new Error('Expected table');
+  expect(table.content).toHaveLength(4);
+  expect(table.content.every(row => row.content.length === 2)).toBe(true);
+  expect(table.content[1]?.content[1]?.content).toEqual([{ type: 'paragraph', content: [] }]);
+  await page.locator('#editor').evaluate(node => { (node as ARichTextElement).view = 'visual'; });
+  await expect(page.locator('#editor [contenteditable] table tr')).toHaveCount(4);
+  await expect(page.locator('#editor [contenteditable] h1')).toHaveText('End | title');
+  await page.locator('#editor').evaluate(node => { (node as ARichTextElement).view = 'markdown'; });
+  expect(await source.inputValue()).not.toContain('ignored');
+});
+
+test('Markdown table code cells retain escaped pipes through source reimport', async ({ page }) => {
+  await page.goto('/dist/browser/');
+  await page.locator('#editor').evaluate(node => {
+    const editor = node as ARichTextElement;
+    editor.setText('Original'); editor.view = 'markdown';
+  });
+  const source = page.locator('#editor [part="source"]');
+  await source.fill('| code |\n| --- |\n| `\\|` |\n| `\\\\|` |');
+  await expect.poll(() => page.locator('#editor').evaluate(node => (node as ARichTextElement).sourceDirty)).toBe(false);
+  const doc = await page.locator('#editor').evaluate(node => (node as ARichTextElement).getJSON());
+  await page.locator('#editor').evaluate(node => { (node as ARichTextElement).view = 'visual'; });
+  expect(await page.locator('#editor [contenteditable] table code').allTextContents()).toEqual(['|', '\\|']);
+  await page.locator('#editor').evaluate(node => { (node as ARichTextElement).view = 'markdown'; });
+  await source.fill((await source.inputValue()) + '\n');
+  await expect.poll(() => page.locator('#editor').evaluate(node => (node as ARichTextElement).sourceDirty)).toBe(false);
+  expect(await page.locator('#editor').evaluate(node => (node as ARichTextElement).getJSON())).toEqual(doc);
+});

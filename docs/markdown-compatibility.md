@@ -188,6 +188,30 @@ cover mixed bold/italic, code and links; they do not
 establish arbitrary ART whitespace/mark-boundary fidelity. See
 [emphasis tests](../packages/markdown/test/emphasis.test.ts).
 
+## Verified GFM extension scope: pipe tables
+
+All eight upstream table examples (198–205) from the published GFM 0.29 spec
+are vendored unchanged. They match retained ART semantics after importing the
+expected HTML: ART has no header-cell or column-alignment field, and HTML table
+section wrappers are not retained. The ordinary paragraph soft break in example
+203 folds to a space. This is not byte-identical HTML or full GFM conformance.
+
+Header and delimiter rows must have the same cell count. Delimiter cells accept
+one or more hyphens with optional alignment colons. Body rows can omit pipes;
+short rows gain empty cells and excess cells are ignored, as specified by GFM.
+Blank lines and recognized ART block starts end a table. A delimiter-looking
+body row remains ordinary cell text. ASCII cell padding is trimmed; Unicode
+spaces remain text. Directly escaped pipes stay in their cells, including inside
+code spans and after other backslashes. Round-trip tests cover those contents.
+
+Automatic padding is limited to 65,536 cells per table to bound expansion from
+wide headers and short rows. A row that would exceed the limit ends the table;
+remaining input is parsed normally. Header roles, alignment and cell spans are
+not representable by this Markdown/ART mapping. Broader container and block
+precedence interactions remain unverified. See
+[table tests](../packages/markdown/test/tables.test.ts) and the
+[GFM table rules](https://github.github.com/gfm/#tables-extension-).
+
 ### Known exclusions
 
 | Upstream example | Remaining behavior |

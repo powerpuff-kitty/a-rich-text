@@ -17,5 +17,6 @@ It is not a fully conforming CommonMark/GFM parser. See the repository
 The reference target is CommonMark 0.31.2. Vendored examples cover paragraphs, blank lines, textual content, thematic breaks, code spans,
 ATX/setext headings, indented/fenced code, escapes, line breaks and angle-bracket
 autolinks and emphasis delimiter runs, with explicit remaining mismatches and URL-scheme policy exceptions.
-The full dialect is not implemented.
+Eight upstream GFM table examples also verify retained ART cell semantics;
+header roles and column alignment are not preserved. The full dialect is not implemented.
 See [compatibility scope and fixtures](https://github.com/powerpuff-kitty/a-rich-text/blob/main/docs/markdown-compatibility.md).

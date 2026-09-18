@@ -145,7 +145,7 @@ function parseBlocks(lines: readonly string[]): ARTBlockNode[] {
   return blocks;
 }
 
-function isBlockStart(lines: readonly string[], index: number): boolean {
+function isBlockStart(lines: readonly string[], index: number, includeTables = true): boolean {
   const line = lines[index] ?? '';
   // Indented code cannot interrupt an existing paragraph, even when its
   // literal contents resemble another block marker.
@@ -157,7 +157,7 @@ function isBlockStart(lines: readonly string[], index: number): boolean {
     || /^ {0,3}>/.test(line)
     || matchListItem(line) !== null
     || parseImage(line) !== null
-    || isTableStart(lines, index);
+    || (includeTables && isTableStart(lines, index));
 }
 
 // Tabs advance to four-column stops; content after column four is literal.
@@ -281,23 +281,34 @@ function parseList(lines: readonly string[], start: number, first: ListMatch): {
 }
 
 function isTableStart(lines: readonly string[], index: number): boolean {
-  return index + 1 < lines.length && (lines[index] ?? '').includes('|') && isTableSeparator(lines[index + 1] ?? '');
+  const header = lines[index] ?? '';
+  if (index + 1 >= lines.length || !hasTablePipe(header)) return false;
+  const cells = splitTableRow(header);
+  const separators = splitTableRow(lines[index + 1] ?? '');
+  return cells.length > 0 && cells.length === separators.length
+    && separators.every(cell => /^:?-+:?$/.test(trimInlineWhitespace(cell)));
 }
 
-function isTableSeparator(line: string): boolean {
-  const cells = splitTableRow(line);
-  return cells.length > 0 && cells.every((cell) => /^:?-{3,}:?$/.test(cell.trim()));
+function hasTablePipe(line: string): boolean {
+  for (let index = 0; index < line.length; index += 1) {
+    if (line[index] === '|' && line[index - 1] !== '\\') return true;
+  }
+  return false;
 }
 
 function parseTable(lines: readonly string[], start: number): { node: ARTBlockNode; next: number } | null {
   const header = splitTableRow(lines[start] ?? '');
   if (header.length === 0) return null;
   const rows = [header];
+  // Bound expansion when a wide header is followed by many short rows.
+  let remainingPadding = 65_536;
   let index = start + 2;
-  while (index < lines.length && !isBlankLine(lines[index] ?? '') && (lines[index] ?? '').includes('|')) {
+  while (index < lines.length && !isBlankLine(lines[index] ?? '') && !isBlockStart(lines, index, false)) {
     const row = splitTableRow(lines[index] ?? '');
-    if (row.length !== header.length) break;
-    rows.push(row);
+    const missing = Math.max(0, header.length - row.length);
+    if (missing > remainingPadding) break;
+    remainingPadding -= missing;
+    rows.push(Array.from({ length: header.length }, (_, column) => row[column] ?? ''));
     index += 1;
   }
   return {
@@ -305,7 +316,7 @@ function parseTable(lines: readonly string[], start: number): { node: ARTBlockNo
       type: 'table',
       content: rows.map((row) => ({
         type: 'tableRow',
-        content: row.map((cell) => ({ type: 'tableCell', content: [{ type: 'paragraph', content: parseInline(cell.trim()) }] })),
+        content: row.map((cell) => ({ type: 'tableCell', content: [{ type: 'paragraph', content: parseInline(trimInlineWhitespace(cell)) }] })),
       })),
     },
     next: index,
@@ -313,19 +324,27 @@ function parseTable(lines: readonly string[], start: number): { node: ARTBlockNo
 }
 
 function splitTableRow(line: string): string[] {
-  const trimmed = line.trim().replace(/^\|/, '').replace(/\|$/, '');
-  if (!trimmed) return [];
+  const trimmed = trimInlineWhitespace(line);
   const cells: string[] = [];
   let current = '';
-  let escaped = false;
-  for (const character of trimmed) {
-    if (escaped) { current += `\\${character}`; escaped = false; }
-    else if (character === '\\') escaped = true;
-    else if (character === '|') { cells.push(current); current = ''; }
-    else current += character;
+  let trailingPipe = false;
+  for (let index = 0; index < trimmed.length; index += 1) {
+    const character = trimmed[index]!;
+    trailingPipe = false;
+    if (character === '\\' && trimmed[index + 1] === '|') {
+      // A directly preceding backslash escapes the pipe even after another
+      // backslash. Remove only this escape before parsing code/other inlines.
+      current += '|';
+      index += 1;
+    } else if (character === '|') {
+      cells.push(current);
+      current = '';
+      trailingPipe = true;
+    } else current += character;
   }
-  if (escaped) current += '\\';
   cells.push(current);
+  if (trimmed.startsWith('|')) cells.shift();
+  if (trailingPipe) cells.pop();
   return cells;
 }
 
