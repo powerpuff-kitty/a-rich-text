@@ -341,3 +341,7 @@ Features that can reasonably execute on the user's device should stay client-sid
 ### Explore the editor
 
 The [local showcase](http://127.0.0.1:8080/) lets you switch appearance, traditional/inline toolbars, tool sets and sample documents. See [editor modes and upcoming tools](docs/editor-modes.md) for the shared shell, reusable dropdown and optional lightweight code highlighter.
+
+## Contributing, security and licence
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for contribution expectations and [SECURITY.md](SECURITY.md) for private security reporting. The editor's original source is under the [MIT licence](LICENSE); review package-specific terms and third-party notices where applicable. Running a local showcase is not a substitute for production accessibility or IME validation.
