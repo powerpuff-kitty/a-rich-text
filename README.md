@@ -2,6 +2,10 @@
 
 **A browser-first rich-text editor that behaves like a native HTML control.**
 
+[![Status: development snapshot](https://img.shields.io/static/v1?label=Status&message=development%20snapshot&color=64748b)](README.md)
+[![License: MIT](https://img.shields.io/static/v1?label=License&message=MIT&color=64748b)](LICENSE)
+[![pnpm: 10.17.1](https://img.shields.io/static/v1?label=pnpm&message=10.17.1&color=64748b)](package.json)
+
 The primary integration surface is `<a-rich-text>`. The open client runtime is designed to work without an account, API key, framework runtime, mandatory server, or mandatory network request. Optional paid products focus on managed infrastructure rather than locking ordinary editor features behind a subscription.
 
 > Status: locally installable development snapshot. Start with the [integration guide](docs/getting-started.md). Production release gates still require physical-device, screen-reader and real-IME evidence.
